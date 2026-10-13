@@ -1,13 +1,13 @@
 # Harness
 
-Conjunto reutilizable de **reglas**, **skills** y **plantillas de contexto** para desarrollar proyectos con [openCode](https://opencode.ai). Se instala **dentro de cada proyecto** para mantener contexto entre sesiones y ahorrar tokens.
+Conjunto reutilizable de **reglas**, **skills** y **plantillas de contexto** para desarrollar proyectos con [openCode](https://opencode.ai). Se instala **global** (una vez para toda la máquina) o **por proyecto**, según elijas.
 
 ## Qué resuelve
 
 - El agente no improvisa: reglas claras en `AGENTS.md`.
 - Las skills se cargan **solo cuando hacen falta** → menos tokens por sesión.
 - El contexto del proyecto persiste entre sesiones (`README` / `DEVELOPMENT` / `SKILL`).
-- Cada proyecto es **autocontenido**: el harness viaja con el repositorio.
+- Vos elegís el alcance: **global** (cero drift) o **por proyecto** (solo lo necesario).
 
 ## Estructura
 
@@ -15,14 +15,15 @@ Conjunto reutilizable de **reglas**, **skills** y **plantillas de contexto** par
 Harness/
 ├─ README.md              # este archivo
 ├─ LICENSE                # MIT
+├─ VERSION                # versión del harness
 ├─ AGENTS.md              # reglas        ┐
-├─ skills/                # 8 skills      ├─ lo que se instala en cada proyecto
+├─ skills/                # 8 skills      ├─ lo que se instala (global o por proyecto)
 ├─ templates/
-│  ├─ opencode.json       # config del proyecto (skills + permisos)
+│  ├─ opencode.json       # config del proyecto (instructions + skills.paths + permisos)
 │  ├─ README.md           # ┐
-│  ├─ DEVELOPMENT.md      # ├─ plantillas de contexto (memoria)
+│  ├─ DEVELOPMENT.md      # ├─ plantillas de memoria (contexto)
 │  └─ SKILL.md            # ┘
-└─ install.ps1            # instalador
+└─ install.ps1            # instalador / actualizador
 ```
 
 ## Requisitos
@@ -30,40 +31,53 @@ Harness/
 - [openCode](https://opencode.ai) instalado.
 - PowerShell (Windows) para `install.ps1`.
 
-## Instalación en un proyecto
+## Instalación
+
+Es **agnóstico**: no hay set por defecto. Siempre indicás **qué** skills y **dónde**.
 
 ```powershell
-# Instala reglas + skills + opencode.json
-.\install.ps1 -Project "D:\ruta\al\proyecto"
+# Catálogo disponible (nombre + descripción)
+.\install.ps1 -List
 
-# Además, crea las plantillas de contexto (README/DEVELOPMENT/SKILL)
-.\install.ps1 -Project "D:\ruta\al\proyecto" -Context
+# Por proyecto (local): vive en <proyecto>\harness\
+.\install.ps1 -Project "D:\ruta\al\proyecto" -Skills dotnet,postgres
+
+# Global (toda la máquina): ~/.config/opencode\
+.\install.ps1 -Global -Skills git,ui-ux-mockup
+
+# Actualizar lo ya declarado, en su scope (no necesitás recordar cuál)
+.\install.ps1 -Update -Project "D:\ruta\al\proyecto"
+.\install.ps1 -Update -Global
 ```
 
 Qué hace:
 
-1. Copia `AGENTS.md` y `skills/` a `<proyecto>\harness\`.
-2. Crea `<proyecto>\opencode.json` desde la plantilla (solo si no existe; no pisa nada).
-3. Con `-Context`, copia las plantillas de contexto (solo si no existen).
-4. Reporta qué creó y qué omitió.
+1. Copia las **skills elegidas** y las **reglas** (`AGENTS.md`) al destino del scope.
+2. Escribe `.harness.json` (`{scope, rules, skills, harnessVersion}`): la **declaración** que usa `-Update`.
+3. Local: crea `opencode.json` si falta y agrega `harness/skills/` a `.gitignore`.
+4. **Nunca pisa** skills/reglas ajenas: las **respalda** en `.harness-backup\` y las omite (o las reemplaza con `-Force`).
+5. `-Update` alinea el set: agrega las que falten y **poda** las que ya no declaraste.
 
-Instalación manual (equivalente):
+## Qué queda en cada scope
 
-1. Copia `AGENTS.md` y `skills/` a `<proyecto>\harness\`.
-2. Copia `templates\opencode.json` a `<proyecto>\opencode.json`.
-
-## Qué queda en el proyecto
+**Local** (en el proyecto):
 
 ```
 proyecto/
-├─ opencode.json          # apunta a harness/ y define permisos
-├─ AGENTS.md              # (opcional) reglas propias del proyecto
-├─ README.md              # contexto: descripción, uso, comandos
-├─ DEVELOPMENT.md         # contexto: arquitectura, decisiones, pendientes
+├─ opencode.json          # apunta a harness/ y define permisos       (commit)
+├─ .harness.json          # declaración: scope + skills              (commit)
+├─ .gitignore             # ignora harness/skills/                   (commit)
+├─ README.md              # memoria: descripción, uso, comandos      (commit)
+├─ DEVELOPMENT.md         # memoria: arquitectura, decisiones        (commit)
 └─ harness/
-   ├─ AGENTS.md           # reglas del harness
-   └─ skills/             # skills reutilizables
+   ├─ AGENTS.md           # reglas del harness                       (commit)
+   └─ skills/             # skills instaladas                        (ignorado)
 ```
+
+**Global** (fuera del proyecto): `~/.config/opencode/` → `AGENTS.md`, `skills/`, `.harness.json`. No toca el proyecto.
+
+- **Commit**: reglas, declaración y memoria. **Ignorado**: las skills (copias gestionadas; se refrescan con `-Update`).
+- openCode combina **global + proyecto**, así que podés mezclar: skills universales globales y de stack por proyecto.
 
 ## Uso
 
@@ -76,22 +90,28 @@ proyecto/
 
 **App nueva (desde cero)**
 
-1. Instala con contexto: `.\install.ps1 -Project "<ruta>" -Context`.
+1. Instala con tus skills y contexto: `.\install.ps1 -Project "<ruta>" -Skills dotnet,postgres -Context`.
 2. Rellena `README.md`: qué es, para quién y el alcance del MVP.
 3. Rellena `DEVELOPMENT.md` con las primeras decisiones (stack, arquitectura, pendientes).
 4. Avanza en pasos pequeños; al cerrar cada paso, actualiza `DEVELOPMENT.md`.
 
 **App existente (ya en marcha)**
 
-1. Instala con `-Context`: las plantillas solo se crean si **no** existen, nunca pisan tus archivos.
+1. Instala con tus skills y `-Context`: las plantillas solo se crean si **no** existen, nunca pisan tus archivos.
 2. Conserva tu `README.md`; crea o actualiza `DEVELOPMENT.md` con arquitectura, comandos de build/test, decisiones y pendientes.
 3. Revisa que `opencode.json` apunte a `harness/` y ajusta permisos si hace falta.
 
 En ambos casos el agente lee primero `AGENTS.md` + `DEVELOPMENT.md`: cuanto mejor sea ese contexto, menos tokens gastas repitiendo.
 
-## Actualizar el harness en un proyecto
+## Actualizar
 
-Re-ejecuta el instalador: sobrescribe `harness\AGENTS.md` y `harness\skills\`, y **no toca** `opencode.json` ni tus archivos de contexto.
+`.\install.ps1 -Update` (con `-Project` o `-Global`) refresca las skills y reglas declaradas, en su scope, sin que tengas que recordar cuál. Alinea el set (agrega y poda) y respalda lo que reemplace.
+
+Para cambiar el set, pasá `-Skills` de nuevo:
+
+```powershell
+.\install.ps1 -Project "D:\ruta\al\proyecto" -Skills dotnet,postgres,redis
+```
 
 ## Hoja de ruta (diferido)
 
@@ -99,6 +119,7 @@ Estos conceptos existen en harness avanzados, pero **no** se incluyen todavía p
 
 - **Hands** — conexiones/herramientas que se le dan al agente (servidores MCP o scripts con credenciales). Ejemplos posibles: Brevo (email transaccional), Cloudinary (documentos e imágenes).
 - **Hooks** — automatismos vía plugins de openCode. En gran parte cubiertos ya por `permission` (bloquear `.env`, pedir permiso para Git/instalaciones).
+- **Agentes** — subagentes de openCode (`.opencode/agent/`). Otra capa con su propio coste de contexto; se evaluará si aporta.
 
 ## Créditos
 
