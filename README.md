@@ -72,6 +72,23 @@ proyecto/
 - Las **skills** se activan solas según su `description` (no hay que invocarlas).
 - Mantén `DEVELOPMENT.md` al día: es la memoria que evita reexplicar todo.
 
+## Onboarding: app nueva vs. app existente
+
+**App nueva (desde cero)**
+
+1. Instala con contexto: `.\install.ps1 -Project "<ruta>" -Context`.
+2. Rellena `README.md`: qué es, para quién y el alcance del MVP.
+3. Rellena `DEVELOPMENT.md` con las primeras decisiones (stack, arquitectura, pendientes).
+4. Avanza en pasos pequeños; al cerrar cada paso, actualiza `DEVELOPMENT.md`.
+
+**App existente (ya en marcha)**
+
+1. Instala con `-Context`: las plantillas solo se crean si **no** existen, nunca pisan tus archivos.
+2. Conserva tu `README.md`; crea o actualiza `DEVELOPMENT.md` con arquitectura, comandos de build/test, decisiones y pendientes.
+3. Revisa que `opencode.json` apunte a `harness/` y ajusta permisos si hace falta.
+
+En ambos casos el agente lee primero `AGENTS.md` + `DEVELOPMENT.md`: cuanto mejor sea ese contexto, menos tokens gastas repitiendo.
+
 ## Actualizar el harness en un proyecto
 
 Re-ejecuta el instalador: sobrescribe `harness\AGENTS.md` y `harness\skills\`, y **no toca** `opencode.json` ni tus archivos de contexto.
