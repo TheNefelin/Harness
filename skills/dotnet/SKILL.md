@@ -204,8 +204,8 @@ Un solo `GlobalExceptionHandler` (`IExceptionHandler`) captura las excepciones n
 
 Tres piezas separadas: **contraseñas**, **JWT** (identifica al usuario) y **ApiKey global** (identifica al origen). El código está en **`references/auth.md`**.
 
-- **Contraseñas (PBKDF2)**: `Rfc2898DeriveBytes.Pbkdf2` con salt aleatorio de 16 bytes e iteraciones configurables. **Nunca**: texto plano, MD5, SHA1, ni hash sin salt.
-- **JWT**: `ValidateIssuer`/`ValidateAudience`/`ValidateLifetime` en `true`, `ClockSkew = TimeSpan.Zero`, `IssuerSigningKey` desde config; `OnChallenge` responde 401 uniforme con el envelope.
+- **Contraseñas (PBKDF2)**: `Rfc2898DeriveBytes.Pbkdf2` con salt aleatorio de 16 bytes e iteraciones configurables. **Nunca**: texto plano, MD5, SHA1, ni hash sin salt. Iteraciones según la guía vigente (OWASP recomienda ≥600 000 para PBKDF2-HMAC-SHA256; ver NIST SP 800-132).
+- **JWT**: `ValidateIssuer`/`ValidateAudience`/`ValidateLifetime` en `true`, `ClockSkew = TimeSpan.Zero`, `IssuerSigningKey` desde config; `OnChallenge` responde 401 uniforme con el envelope. Alineado con *RFC 8725* (JWT Best Current Practices).
 - **ApiKey global**: se envía en el header `X-Api-Key` y se compara contra el valor de BD (`Mae_Config`) con `CryptographicOperations.FixedTimeEquals` (tiempo constante). **Nunca en la query string** (queda en logs del servidor y del proxy).
 
 ---
@@ -348,3 +348,13 @@ El detalle de MAUI (MVVM, DI, Shell y navegación, Core vs MAUI, timers, audio, 
 - **Migration .NET 10**: `PasswordManager_.NET10` — port del mismo patrón con OpenApi 2.x (Swashbuckle 10.x).
 - **Config de despliegue**: connection string de producción por entorno, fail-fast, CORS por allow-list.
 - **Documentación**: ver `DEVELOPMENT.md` del proyecto para decisiones de diseño y alternativas descartadas.
+
+---
+
+## 16. Fuentes
+
+- **ProblemDetails / errores HTTP**: IETF *RFC 9457* (Problem Details for HTTP APIs).
+- **JWT**: IETF *RFC 8725* (JSON Web Token Best Current Practices).
+- **Hash de contraseñas**: NIST *SP 800-132*; OWASP *Password Storage Cheat Sheet*.
+- **Config por entorno**: *The Twelve-Factor App* (`12factor.net`), factor III (config).
+- **.NET / EF Core**: Microsoft Learn (`learn.microsoft.com`), *Announcing .NET 10* (2025-11-11).

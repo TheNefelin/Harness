@@ -332,3 +332,12 @@ Antes de dar una API por terminada:
 | SDK oficial del proveedor (`brevo_python`) | Una lib más que fijar, pinchar y actualizar; `httpx` async basta para 1-2 endpoints |
 | `502` genérico en fallo de proveedor | Oculta la causa real; mapear por status y loguear el detalle (`messageId`, body del error) |
 | Interpolar contenido del usuario en el HTML del email | HTML injection; escapar siempre |
+
+---
+
+## 16. Fuentes
+
+- **ProblemDetails / errores HTTP**: IETF *RFC 9457* (Problem Details for HTTP APIs).
+- **JWT**: IETF *RFC 8725* (JSON Web Token Best Current Practices).
+- **Config por entorno**: *The Twelve-Factor App* (`12factor.net`), factor III (config).
+- **Stack**: documentación oficial de FastAPI (`fastapi.tiangolo.com`), SQLAlchemy (`docs.sqlalchemy.org`) y Pydantic (`docs.pydantic.dev`).

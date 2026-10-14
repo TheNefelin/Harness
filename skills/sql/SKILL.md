@@ -122,6 +122,8 @@ WHEN MATCHED THEN UPDATE SET name = s.name
 WHEN NOT MATCHED THEN INSERT (email, name) VALUES (s.email, s.name);
 ```
 
+**Nota (SQL Server):** Microsoft documenta que `MERGE` tiene comportamiento sorprendente bajo concurrencia; si podés, preferí `INSERT`/`UPDATE` separados dentro de una transacción, o `ON CONFLICT` en PostgreSQL.
+
 **Dinero** (nunca `float`):
 ```sql
 -- ❌ Bad
@@ -143,3 +145,9 @@ price_cents integer NOT NULL CHECK (price_cents >= 0)
 - [ ] Transacciones cortas y con isolation explícito
 - [ ] Migraciones versionadas, reversibles e idempotentes
 - [ ] Tests contra el mismo motor que producción
+
+## 9. Fuentes
+
+- **Sintaxis / estándar**: ISO/IEC *9075:2023* (SQL:2023).
+- **Keyset pagination y `ON CONFLICT`**: PostgreSQL docs (`postgresql.org/docs`).
+- **`MERGE` y aislamiento**: SQL Server docs / Microsoft Learn (`learn.microsoft.com`).

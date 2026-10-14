@@ -119,3 +119,9 @@ await db.collection("app_sessions").updateOne(
 - [ ] TTL en datos efímeros
 - [ ] Índices por acceso real (coste de escritura considerado)
 - [ ] Control de concurrencia optimista donde aplica
+
+## 7. Fuentes
+
+- **Clave de partición y Query vs Scan**: AWS DynamoDB docs (`docs.aws.amazon.com`).
+- **Embed vs reference y modelado**: MongoDB docs (`mongodb.com/docs`).
+- **Caché-aside y TTL**: Redis docs (`redis.io/docs`).
