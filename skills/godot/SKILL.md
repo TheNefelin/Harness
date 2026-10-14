@@ -36,6 +36,7 @@ description: Patrón senior para videojuegos en Godot 4 (GDScript y C#): escenas
 3. **Desacoplar con señales**: los hijos emiten, los padres escuchan (o suben por el árbol). Evitar que un nodo conozca rutas profundas de otros.
 4. **Autoload solo para lo realmente global** (estado de juego, audio, un event bus). Si todo es singleton, se pierde todo el desacoplamiento.
 5. **Datos en `Resource`** (`.tres`) con `class_name` y `@export`: configuración editable en el inspector y reutilizable, en lugar de constantes dispersas.
+6. **Comportamiento en FSM; entrada centralizada.** Un actor con varios modos usa una máquina de estados (un estado activo, uno por script), y **un único `InputController`** lee `Input.*`. Detalle y trampas en `references/state-machine.md`.
 
 ## Reglas y convenciones
 
@@ -135,6 +136,8 @@ public partial class Health : Node
 - [ ] Autoloads solo para estado realmente global
 - [ ] `_process` vs `_physics_process` según corresponda; nada pesado por frame
 - [ ] Nodos liberados con `queue_free()`; sin objetos por frame
+- [ ] Actores con varios modos usan FSM; setup en `enter()`, limpieza en `exit()`
+- [ ] Entrada centralizada en un `InputController`; ningún estado lee `Input` directo
 - [ ] Datos de diseño en `Resource` (`class_name`), no incrustados
 - [ ] `.godot/` en `.gitignore`; `export_presets.cfg` revisado (secretos)
 - [ ] Build/export probado en la plataforma objetivo

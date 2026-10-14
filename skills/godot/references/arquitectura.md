@@ -59,7 +59,7 @@ extends Resource
 
 ## Gestión de estado
 
-- **Máquina de estados** explícita para entidades complejas (jugador, enemigo): un nodo "Estado" con `enter()`/`exit()`/`update(delta)`, o `AnimationNodeStateMachine` para lo visual.
+- **Máquina de estados** explícita para entidades complejas (jugador, enemigos, jefes). Implementación completa (clase base, `StateMachine`, input desacoplado y trampas) en `references/state-machine.md`.
 - No usar `if estado == "..."` encadenados por todo el código.
 - Para UI, separar la **escena de UI** de su **lógica**: un script contenedor que escucha señales y actualiza la vista.
 
