@@ -51,6 +51,12 @@ Es **agnóstico**: no hay set por defecto. Siempre indicas **qué** skills y **d
 # Actualizar lo ya declarado, en su scope (no necesitas recordar cuál)
 .\install.ps1 -Update -Project "D:\ruta\al\proyecto"
 .\install.ps1 -Update -Global
+
+# Previsualizar sin modificar nada (instalar/refrescar/respaldar/omitir/podar)
+.\install.ps1 -Project "D:\ruta\al\proyecto" -Skills dotnet,sql -WhatIf
+
+# Actualizar desde otro catálogo (clon local o URL git), sin abrir el repo Harness
+.\install.ps1 -Update -Project "D:\ruta\al\proyecto" -Source "https://github.com/TheNefelin/Harness"
 ```
 
 Qué hace:
@@ -62,6 +68,8 @@ Qué hace:
 5. `-Update` alinea el set: agrega las que falten y **poda** las que ya no declaraste.
 
 `-Detect` no instala: escanea el proyecto (marcadores de archivos y dependencias) y compara con el catálogo, listando las tecnologías **sin skill** (candidatas a crear). En una instalación Local, ese reporte se muestra además de forma informativa.
+
+`-WhatIf` previsualiza la operación completa (instalar, refrescar, respaldar, omitir, podar) **sin escribir nada**: úsalo para ver qué pasaría antes de aplicar.
 
 ## Qué queda en cada scope
 
@@ -112,11 +120,34 @@ En ambos casos el agente lee primero `AGENTS.md` + `DEVELOPMENT.md`: cuanto mejo
 
 `.\install.ps1 -Update` (con `-Project` o `-Global`) refresca las skills y reglas declaradas, en su scope, sin que tengas que recordar cuál. Alinea el set (agrega y poda) y respalda lo que reemplace.
 
+Por defecto usa el catálogo **junto al script**. Para actualizar **desde otra ubicación** (un clon propio o el repo remoto) sin abrir el Harness, indica el origen con `-Source` (ruta local o URL git):
+
+```powershell
+.\install.ps1 -Update -Project "D:\ruta\al\proyecto" -Source "D:\Repo\Harness"
+.\install.ps1 -Update -Global -Source "https://github.com/TheNefelin/Harness"
+```
+
 Para cambiar el set, pasa `-Skills` de nuevo:
 
 ```powershell
 .\install.ps1 -Project "D:\ruta\al\proyecto" -Skills dotnet,sql,nosql
 ```
+
+## Catálogo, instalación y personalizaciones
+
+Tres capas separadas, para poder mejorar el Harness sin perder tus cambios:
+
+1. **Catálogo** — las versiones oficiales en el repositorio Harness (o el que indiques con `-Source`). Es la fuente de verdad.
+2. **Instalación** — las copias que openCode usa en cada proyecto (`<proyecto>\harness\skills\`) o global (`~/.config/opencode\skills\`). Son **artefactos gestionados**: no los edites a mano; se regeneran con `-Update`.
+3. **Personalizaciones** — todo lo que no lleva el marcador `.harness-source`. El instalador **nunca** lo poda ni lo pisa; tu propia skill o tus notas viven aquí.
+
+**Política ante diferencias/conflictos** (sin pérdida de datos):
+
+- Al actualizar, si una skill instalada está **idéntica** al catálogo → no hace nada (`sin cambios`).
+- Si **no existe** → la instala.
+- Si la **editaste a mano** (la copia difiere de la que se instaló) → **la respalda** en `.harness-backup\` y avisa `CONFLICT` antes de refrescar.
+- Si es **ajena** (sin marcador) → la omite, salvo `-Force` (que la respalda y reemplaza).
+- `-WhatIf` muestra todo esto **antes** de tocar nada.
 
 ## Hoja de ruta (diferido)
 

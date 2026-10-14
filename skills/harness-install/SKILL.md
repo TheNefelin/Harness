@@ -32,6 +32,8 @@ Repositorio: `https://github.com/TheNefelin/Harness.git`
 | `-Global` | Scope **Global**: vive en `~/.config/opencode\` |
 | `-Skills a,b,c` | Skills a instalar. **Obligatorio** salvo con `-Update`/`-List`: no hay set por defecto |
 | `-Update` | Refresca lo declarado en `.harness.json` (su scope), agrega lo que falte y **poda** lo que ya no se declare |
+| `-WhatIf` | Previsualiza qué haría (instalar/refrescar/respaldar/omitir/podar) sin modificar nada |
+| `-Source <ruta\|url>` | Origen del catálogo: clon local o URL git (se clona a temp). Actualiza sin abrir el repo Harness |
 | `-Force` | Reemplaza skills/reglas ajenas (con respaldo) en vez de omitirlas |
 | `-Context` | Local: copia además las plantillas de memoria (`README.md`, `DEVELOPMENT.md`, `SKILL.md`) si no existen |
 
@@ -66,6 +68,8 @@ Repositorio: `https://github.com/TheNefelin/Harness.git`
 
 - En Local, `opencode.json` apunta a `harness/skills` por `skills.paths`; abrir openCode **en la raíz** del proyecto (las rutas son relativas al directorio de trabajo).
 - El instalador **nunca pisa** skills/reglas ajenas: las respalda en `.harness-backup\` y las omite, salvo `-Force`.
+- Tres capas: **catálogo** (repo Harness o `-Source`), **instalación** (copias gestionadas con marcador `.harness-source`; no editar a mano) y **personalizaciones** (sin marcador; nunca se podan).
+- **Conflictos:** al actualizar, una skill idéntica al catálogo no se toca (`sin cambios`); una **editada localmente** se **respalda** y se avisa `CONFLICT` antes de refrescar. Sin pérdida de datos.
 
 ## Anti-patrones / gotchas
 

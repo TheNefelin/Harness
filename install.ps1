@@ -33,6 +33,14 @@
     Detecta las tecnologias del proyecto (-Project) y compara con el catalogo: informa
     que skills existen y que tecnologias no tienen skill (candidatas a crear). Solo lectura.
 
+.PARAMETER WhatIf
+    Simula la operacion: muestra que se instalaria, refrescaria, respaldaria, omitiria
+    o podaria, sin modificar nada.
+
+.PARAMETER Source
+    Origen del catalogo: ruta local a un clon del Harness o URL git (https/ssh). Permite
+    actualizar un proyecto sin tener el repositorio Harness abierto a mano.
+
 .PARAMETER Force
     Reemplaza skills/reglas ajenas (haciendo respaldo) en vez de omitirlas.
 
@@ -44,6 +52,9 @@
     .\install.ps1 -Project "D:\Repo\App" -Detect
     .\install.ps1 -Project "D:\Repo\App" -Skills dotnet,postgres
     .\install.ps1 -Global -Skills docker,kubernetes
+    .\install.ps1 -Project "D:\Repo\App" -Skills dotnet,postgres -WhatIf
+    .\install.ps1 -Project "D:\Repo\App" -Update -Source "D:\Repo\Harness"
+    .\install.ps1 -Project "D:\Repo\App" -Update -Source "https://github.com/TheNefelin/Harness.git"
     .\install.ps1 -Project "D:\Repo\App" -Update
 #>
 param(
@@ -60,6 +71,10 @@ param(
 
     [switch]$Detect,
 
+    [switch]$WhatIf,
+
+    [string]$Source,
+
     [switch]$Force,
 
     [switch]$Context
@@ -70,11 +85,39 @@ Set-StrictMode -Version Latest
 try { [Console]::OutputEncoding = [System.Text.Encoding]::UTF8 } catch {}
 
 $ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
-$CatalogDir = Join-Path $ScriptDir 'skills'
 $MarkerName = '.harness-source'
 
+# Capa 1 (catalogo): clon local o URL git, para actualizar sin abrir el repo
+$SourceRoot = $ScriptDir
+if ($Source) {
+    if ($Source -match '^(https?://|ssh://|git://|git@|file://)') {
+        if (-not (Get-Command git -ErrorAction SilentlyContinue)) { throw 'Se requiere git para usar -Source <url>.' }
+        $key = [System.BitConverter]::ToString([System.Security.Cryptography.SHA256]::Create().ComputeHash([System.Text.Encoding]::UTF8.GetBytes($Source))).Replace('-', '').Substring(0, 12)
+        $cache = Join-Path $env:TEMP ("harness-src-$key")
+        if (Test-Path -LiteralPath (Join-Path $cache '.git')) {
+            Write-Host "Source: refrescando $cache" -ForegroundColor DarkGray
+            git -C $cache fetch --depth 1 --quiet
+            git -C $cache reset --hard --quiet FETCH_HEAD
+        }
+        else {
+            Write-Host "Source: clonando $Source" -ForegroundColor DarkGray
+            git clone --depth 1 --quiet $Source $cache
+        }
+        if ($LASTEXITCODE -ne 0 -or -not (Test-Path -LiteralPath $cache)) { throw "No se pudo obtener el catalogo desde $Source" }
+        $SourceRoot = $cache
+    }
+    else {
+        $resolved = Resolve-Path -LiteralPath $Source -ErrorAction SilentlyContinue
+        if (-not $resolved) { throw "La ruta de -Source no existe: $Source" }
+        $SourceRoot = $resolved.Path
+    }
+    if (-not (Test-Path -LiteralPath (Join-Path $SourceRoot 'skills'))) { throw "-Source no parece un catalogo Harness (falta skills\): $SourceRoot" }
+}
+
+$CatalogDir = Join-Path $SourceRoot 'skills'
+
 $Version = '0.0.0'
-$VersionFile = Join-Path $ScriptDir 'VERSION'
+$VersionFile = Join-Path $SourceRoot 'VERSION'
 if (Test-Path -LiteralPath $VersionFile) {
     $Version = (Get-Content -LiteralPath $VersionFile -Raw).Trim()
 }
@@ -94,6 +137,39 @@ function Get-Catalog {
         $result += [pscustomobject]@{ Name = $dir.Name; Description = $desc }
     }
     return @($result | Sort-Object Name)
+}
+
+function Get-TreeHash {
+    param([string]$Path)
+    $sha = [System.Security.Cryptography.SHA256]::Create()
+    try {
+        $lines = @()
+        foreach ($f in (Get-ChildItem -LiteralPath $Path -Recurse -File -Force)) {
+            if ($f.Name -eq $MarkerName) { continue }
+            $rel = $f.FullName.Substring($Path.Length).TrimStart('\', '/').Replace('\', '/')
+            $hex = [System.BitConverter]::ToString($sha.ComputeHash([System.IO.File]::ReadAllBytes($f.FullName))).Replace('-', '')
+            $lines += ($rel + '|' + $hex)
+        }
+        $joined = (($lines | Sort-Object) -join "`n")
+        return [System.BitConverter]::ToString($sha.ComputeHash([System.Text.Encoding]::UTF8.GetBytes($joined))).Replace('-', '').ToLower()
+    }
+    finally { $sha.Dispose() }
+}
+
+function New-MarkerValue {
+    param([string]$Hash)
+    return ('{{ "version": "{0}", "hash": "{1}" }}' -f $Version, $Hash)
+}
+
+function Get-Marker {
+    param([string]$Path)
+    $markerFile = Join-Path $Path $MarkerName
+    if (-not (Test-Path -LiteralPath $markerFile)) { return $null }
+    $raw = (Get-Content -LiteralPath $markerFile -Raw).Trim()
+    if ($raw.StartsWith('{')) {
+        try { return ($raw | ConvertFrom-Json) } catch { return $null }
+    }
+    return [pscustomobject]@{ version = $raw; hash = $null }
 }
 
 function Get-ProjectTech {
@@ -315,14 +391,18 @@ if ($Scope -eq 'Local') {
 }
 
 # Instalar skills
-New-Item -ItemType Directory -Path $SkillsDir -Force | Out-Null
+if (-not $WhatIf) { New-Item -ItemType Directory -Path $SkillsDir -Force | Out-Null }
 $BackupDir = Join-Path $ScopeRoot '.harness-backup'
 
 function Backup-Path {
     param([string]$Path, [string]$Name)
-    New-Item -ItemType Directory -Path $BackupDir -Force | Out-Null
     $stamp = Get-Date -Format 'yyyyMMdd-HHmmss'
     $dest = Join-Path $BackupDir ("{0}-{1}" -f $Name, $stamp)
+    if ($WhatIf) {
+        Write-Host "WOULD  respaldar $Name -> .harness-backup\$([System.IO.Path]::GetFileName($dest))" -ForegroundColor DarkCyan
+        return
+    }
+    New-Item -ItemType Directory -Path $BackupDir -Force | Out-Null
     Move-Item -LiteralPath $Path -Destination $dest
     Write-Host "BACKUP $Name -> $dest" -ForegroundColor Yellow
 }
@@ -330,10 +410,11 @@ function Backup-Path {
 foreach ($name in $desired) {
     $src = Join-Path $CatalogDir $name
     $dst = Join-Path $SkillsDir $name
+    $srcHash = Get-TreeHash -Path $src
 
     if (Test-Path -LiteralPath $dst) {
-        $ours = Test-Path -LiteralPath (Join-Path $dst $MarkerName)
-        if (-not $ours) {
+        $marker = Get-Marker -Path $dst
+        if (-not $marker) {
             if ($Force) { Backup-Path -Path $dst -Name $name }
             else {
                 Write-Host "SKIP   $name (ajena; usa -Force para reemplazar)" -ForegroundColor Yellow
@@ -341,22 +422,56 @@ foreach ($name in $desired) {
             }
         }
         else {
-            Remove-Item -LiteralPath $dst -Recurse -Force
+            $dstHash = Get-TreeHash -Path $dst
+            if ($dstHash -eq $srcHash) {
+                if ($WhatIf) { Write-Host "WOULD  sin cambios  $name" -ForegroundColor DarkCyan }
+                else {
+                    Set-Content -LiteralPath (Join-Path $dst $MarkerName) -Value (New-MarkerValue -Hash $srcHash)
+                    Write-Host "OK     skill $name (sin cambios)" -ForegroundColor DarkGray
+                }
+                continue
+            }
+
+            $modified = $true
+            if ($marker.hash) { $modified = ($dstHash -ne $marker.hash) }
+
+            if ($WhatIf) {
+                if ($modified) { Write-Host "WOULD  actualizar $name (DIVERGENCIA: respaldo)" -ForegroundColor DarkCyan }
+                else { Write-Host "WOULD  actualizar skill $name" -ForegroundColor DarkCyan }
+                continue
+            }
+
+            if ($modified) {
+                Backup-Path -Path $dst -Name $name
+                Write-Host "CONFLICT $name editada localmente; se respaldo antes de actualizar" -ForegroundColor Yellow
+            }
+            else {
+                Remove-Item -LiteralPath $dst -Recurse -Force
+            }
         }
     }
 
+    if ($WhatIf) { Write-Host "WOULD  instalar skill $name" -ForegroundColor DarkCyan; continue }
+
     Copy-Item -LiteralPath $src -Destination $dst -Recurse -Force
-    Set-Content -LiteralPath (Join-Path $dst $MarkerName) -Value $Version
+    Set-Content -LiteralPath (Join-Path $dst $MarkerName) -Value (New-MarkerValue -Hash $srcHash)
     Write-Host "OK     skill $name" -ForegroundColor Green
 }
 
 # Podar skills nuestras que ya no se desean
-foreach ($dir in (Get-ChildItem -LiteralPath $SkillsDir -Directory -Force)) {
-    if ($dir.Name -eq '.harness-backup') { continue }
-    $isOurs = Test-Path -LiteralPath (Join-Path $dir.FullName $MarkerName)
-    if ($isOurs -and ($dir.Name -notin $desired)) {
-        Remove-Item -LiteralPath $dir.FullName -Recurse -Force
-        Write-Host "PRUNE  $($dir.Name)" -ForegroundColor DarkGray
+if (Test-Path -LiteralPath $SkillsDir) {
+    foreach ($dir in (Get-ChildItem -LiteralPath $SkillsDir -Directory -Force)) {
+        if ($dir.Name -eq '.harness-backup') { continue }
+        $isOurs = Test-Path -LiteralPath (Join-Path $dir.FullName $MarkerName)
+        if ($isOurs -and ($dir.Name -notin $desired)) {
+            if ($WhatIf) {
+                Write-Host "WOULD  podar $($dir.Name)" -ForegroundColor DarkCyan
+            }
+            else {
+                Remove-Item -LiteralPath $dir.FullName -Recurse -Force
+                Write-Host "PRUNE  $($dir.Name)" -ForegroundColor DarkGray
+            }
+        }
     }
 }
 
@@ -365,24 +480,30 @@ $rulesManaged = $false
 if ($Scope -eq 'Local') { $rulesManaged = $true }
 elseif ($existingDeclObj -and ($existingDeclObj.PSObject.Properties.Name -contains 'rules')) { $rulesManaged = [bool]$existingDeclObj.rules }
 
-$srcRules = Join-Path $ScriptDir 'AGENTS.md'
+$srcRules = Join-Path $SourceRoot 'AGENTS.md'
 if (Test-Path -LiteralPath $RulesFile) {
     if ($RulesOurs -or $rulesManaged -or $Force) {
         $same = (Get-FileHash -LiteralPath $RulesFile).Hash -eq (Get-FileHash -LiteralPath $srcRules).Hash
         if (-not $same) { Backup-Path -Path $RulesFile -Name 'AGENTS.md' }
-        Copy-Item -LiteralPath $srcRules -Destination $RulesFile -Force
+        if ($WhatIf) { Write-Host "WOULD  reglas -> $RulesFile" -ForegroundColor DarkCyan }
+        else {
+            Copy-Item -LiteralPath $srcRules -Destination $RulesFile -Force
+            Write-Host "OK     reglas -> $RulesFile" -ForegroundColor Green
+        }
         $rulesManaged = $true
-        Write-Host "OK     reglas -> $RulesFile" -ForegroundColor Green
     }
     else {
         Write-Host "SKIP   $RulesFile ya existe (ajenas; usa -Force para reemplazar)" -ForegroundColor Yellow
     }
 }
 else {
-    New-Item -ItemType Directory -Path (Split-Path -Parent $RulesFile) -Force | Out-Null
-    Copy-Item -LiteralPath $srcRules -Destination $RulesFile -Force
+    if ($WhatIf) { Write-Host "WOULD  reglas -> $RulesFile" -ForegroundColor DarkCyan }
+    else {
+        New-Item -ItemType Directory -Path (Split-Path -Parent $RulesFile) -Force | Out-Null
+        Copy-Item -LiteralPath $srcRules -Destination $RulesFile -Force
+        Write-Host "OK     reglas -> $RulesFile" -ForegroundColor Green
+    }
     $rulesManaged = $true
-    Write-Host "OK     reglas -> $RulesFile" -ForegroundColor Green
 }
 
 # opencode.json
@@ -390,8 +511,11 @@ if ($Scope -eq 'Local') {
     if (Test-Path -LiteralPath $ConfigFile) {
         Write-Host 'SKIP   opencode.json ya existe (verifica instructions/skills.paths)' -ForegroundColor Yellow
     }
+    elseif ($WhatIf) {
+        Write-Host 'WOULD  opencode.json' -ForegroundColor DarkCyan
+    }
     else {
-        Copy-Item -LiteralPath (Join-Path $ScriptDir 'templates\opencode.json') -Destination $ConfigFile -Force
+        Copy-Item -LiteralPath (Join-Path $SourceRoot 'templates\opencode.json') -Destination $ConfigFile -Force
         Write-Host 'OK     opencode.json' -ForegroundColor Green
     }
 
@@ -401,9 +525,12 @@ if ($Scope -eq 'Local') {
     $entries = @('harness/skills/', 'harness/.harness-backup/')
     $toAdd = @($entries | Where-Object { ('' + $existing) -notmatch [regex]::Escape($_) })
     if ($toAdd.Count -gt 0) {
-        $block = "`n# Harness (gestionado; refrescar con install.ps1 -Update)`n" + (($toAdd -join "`n") + "`n")
-        Add-Content -LiteralPath $gi -Value $block
-        Write-Host "OK     .gitignore (ignora $($toAdd -join ', '))" -ForegroundColor Green
+        if ($WhatIf) { Write-Host "WOULD  .gitignore (ignora $($toAdd -join ', '))" -ForegroundColor DarkCyan }
+        else {
+            $block = "`n# Harness (gestionado; refrescar con install.ps1 -Update)`n" + (($toAdd -join "`n") + "`n")
+            Add-Content -LiteralPath $gi -Value $block
+            Write-Host "OK     .gitignore (ignora $($toAdd -join ', '))" -ForegroundColor Green
+        }
     }
     else {
         Write-Host 'SKIP   .gitignore ya ignora el harness' -ForegroundColor Yellow
@@ -414,8 +541,11 @@ else {
         Write-Host 'SKIP   ~/.config/opencode/opencode.json ya existe (fusiona el bloque "permission" a mano)' -ForegroundColor Yellow
     }
     else {
-        Copy-Item -LiteralPath (Join-Path $ScriptDir 'templates\opencode.global.json') -Destination $ConfigFile -Force
-        Write-Host 'OK     opencode.json global (permisos)' -ForegroundColor Green
+        if ($WhatIf) { Write-Host 'WOULD  opencode.json global (permisos)' -ForegroundColor DarkCyan }
+        else {
+            Copy-Item -LiteralPath (Join-Path $SourceRoot 'templates\opencode.global.json') -Destination $ConfigFile -Force
+            Write-Host 'OK     opencode.json global (permisos)' -ForegroundColor Green
+        }
     }
 }
 
@@ -427,8 +557,11 @@ if ($Context -and $Scope -eq 'Local') {
             Write-Host "SKIP   $file ya existe" -ForegroundColor Yellow
         }
         else {
-            Copy-Item -LiteralPath (Join-Path $ScriptDir "templates\$file") -Destination $target -Force
-            Write-Host "OK     $file" -ForegroundColor Green
+            if ($WhatIf) { Write-Host "WOULD  $file" -ForegroundColor DarkCyan }
+            else {
+                Copy-Item -LiteralPath (Join-Path $SourceRoot "templates\$file") -Destination $target -Force
+                Write-Host "OK     $file" -ForegroundColor Green
+            }
         }
     }
 }
@@ -445,9 +578,18 @@ $skillsJson
   "harnessVersion": "$Version"
 }
 "@
-Set-Content -LiteralPath $DeclFile -Value $json -Encoding UTF8
-Write-Host "OK     declaracion -> $DeclFile" -ForegroundColor Green
+if ($WhatIf) {
+    Write-Host "WOULD  declaracion -> $DeclFile" -ForegroundColor DarkCyan
+}
+else {
+    Set-Content -LiteralPath $DeclFile -Value $json -Encoding UTF8
+    Write-Host "OK     declaracion -> $DeclFile" -ForegroundColor Green
+}
 
 Write-Host ''
+if ($WhatIf) {
+    Write-Host 'WHATIF  Simulacion: no se modifico nada.' -ForegroundColor Cyan
+    exit 0
+}
 Write-Host ("Harness " + $Scope.ToLower() + " listo. " + $desired.Count + " skill(s): " + ($desired -join ', '))
 Write-Host 'Reinicia openCode para que cargue reglas y skills.'
