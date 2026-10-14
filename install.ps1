@@ -29,6 +29,10 @@
 .PARAMETER List
     Muestra las skills disponibles en el catalogo y sale.
 
+.PARAMETER Detect
+    Detecta las tecnologias del proyecto (-Project) y compara con el catalogo: informa
+    que skills existen y que tecnologias no tienen skill (candidatas a crear). Solo lectura.
+
 .PARAMETER Force
     Reemplaza skills/reglas ajenas (haciendo respaldo) en vez de omitirlas.
 
@@ -37,6 +41,7 @@
 
 .EXAMPLE
     .\install.ps1 -List
+    .\install.ps1 -Project "D:\Repo\App" -Detect
     .\install.ps1 -Project "D:\Repo\App" -Skills dotnet,postgres
     .\install.ps1 -Global -Skills docker,kubernetes
     .\install.ps1 -Project "D:\Repo\App" -Update
@@ -52,6 +57,8 @@ param(
     [switch]$Update,
 
     [switch]$List,
+
+    [switch]$Detect,
 
     [switch]$Force,
 
@@ -89,6 +96,129 @@ function Get-Catalog {
     return @($result | Sort-Object Name)
 }
 
+function Get-ProjectTech {
+    param([string]$Root)
+
+    $skills = [System.Collections.Generic.HashSet[string]]::new([System.StringComparer]::OrdinalIgnoreCase)
+    if (-not (Test-Path -LiteralPath $Root)) { return @() }
+
+    $exclude = '[\\/](node_modules|\.git|dist|build|bin|obj|\.godot|venv|\.venv|\.idea|\.vs|packages|harness|\.opencode|\.claude|\.agents)[\\/]'
+    $files = @(Get-ChildItem -LiteralPath $Root -Recurse -File -Force -ErrorAction SilentlyContinue |
+        Where-Object { $_.FullName -notmatch $exclude })
+
+    $byName = @{}
+    $exts = [System.Collections.Generic.HashSet[string]]::new([System.StringComparer]::OrdinalIgnoreCase)
+    foreach ($f in $files) {
+        $byName[$f.Name.ToLower()] = $f.FullName
+        if ($f.Extension) { [void]$exts.Add($f.Extension.ToLower()) }
+    }
+    $fullNames = @($files | ForEach-Object { $_.FullName })
+
+    # .NET
+    if ($exts.Contains('.csproj') -or $exts.Contains('.sln') -or $byName.ContainsKey('directory.packages.props')) { [void]$skills.Add('dotnet') }
+    # Godot
+    if ($byName.ContainsKey('project.godot') -or $exts.Contains('.tscn') -or $exts.Contains('.gd')) { [void]$skills.Add('godot') }
+    # Docker
+    foreach ($n in @('dockerfile', 'compose.yaml', 'compose.yml', 'docker-compose.yaml', 'docker-compose.yml', '.dockerignore')) {
+        if ($byName.ContainsKey($n)) { [void]$skills.Add('docker'); break }
+    }
+    # Kubernetes
+    if ($byName.ContainsKey('chart.yaml') -or $byName.ContainsKey('kustomization.yaml') -or $byName.ContainsKey('kustomization.yml') -or ($fullNames -match '[\\/](k8s|kubernetes|manifests|helm)[\\/]')) { [void]$skills.Add('kubernetes') }
+    # GitHub Actions
+    if ($fullNames -match '[\\/]\.github[\\/]workflows[\\/]') { [void]$skills.Add('github-actions') }
+    # SQL por archivos
+    if ($exts.Contains('.sql')) { [void]$skills.Add('sql') }
+
+    # package.json (Node / frameworks / drivers)
+    if ($byName.ContainsKey('package.json')) {
+        $pkg = Get-Content -LiteralPath $byName['package.json'] -Raw -ErrorAction SilentlyContinue
+        if ($pkg) {
+            if ($pkg -match '@angular/core') { [void]$skills.Add('angular') }
+            if ($pkg -match '"astro"') { [void]$skills.Add('astro') }
+            if ($pkg -match '"(react|react-dom|next)"') { [void]$skills.Add('react') }
+            if ($pkg -match '"vue"') { [void]$skills.Add('vue') }
+            if ($pkg -match '"svelte"') { [void]$skills.Add('svelte') }
+            if ($pkg -match '"(pg|postgres|mysql|mysql2|mssql)"') { [void]$skills.Add('sql') }
+            if ($pkg -match '"(mongodb|redis|ioredis)"|@azure/cosmos|@aws-sdk/client-dynamodb') { [void]$skills.Add('nosql') }
+        }
+    }
+
+    # Python (requirements / pyproject / pipfile)
+    foreach ($n in @('requirements.txt', 'pyproject.toml', 'pipfile')) {
+        if ($byName.ContainsKey($n)) {
+            $py = Get-Content -LiteralPath $byName[$n] -Raw -ErrorAction SilentlyContinue
+            if ($py) {
+                if ($py -match 'fastapi') { [void]$skills.Add('fastapi') }
+                if ($py -match 'django') { [void]$skills.Add('django') }
+                if ($py -match 'flask') { [void]$skills.Add('flask') }
+                if ($py -match '(psycopg|sqlalchemy)') { [void]$skills.Add('sql') }
+                if ($py -match '(pymongo|\bredis\b)') { [void]$skills.Add('nosql') }
+            }
+        }
+    }
+
+    # .NET deps (SQL / NoSQL)
+    foreach ($f in $files) {
+        if ($f.Extension -eq '.csproj') {
+            $cs = Get-Content -LiteralPath $f.FullName -Raw -ErrorAction SilentlyContinue
+            if ($cs) {
+                if ($cs -match '(Npgsql|Microsoft\.Data\.SqlClient|EntityFrameworkCore\.(SqlServer|Npgsql|PostgreSql))') { [void]$skills.Add('sql') }
+                if ($cs -match '(StackExchange\.Redis|MongoDB\.Driver|Azure\.Cosmos|AWSSDK\.DynamoDB)') { [void]$skills.Add('nosql') }
+            }
+        }
+    }
+
+    # Terraform / nube por provider
+    if ($exts.Contains('.tf')) {
+        $sawProvider = $false
+        foreach ($f in $files) {
+            if ($f.Extension -eq '.tf') {
+                $tf = Get-Content -LiteralPath $f.FullName -Raw -ErrorAction SilentlyContinue
+                if ($tf) {
+                    if ($tf -match 'provider\s+"aws"') { [void]$skills.Add('aws'); $sawProvider = $true }
+                    if ($tf -match 'provider\s+"azurerm"') { [void]$skills.Add('azure'); $sawProvider = $true }
+                    if ($tf -match 'provider\s+"oci"') { [void]$skills.Add('oci'); $sawProvider = $true }
+                }
+            }
+        }
+        if (-not $sawProvider) { [void]$skills.Add('terraform') }
+    }
+
+    return @($skills | Sort-Object)
+}
+
+function Write-ProjectTech {
+    param(
+        [string]$Root,
+        [string[]]$Available,
+        [string[]]$Desired,
+        [switch]$ShowNotInstalled
+    )
+
+    $tech = @(Get-ProjectTech -Root $Root)
+    if ($tech.Count -eq 0) {
+        Write-Host ('Deteccion: no se reconocieron tecnologias en {0}' -f $Root) -ForegroundColor DarkGray
+        return
+    }
+
+    $withSkill = @($tech | Where-Object { $_ -in $Available })
+    $without = @($tech | Where-Object { $_ -notin $Available })
+    $conTxt = if ($withSkill.Count -gt 0) { $withSkill -join ', ' } else { '(ninguna)' }
+
+    Write-Host ('Deteccion de tecnologias: {0}' -f $Root) -ForegroundColor Cyan
+    Write-Host ('  Detectadas:              {0}' -f ($tech -join ', '))
+    Write-Host ('  Con skill en el catalogo: {0}' -f $conTxt) -ForegroundColor Green
+    if ($without.Count -gt 0) {
+        Write-Host ('  SIN skill (candidatas):   {0}' -f ($without -join ', ')) -ForegroundColor Yellow
+    }
+    if ($ShowNotInstalled -and $Desired) {
+        $notInstalled = @($withSkill | Where-Object { $_ -notin $Desired })
+        if ($notInstalled.Count -gt 0) {
+            Write-Host ('  Con skill, no instalada:   {0}' -f ($notInstalled -join ', ')) -ForegroundColor Yellow
+        }
+    }
+}
+
 if ($List) {
     Write-Host 'Skills disponibles en el catalogo:' -ForegroundColor Cyan
     foreach ($s in Get-Catalog) {
@@ -98,6 +228,17 @@ if ($List) {
     Write-Host 'Local :  .\install.ps1 -Project <ruta> -Skills <a,b,c>'
     Write-Host 'Global:  .\install.ps1 -Global -Skills <a,b>'
     Write-Host 'Update:  .\install.ps1 [-Project <ruta>|-Global] -Update'
+    exit 0
+}
+
+if ($Detect) {
+    if (-not $Project) { throw 'La deteccion requiere -Project <ruta>.' }
+    if (-not (Test-Path -LiteralPath $Project)) { throw "La ruta no existe: $Project" }
+    $catalog = @(Get-Catalog | ForEach-Object { $_.Name })
+    Write-Host 'Skills disponibles en el catalogo:' -ForegroundColor Cyan
+    Write-Host ('  ' + ($catalog -join ', '))
+    Write-Host ''
+    Write-ProjectTech -Root $Project -Available $catalog
     exit 0
 }
 
@@ -166,6 +307,11 @@ $available = @(Get-Catalog | ForEach-Object { $_.Name })
 $unknown = @($desired | Where-Object { $_ -notin $available })
 if ($unknown.Count -gt 0) {
     throw "Skills desconocidas: $($unknown -join ', '). Usa -List para ver el catalogo."
+}
+
+if ($Scope -eq 'Local') {
+    Write-ProjectTech -Root $Project -Available $available -Desired $desired -ShowNotInstalled
+    Write-Host ''
 }
 
 # Instalar skills

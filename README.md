@@ -39,11 +39,14 @@ Es **agnóstico**: no hay set por defecto. Siempre indicas **qué** skills y **d
 # Catálogo disponible (nombre + descripción)
 .\install.ps1 -List
 
+# Detectar tecnologías del proyecto y skills faltantes (solo lectura)
+.\install.ps1 -Project "D:\ruta\al\proyecto" -Detect
+
 # Por proyecto (local): vive en <proyecto>\harness\
 .\install.ps1 -Project "D:\ruta\al\proyecto" -Skills dotnet,sql
 
 # Global (toda la máquina): ~/.config/opencode\
-.\install.ps1 -Global -Skills git,ui-ux-mockup
+.\install.ps1 -Global -Skills docker,ui-ux-mockup
 
 # Actualizar lo ya declarado, en su scope (no necesitas recordar cuál)
 .\install.ps1 -Update -Project "D:\ruta\al\proyecto"
@@ -57,6 +60,8 @@ Qué hace:
 3. Local: crea `opencode.json` si falta y agrega `harness/skills/` a `.gitignore`.
 4. **Nunca pisa** skills/reglas ajenas: las **respalda** en `.harness-backup\` y las omite (o las reemplaza con `-Force`).
 5. `-Update` alinea el set: agrega las que falten y **poda** las que ya no declaraste.
+
+`-Detect` no instala: escanea el proyecto (marcadores de archivos y dependencias) y compara con el catálogo, listando las tecnologías **sin skill** (candidatas a crear). En una instalación Local, ese reporte se muestra además de forma informativa.
 
 ## Qué queda en cada scope
 

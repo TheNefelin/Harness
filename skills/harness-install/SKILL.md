@@ -27,6 +27,7 @@ Repositorio: `https://github.com/TheNefelin/Harness.git`
 | Parámetro | Descripción |
 |-----------|-------------|
 | `-List` | Muestra el catálogo (nombre + descripción) y sale |
+| `-Detect` | Escanea el proyecto (`-Project`) y lista las tecnologías sin skill en el catálogo. Solo lectura |
 | `-Project <ruta>` | Scope **Local**: vive en `<ruta>\harness\` |
 | `-Global` | Scope **Global**: vive en `~/.config/opencode\` |
 | `-Skills a,b,c` | Skills a instalar. **Obligatorio** salvo con `-Update`/`-List`: no hay set por defecto |
