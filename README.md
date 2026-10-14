@@ -17,7 +17,7 @@ Harness/
 ├─ LICENSE                # MIT
 ├─ VERSION                # versión del harness
 ├─ AGENTS.md              # reglas        ┐
-├─ skills/                # 10 skills     ├─ lo que se instala (global o por proyecto)
+├─ skills/                # 11 skills     ├─ lo que se instala (global o por proyecto)
 ├─ templates/
 │  ├─ opencode.json       # config del proyecto (instructions + skills.paths + permisos)
 │  ├─ README.md           # ┐

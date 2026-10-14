@@ -1,0 +1,88 @@
+---
+name: harness-install
+description: Instalar o actualizar el Harness (reglas + skills de openCode) en un proyecto o en la máquina, clonando el repositorio y ejecutando su instalador con el scope y las skills. Usar cuando el usuario pida instalar, actualizar o refrescar el Harness o sus skills. NO para instalar openCode ni para crear skills nuevas (eso es editar el repositorio).
+---
+
+# Harness — Instalación y actualización
+
+> El Harness es un conjunto de reglas (`AGENTS.md`), skills y plantillas de memoria para openCode. Se distribuye como repositorio y se instala con un script; **no** existe instalación por URL.
+
+Repositorio: `https://github.com/TheNefelin/Harness.git`
+
+## Cuándo NO usar
+
+| Situación | Dónde corresponde |
+|-----------|-------------------|
+| Crear o modificar una skill del catálogo | Editar `skills/<name>/SKILL.md` en el repositorio |
+| Instalar openCode en la máquina | Documentación de openCode |
+| Criterios técnicos del proyecto | `SKILL.md` del proyecto (no esta skill) |
+
+## Requisitos
+
+- `git`.
+- PowerShell: nativo en Windows; en Linux/macOS usar **PowerShell 7+ (`pwsh`)**. El instalador es PowerShell y no está probado fuera de Windows.
+
+## Parámetros del instalador
+
+| Parámetro | Descripción |
+|-----------|-------------|
+| `-List` | Muestra el catálogo (nombre + descripción) y sale |
+| `-Project <ruta>` | Scope **Local**: vive en `<ruta>\harness\` |
+| `-Global` | Scope **Global**: vive en `~/.config/opencode\` |
+| `-Skills a,b,c` | Skills a instalar. **Obligatorio** salvo con `-Update`/`-List`: no hay set por defecto |
+| `-Update` | Refresca lo declarado en `.harness.json` (su scope), agrega lo que falte y **poda** lo que ya no se declare |
+| `-Force` | Reemplaza skills/reglas ajenas (con respaldo) en vez de omitirlas |
+| `-Context` | Local: copia además las plantillas de memoria (`README.md`, `DEVELOPMENT.md`, `SKILL.md`) si no existen |
+
+## Procedimiento
+
+1. **Confirmar con el usuario** el **scope** (Local de un proyecto o Global de la máquina) y **qué skills** quiere. Sin `-Skills` la instalación falla: correr `-List` y mostrar el catálogo antes de preguntar.
+2. **Clonar** el repositorio en una carpeta temporal (fuera del proyecto).
+3. **Ejecutar el instalador** desde el clon:
+
+   ```powershell
+   # Local (un proyecto)
+   & "<temp>\Harness\install.ps1" -Project "<ruta del proyecto>" -Skills angular,dotnet,sql -Context
+
+   # Global (toda la máquina)
+   & "<temp>\Harness\install.ps1" -Global -Skills docker,kubernetes
+
+   # Actualizar lo ya declarado
+   & "<temp>\Harness\install.ps1" -Update -Project "<ruta del proyecto>"
+   ```
+
+   En Linux/macOS, invocar con `pwsh -File <ruta>/install.ps1 ...`.
+4. **Verificar**: existe `<scope root>\skills\<name>\SKILL.md` por cada skill pedida y quedo escrito el `.harness.json`.
+5. **Eliminar el clon temporal.**
+6. **Reportar** e indicar al usuario **reiniciar openCode** para que cargue reglas y skills. No ejecutar Git (§9).
+
+## Qué instala y dónde
+
+| Scope | Destino | Contenido |
+|-------|---------|-----------|
+| Local | `<proyecto>\` | `harness\AGENTS.md`, `harness\skills\`, `opencode.json`, `.harness.json`, `.gitignore` (ignora `harness/skills/`) |
+| Global | `~/.config/opencode\` | `AGENTS.md`, `skills\`, `opencode.json` (permisos), `.harness.json` |
+
+- En Local, `opencode.json` apunta a `harness/skills` por `skills.paths`; abrir openCode **en la raíz** del proyecto (las rutas son relativas al directorio de trabajo).
+- El instalador **nunca pisa** skills/reglas ajenas: las respalda en `.harness-backup\` y las omite, salvo `-Force`.
+
+## Anti-patrones / gotchas
+
+| Anti-patrón | Problema | Correcto |
+|-------------|----------|----------|
+| Buscar una "instalación por URL" | El script lee las skills de la copia local | Clonar el repo y correr `install.ps1` |
+| Instalar sin `-Skills` | No hay set por defecto; el script falla | Definir el set con el usuario, tras `-List` |
+| Abrir openCode fuera de la raíz (Local) | `skills.paths` es relativo al CWD | Abrir openCode en la raíz del proyecto |
+| Copiar `harness/skills` a mano | Se desincroniza de `-Update` | Usar el instalador |
+| Correr `-Global` sin confirmar | Agrega reglas a **todas** las sesiones | Confirmar el scope con el usuario |
+
+## Checklist
+
+- [ ] Scope confirmado con el usuario (Local vs Global)
+- [ ] Skills elegidas explícitamente (no vacío)
+- [ ] Repositorio clonado en carpeta temporal
+- [ ] `install.ps1` ejecutado con el intérprete correcto
+- [ ] `<scope root>\skills\<name>\SKILL.md` verificado por skill
+- [ ] `.harness.json` escrito
+- [ ] Clon temporal eliminado
+- [ ] Sin commit/push; usuario avisado de reiniciar openCode

@@ -16,7 +16,8 @@ Prioridades, en orden: seguridad, mantenibilidad, simplicidad, calidad técnica,
 
 > **Regla de oro**: el idioma aplica a **TODO texto que se produzca o modifique**.
 
-- Comunicación en español neutro latinoamericano con la forma **"tú"**. Sin voseo ("Elegí", "Dibujá") ni modismos regionales no neutros.
+- **Español neutro, no argentino.** Usar la forma **"tú"** (tuteo) o el impersonal. Está **prohibido el voseo** rioplatense y todo modismo regional.
+- **Incorrecto (voseo) → correcto:** "tenés"→"tienes", "podés"→"puedes", "hacé"→"haz", "agregá"→"agrega", "usá"→"usa", "elegí"→"elige", "fijate"→"fíjate", "decime"→"dime", "vos"→"tú". Nunca "che", "laburo", "plata", "quilombo" ni equivalentes.
 - Vocabulario técnico en inglés cuando sea el término estándar de la tecnología. El código, los nombres y las APIs respetan las convenciones del lenguaje.
 - Aplica también a documentación, guías, `.md`, textos de UI, recursos `resx`, mensajes de commit y tests.
 - No copiar un mal estilo preexistente solo porque ya estaba: la regla prevalece sobre el contenido anterior.
