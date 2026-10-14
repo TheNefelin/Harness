@@ -1,6 +1,6 @@
 ---
 name: nosql
-description: Bases de datos NoSQL: MongoDB (documental), Azure Cosmos DB, Redis (clave-valor/caché) y Amazon DynamoDB. Usar cuando se modele, consulte u opere datos no relacionales: documentos, caché, colecciones, claves de partición, consistencia o patrones de acceso. NO usar para bases relacionales/SQL (eso es la skill 'sql'), ni para el acceso a datos desde el ORM/código (eso es 'dotnet' o 'fastapi').
+description: Bases de datos NoSQL: MongoDB (documental), Azure Cosmos DB, Redis (clave-valor/caché) y Amazon DynamoDB. Usar al modelar, consultar u operar datos no relacionales: documentos, caché, colecciones, claves de partición, consistencia o patrones de acceso. NO para relacional/SQL ('sql') ni el acceso a datos desde el ORM/código ('dotnet'/'fastapi').
 ---
 
 # Bases de datos NoSQL — Patrón senior
@@ -59,7 +59,54 @@ Usá NoSQL solo cuando el modelo de datos o el patrón de acceso lo justifiquen;
 | Índices "por si acaso" | Escrituras más caras; throttling | Indexar por accesos reales |
 | Sin control de versión en updates | Lost updates bajo concurrencia | ETag/versioning / transacción |
 
-## 5. Checklist
+## 5. Patrones copiables (Bad → Good)
+
+**Embed vs. reference** (documental — referenciá lo que no tiene tope):
+```javascript
+// ❌ Bad: array embebido sin límite → el documento crece sin fin
+{ _id: 1, name: "Pedido", lines: [ /* ...miles... */ ] }
+
+// ✅ Good: lo que no tiene tope va en otra colección, con índice por orderId
+{ _id: 1, customerId: 10 }                     // orders
+{ orderId: 1, productId: 7, qty: 2 }           // order_lines
+```
+
+**Query vs. Scan** (DynamoDB — `Scan` recorre toda la tabla):
+```javascript
+// ❌ Bad: caro y lento en producción
+await ddb.scan({ TableName: "app_items" });
+
+// ✅ Good: Query por la clave (partition + sort)
+await ddb.query({
+  TableName: "app_items",
+  KeyConditionExpression: "pk = :pk AND begins_with(sk, :prefix)",
+  ExpressionAttributeValues: { ":pk": "TENANT#42", ":prefix": "ORDER#" },
+});
+```
+
+**Clave de partición** (DynamoDB/Cosmos — debe tener alta cardinalidad):
+```text
+❌ Bad:  pk = status ("pending" | "done")      → pocas claves → hot partition
+✅ Good: pk = "T42#2026-10"                    → alta cardinalidad, acceso uniforme
+```
+
+**Upsert idempotente** (reintentos seguros, no duplican):
+```javascript
+// ✅ Good: MongoDB — crear si no existe, actualizar si existe
+await db.collection("app_sessions").updateOne(
+  { token: token },
+  { $set: { updatedAt: new Date() }, $setOnInsert: { createdAt: new Date() } },
+  { upsert: true }
+);
+```
+
+**Caché-aside con TTL** (Redis como acelerador, no como fuente de verdad):
+```text
+✅ Good: leer caché → si miss, leer de la BD y SET product:42 EX 300
+❌ Bad:  escribir solo en Redis y tratarlo como la fuente de verdad
+```
+
+## 6. Checklist
 
 - [ ] Se eligió NoSQL por un requisito real (no por preferencia)
 - [ ] Patrones de acceso definidos **antes** del modelo

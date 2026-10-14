@@ -62,7 +62,7 @@ private async void OnActionClicked(object? sender, EventArgs e)
 
 El orden de vida de una Page en MAUI Shell es:
 
-```
+```text
 Constructor → OnNavigatedTo → OnAppearing
         ↑                         ↓
         |                   (page visible)
@@ -276,7 +276,7 @@ En XAML, bindear desde el Page:
 
 Aplica a CUALQUIER app MAUI nueva — una app de notas, un password manager, un toolkit. Dividir siempre en dos proyectos:
 
-```
+```text
 MiApp.Core/                   # Class Library (net10.0, sin MAUI)
 ├── Interfaces/               # Contratos de servicios (testables)
 ├── Models/                   # Modelos de dominio

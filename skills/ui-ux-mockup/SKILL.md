@@ -1,6 +1,6 @@
 ---
 name: ui-ux-mockup
-description: Planificar y crear diseños UI/UX distintivos, guiados por referencias, y mockups previsualizables en el navegador antes de implementar sitios en producción. Usar cuando se inicie o rediseñe un sitio web, landing page, portafolio, sitio de contenido o aplicación web y el usuario quiera una dirección visual deliberada en lugar de una plantilla genérica. NO usar para implementar el frontend (eso es 'angular' o 'astro') ni el backend (eso es 'dotnet' o 'fastapi').
+description: Planificar y crear diseños UI/UX distintivos, guiados por referencias, y mockups previsualizables en el navegador antes de implementar. Usar al iniciar o rediseñar un sitio, landing, portafolio o app web con una dirección visual deliberada. NO para implementar frontend ('angular'/'astro') ni backend ('dotnet'/'fastapi').
 ---
 
 # UI/UX Mockup — Primero el diseño, después la implementación

@@ -1,6 +1,6 @@
 ---
 name: fastapi
-description: Patrón senior para APIs REST en Python con FastAPI, SQLAlchemy 2.1 async y PostgreSQL. Usar cuando se cree, modifique o revise una API FastAPI: endpoints, modelos, servicios, auth, uploads, email o testing. NO usar para APIs .NET (eso es la skill 'dotnet'), diseño de esquema, índices o motores de BD (eso es 'sql' o 'nosql'), ni frontend (eso es 'angular' o 'astro').
+description: Patrón senior para APIs REST en Python con FastAPI, SQLAlchemy 2.1 async y PostgreSQL. Usar al crear, modificar o revisar una API FastAPI: endpoints, modelos, servicios, auth, uploads, email o testing. NO para APIs .NET ('dotnet'), esquema/índices/motores ('sql'/'nosql') ni frontend ('angular'/'astro').
 ---
 
 # SKILL: API FastAPI en Python — Patrón Senior (transversal)
@@ -14,7 +14,7 @@ Este archivo es un **skill**: se lee para replicar el patrón en cualquier API n
 - **Imágenes**: Cloudinary (`core/cloudinary.py`) — el patrón de almacenamiento es el mismo para cualquier servicio (S3, etcétera).
 - **Email transaccional**: Brevo (`api/contact/brevo.py`) — REST API `/v3/smtp/email` con httpx async; el patrón aplica a cualquier proveedor.
 
-**Referencias** (se leen bajo demanda, rutas relativas a esta skill): `references/auth.md`, `references/uploads.md`, `references/email.md`, `references/rate-limiting.md`, `references/tests.md`.
+**Referencias** (se leen bajo demanda, rutas relativas a esta skill): `references/auth.md`, `references/uploads.md`, `references/email.md`, `references/rate-limiting.md`, `references/tests.md`, `references/ejemplo-crud.md`, `references/dtos.md`, `references/errores-rfc9457.md`, `references/configuracion-logging.md`.
 
 ## Cuándo NO usar
 
@@ -76,7 +76,7 @@ Porque resuelve los problemas que matan a las APIs FastAPI cuando crecen, con de
 
 ## 3. Estructura de carpetas (plantilla)
 
-```
+```text
 project/
 ├── .env                     # secretos (nunca commitear)
 ├── .env_demo                # plantilla sin valores reales
@@ -125,60 +125,14 @@ project/
 
 ## 4. Convenciones de capas
 
+> **Ejemplo CRUD completo** (route, service y repository de una feature `products`): `references/ejemplo-crud.md`.
+
 ### 4.1 Route (decide HTTP)
 - Solo declara `APIRouter(prefix, tags, dependencies=[Depends(verify_api_key)])`, endpoints y delega al service.
 - **Nunca** hace queries, **nunca** arma `JSONResponse` de error, **nunca** valida reglas de negocio.
 - `status_code` explícito por endpoint (`HTTP_200_OK/201/204`).
 - Endpoints de escritura agregan `_: dict = Depends(require_admin)` (o `require_user` para endpoints de usuario autenticado).
 - Paginación se inyecta con `params: Annotated[PaginationRequest, Depends()]`. **NO** usar `Annotated[Model, Query()]` (en FastAPI reciente no se combina con otros query params y rompe con 422).
-
-```python
-# src/api/products/routes.py
-from typing import Annotated
-from fastapi import APIRouter, Depends
-from sqlalchemy.ext.asyncio import AsyncSession
-from starlette.status import HTTP_200_OK, HTTP_201_CREATED, HTTP_204_NO_CONTENT
-
-from src.core.dependencies import verify_api_key, require_admin
-from src.core.database import get_db
-from src.schemas import dtos
-from . import service
-
-router = APIRouter(prefix="/products", tags=["products"], dependencies=[Depends(verify_api_key)])
-
-
-@router.get("/", response_model=dtos.PaginationResponse[dtos.ProductResponse], status_code=HTTP_200_OK,
-            summary="List products", description="Paginated list, optionally filtered by category_id.")
-async def get_products(
-  params: Annotated[dtos.PaginationRequest, Depends()],
-  category_id: int | None = None,
-  db: AsyncSession = Depends(get_db),
-):
-  return await service.get_all(db, params.page, params.limit, category_id, params.search)
-
-
-@router.get("/{id}", response_model=dtos.ProductResponse, status_code=HTTP_200_OK,
-            summary="Get product by ID", description="Returns a product. 404 if not found.")
-async def get_product(id: int, db: AsyncSession = Depends(get_db)):
-  return await service.get_by_id(db, id)
-
-
-@router.post("/", response_model=dtos.ProductResponse, status_code=HTTP_201_CREATED,
-             summary="Create product")
-async def create_product(data: dtos.ProductRequest, db: AsyncSession = Depends(get_db), _: dict = Depends(require_admin)):
-  return await service.create(db, data)
-
-
-@router.put("/{id}", response_model=dtos.ProductResponse, status_code=HTTP_200_OK,
-            summary="Update product")
-async def update_product(id: int, data: dtos.ProductRequest, db: AsyncSession = Depends(get_db), _: dict = Depends(require_admin)):
-  return await service.update(db, id, data)
-
-
-@router.delete("/{id}", status_code=HTTP_204_NO_CONTENT, summary="Delete product")
-async def delete_product(id: int, db: AsyncSession = Depends(get_db), _: dict = Depends(require_admin)):
-  await service.delete(db, id)
-```
 
 ### 4.2 Service (orquesta y aplica reglas de negocio)
 - Llama al repository, valida, lanza errores de negocio, mapea a DTOs con `model_validate`.
@@ -189,55 +143,6 @@ async def delete_product(id: int, db: AsyncSession = Depends(get_db), _: dict = 
 - **Regla de capa de datos**: el service **NUNCA importa `src.models.models`** (entidades ORM). Solo el repository toca entidades. El service tipa y retorna únicamente DTOs (`dtos.*`); si necesita la entidad de su propia feature, el repository se la devuelve y el service la mapea. Si necesita datos de otra feature, usa su service (que devuelve DTOs).
 - **Cross-feature con entidades**: jamás se pasan entidades ORM entre services. Se comparten **DTOs o value-objects** (`dataclass` de `core`/`schemas`, p. ej. `src.core.email.EmailData`): el caller mapea su propia entidad al value-object y el receptor solo conoce el contrato de datos. Queries de validación de existencia/FK → métodos del repository propio (`edition_exists`, `copy_status_exists`), nunca `db.get(models.X, ...)` en el service.
 
-```python
-# src/api/products/service.py
-from sqlalchemy.ext.asyncio import AsyncSession
-
-from src.schemas import dtos
-from src.core.exceptions import DuplicateNameError, NotFoundError
-from . import repository
-
-
-async def ensure_product_exists(db: AsyncSession, product_id: int) -> None:
-  if not await repository.exists_by_id(db, product_id):
-    raise NotFoundError("Product")
-
-
-async def get_all(db: AsyncSession, page: int = 1, limit: int = 20, category_id: int | None = None, search: str | None = None) -> dtos.PaginationResponse[dtos.ProductResponse]:
-  total = await repository.count(db, category_id, search)
-  items = [dtos.ProductResponse.model_validate(e) for e in await repository.get_all(db, page, limit, category_id, search)]
-  return dtos.PaginationResponse(page=page, limit=limit, total=total, items=items)
-
-
-async def get_by_id(db: AsyncSession, id: int) -> dtos.ProductResponse:
-  entity = await repository.get_by_id(db, id)
-  if not entity:
-    raise NotFoundError("Product")
-  return dtos.ProductResponse.model_validate(entity)
-
-
-async def create(db: AsyncSession, data: dtos.ProductRequest) -> dtos.ProductResponse:
-  if await repository.exists_by_name(db, data.name):
-    raise DuplicateNameError(data.name)
-  return dtos.ProductResponse.model_validate(await repository.create(db, data.model_dump()))
-
-
-async def update(db: AsyncSession, id: int, data: dtos.ProductRequest) -> dtos.ProductResponse:
-  current = await repository.get_by_id(db, id)
-  if not current:
-    raise NotFoundError("Product")
-  if data.name != current.name and await repository.exists_by_name(db, data.name):
-    raise DuplicateNameError(data.name)
-  return dtos.ProductResponse.model_validate(await repository.update(db, current, data.model_dump()))
-
-
-async def delete(db: AsyncSession, id: int) -> None:
-  entity = await repository.get_by_id(db, id)
-  if not entity:
-    raise NotFoundError("Product")
-  await repository.delete(db, entity)
-```
-
 ### 4.3 Repository (solo queries SQLAlchemy)
 - Una función por operación: `count`, `get_all`, `get_by_id`, `exists_by_name`, `exists_by_id`, `create`, `update`, `delete`.
 - `create`/`update` reciben `dict` (de `data.model_dump()`) y devuelven el modelo refrescado.
@@ -245,69 +150,6 @@ async def delete(db: AsyncSession, id: int) -> None:
 - Filtros específicos (p. ej. `category_id`) van como parámetros, **no** dentro del DTO de paginación.
 - `commit()` + `refresh()` aquí, no en el service.
 - **Es la única capa que importa `src.models.models`**: construye entidades (`models.X(**data)`), ejecuta queries y expone validaciones de existencia (`exists_by_id`, `edition_exists`) para que el service jamás toque entidades.
-
-```python
-# src/api/products/repository.py
-from sqlalchemy import select, exists, func
-from sqlalchemy.ext.asyncio import AsyncSession
-
-from src.models import models
-
-
-async def count(db: AsyncSession, category_id: int | None = None, search: str | None = None) -> int:
-  stmt = select(func.count(models.Product.id))
-  if category_id is not None:
-    stmt = stmt.where(models.Product.category_id == category_id)
-  if search:
-    stmt = stmt.where(models.Product.name.ilike(f"%{search}%"))
-  return (await db.execute(stmt)).scalar_one()
-
-
-async def get_all(db: AsyncSession, page: int = 1, limit: int = 20, category_id: int | None = None, search: str | None = None) -> list[models.Product]:
-  stmt = select(models.Product)
-  if category_id is not None:
-    stmt = stmt.where(models.Product.category_id == category_id)
-  if search:
-    stmt = stmt.where(models.Product.name.ilike(f"%{search}%"))
-  result = await db.execute(stmt.order_by(models.Product.name).offset((page - 1) * limit).limit(limit))
-  return list(result.scalars().all())
-
-
-async def exists_by_name(db: AsyncSession, name: str) -> bool:
-  result = await db.execute(select(exists().where(models.Product.name == name)))
-  return result.scalar_one()
-
-
-async def exists_by_id(db: AsyncSession, id: int) -> bool:
-  result = await db.execute(select(exists().where(models.Product.id == id)))
-  return result.scalar_one()
-
-
-async def get_by_id(db: AsyncSession, id: int) -> models.Product | None:
-  result = await db.execute(select(models.Product).where(models.Product.id == id))
-  return result.scalar_one_or_none()
-
-
-async def create(db: AsyncSession, data: dict) -> models.Product:
-  item = models.Product(**data)
-  db.add(item)
-  await db.commit()
-  await db.refresh(item)
-  return item
-
-
-async def update(db: AsyncSession, item: models.Product, data: dict) -> models.Product:
-  for key, value in data.items():
-    setattr(item, key, value)
-  await db.commit()
-  await db.refresh(item)
-  return item
-
-
-async def delete(db: AsyncSession, item: models.Product) -> None:
-  await db.delete(item)
-  await db.commit()
-```
 
 ---
 
@@ -375,76 +217,7 @@ class Product(Base):
 - Listas opcionales de IDs (relaciones many-to-many) con `Field(default_factory=list)`.
 - **Responses con `str` que pueden venir `None` desde la BD**: si el DTO de respuesta declara el campo como `str` (obligatorio) pero en la BD puede ser NULL, validar con `... if x else ""` (o el string por defecto) en el service antes de `model_validate`; si no, Pydantic lanza `ValidationError` en runtime. Alternativa: declarar el campo como `str | None`.
 
-```python
-# src/schemas/dtos.py
-from datetime import datetime
-from typing import Generic, TypeVar
-from pydantic import BaseModel, ConfigDict, Field
-
-T = TypeVar("T")
-
-
-class AppModel(BaseModel):
-  model_config = ConfigDict(from_attributes=True)
-
-
-class PaginationRequest(BaseModel):
-  page: int = Field(default=1, ge=1)
-  limit: int = Field(default=20, ge=1, le=100)
-  search: str | None = None
-
-
-class PaginationResponse(BaseModel, Generic[T]):
-  page: int
-  limit: int
-  total: int
-  items: list[T]
-
-
-class CategoryResponse(AppModel):
-  id: int
-  name: str
-
-
-class ProductRequest(BaseModel):
-  category_id: int = Field(ge=1)
-  name: str = Field(min_length=1, max_length=100)
-  slug: str = Field(min_length=1, max_length=100)
-  price: int = Field(ge=0)
-  is_enabled: bool = True
-
-
-class ProductResponse(AppModel):
-  id: int
-  category_id: int
-  name: str
-  slug: str
-  price: int
-  is_enabled: bool
-  created_at: datetime
-  updated_at: datetime
-```
-
-**Detalle anidado** (cuando un recurso expone una vista enriquecida): un `*DetailResponse` que hereda del Response base y agrega las listas anidadas. En el repository se carga con `selectinload` en cadena y en el service se valida con `model_validate`.
-
-```python
-class ProductDetailResponse(ProductResponse):
-  category: CategoryResponse
-  reviews: list["ReviewResponse"]
-```
-
-```python
-# repository: carga eager en cadena (evita N+1)
-result = await db.execute(
-  select(models.Product)
-  .options(
-    joinedload(models.Product.category),
-    selectinload(models.Product.reviews),
-  )
-  .where(models.Product.id == id)
-)
-entity = result.unique().scalar_one_or_none()
-```
+El código completo (`dtos.py`, incluido el `*DetailResponse` anidado y el `selectinload` en cadena para evitar N+1) está en **`references/dtos.md`**.
 
 ---
 
@@ -456,121 +229,9 @@ El patrón central de errores. Todas las excepciones de negocio heredan de clase
 { "type": "not-found", "title": "Resource not found.", "status": 404, "detail": "Product not found" }
 ```
 
-con `Content-Type: application/problem+json`.
+con `Content-Type: application/problem+json`. El código de las excepciones (`src/core/exceptions.py`) y la configuración del handler en `main.py` (wrappers 422/500, handler de rate limit y pre-hook de logging) está en **`references/errores-rfc9457.md`**.
 
-### 7.1 Excepciones (`src/core/exceptions.py`)
-
-```python
-from fastapi import status
-from rfc9457 import BadRequestProblem, ForbiddenProblem, NotFoundProblem, Problem, UnauthorisedProblem
-
-
-class AppError(Problem):
-  def __init__(self, message: str, status_code: int = status.HTTP_400_BAD_REQUEST):
-    self.message = message
-    super().__init__(title=message, detail=message, status=status_code, type_="app-error")
-
-
-class NotFoundError(NotFoundProblem):
-  type_ = "not-found"
-  title = "Resource not found."
-
-  def __init__(self, entity: str = "Resource"):
-    super().__init__(detail=f"{entity} not found")
-    self.message = self.detail
-
-
-class DuplicateNameError(BadRequestProblem):
-  type_ = "duplicate-name"
-  title = "Duplicate resource."
-
-  def __init__(self, name: str):
-    super().__init__(detail=f"'{name}' already exists")
-    self.message = self.detail
-
-
-class UnauthorizedError(UnauthorisedProblem):
-  type_ = "unauthorized"
-  title = "Unauthorized."
-
-  def __init__(self, message: str = "Invalid or expired token"):
-    super().__init__(detail=message)
-    self.message = message
-
-
-class ForbiddenError(ForbiddenProblem):
-  type_ = "forbidden"
-  title = "Forbidden."
-
-  def __init__(self, message: str = "Insufficient permissions"):
-    super().__init__(detail=message)
-    self.message = message
-
-
-class InvalidApiKeyError(UnauthorisedProblem):
-  type_ = "invalid-api-key"
-  title = "Invalid API key."
-
-  def __init__(self, message: str = "Invalid API Key"):
-    super().__init__(detail=message)
-    self.message = message
-```
-
-### 7.2 Configuración en `main.py`
-
-```python
-from fastapi_problem.handler import add_exception_handler, new_exception_handler
-from rfc9457 import BadRequestProblem, Problem, ServerProblem, UnprocessableProblem
-from slowapi.errors import RateLimitExceeded
-
-
-class RequestValidationProblem(UnprocessableProblem):
-  type_ = "request-validation-failed"
-  title = "Request validation error."
-
-  def __init__(self, errors=None, **kwargs):
-    super().__init__(errors=errors, **kwargs)
-    self.detail = "; ".join(str(e.get("msg", "")) for e in errors) if errors else self.title
-
-
-class InternalServerErrorProblem(ServerProblem):
-  type_ = "internal-server-error"
-  title = "Internal server error."
-
-  def __init__(self, detail=None, **kwargs):
-    super().__init__(detail="Internal server error", **kwargs)
-
-
-class RateLimitProblem(BadRequestProblem):
-  type_ = "rate-limit-exceeded"
-  title = "Rate limit exceeded."
-  status = 429
-
-
-def rate_limit_handler(eh, request: Request, exc: RateLimitExceeded):
-  headers = None
-  if hasattr(request.state, "view_rate_limit"):
-    response = request.app.state.limiter._inject_headers(JSONResponse({}), request.state.view_rate_limit)
-    headers = dict(response.headers)
-  return RateLimitProblem(detail=f"Rate limit exceeded: {exc.detail}", headers=headers)
-
-
-def log_problem(request: Request, exc: Exception):
-  if isinstance(exc, Problem) and exc.status < 500:
-    logger.warning("%s: %s", exc.title, exc.detail, extra={"props": {"status_code": exc.status}})
-
-
-eh = new_exception_handler(
-  logger=logger,
-  unhandled_wrappers={"422": RequestValidationProblem, "500": InternalServerErrorProblem},
-  handlers={RateLimitExceeded: rate_limit_handler},
-  pre_hooks=[log_problem],
-)
-add_exception_handler(app, eh)
-app.add_exception_handler(RateLimitExceeded, eh)
-```
-
-**Reglas**:
+**Reglas:**
 - Los services lanzan errores semánticos (`NotFoundError("Product")`), nunca `HTTPException`.
 - No exponer detalles internos en el 500 (respuesta genérica, el detalle real va al log).
 - Compatibilidad con frontend: el campo `detail` es string en todos los casos; el 422 conserva el array `errors` original.
@@ -597,118 +258,13 @@ Rate limiting (slowapi, clave por identidad) vive en **`references/rate-limiting
 
 ## 12. Configuración y logging
 
-### 12.1 `src/core/config.py` (pydantic-settings)
+Config con **pydantic-settings**: todo lo externo es **opcional** (el proyecto decide qué integra); las variables `TEST_*` son `None` por defecto y solo las leen las pruebas. Las requeridas (`DATABASE_URL`, `SECRET_KEY`, `API_KEY`, `CORS_ORIGINS`) van sin default y fallan al arrancar si faltan.
 
-Todo lo externo es **opcional** (el proyecto decide qué integra). Las variables `TEST_*` son `None` por defecto y solo las leen las pruebas; se declaran igual en el `Settings` porque Pydantic ignora variables `.env` que no estén declaradas aquí.
+- `src/core/config.py`: `Settings(BaseSettings)` + `@property cors_origins_list` (parsea `CORS_ORIGINS` como JSON).
+- `src/core/database.py`: `create_async_engine(..., pool_pre_ping=True)`, `async_sessionmaker`, `get_db()` que hace `yield`.
+- `src/core/logger.py`: formatter JSON + `ContextVar` para `request_id`; middleware en `main.py` que setea el `request_id` y loguea método, path, status y duración.
 
-```python
-import json
-from pydantic_settings import BaseSettings, SettingsConfigDict
-
-
-class Settings(BaseSettings):
-  DEBUG: bool = False
-
-  DATABASE_URL: str
-  TEST_DATABASE_URL: str | None = None   # solo para tests (BD real aislada)
-
-  CORS_ORIGINS: str  # JSON string: ["http://localhost:3000"]
-  SECRET_KEY: str
-  API_KEY: str
-
-  # Externos opcionales según el proyecto:
-  GOOGLE_CLIENT_ID: str | None = None
-  CLOUDINARY_CLOUD_NAME: str | None = None
-  CLOUDINARY_API_KEY: str | None = None
-  CLOUDINARY_API_SECRET: str | None = None
-  BREVO_API_KEY: str | None = None
-  BREVO_FROM_EMAIL: str | None = None
-  BREVO_FROM_NAME: str | None = None
-  TEST_BREVO_EMAIL: str | None = None   # solo para tests live
-
-  @property
-  def cors_origins_list(self) -> list[str]:
-    return json.loads(self.CORS_ORIGINS)
-
-  model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
-
-
-settings = Settings()
-```
-
-Nota: si una integración es obligatoria, mueve esa variable a `str` sin default — arrancará con error claro si falta. Ejemplo real: `DATABASE_URL`, `SECRET_KEY`, `API_KEY` son requeridas; Cloudinary y Brevo son opcionales.
-
-### 12.2 `src/core/database.py`
-
-```python
-from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker, AsyncSession
-from sqlalchemy.orm import declarative_base
-
-from src.core.config import settings
-
-engine = create_async_engine(settings.DATABASE_URL, echo=settings.DEBUG, pool_pre_ping=True)
-AsyncSessionLocal = async_sessionmaker(autocommit=False, autoflush=False, bind=engine, class_=AsyncSession)
-Base = declarative_base()
-
-
-async def get_db():
-  async with AsyncSessionLocal() as session:
-    yield session
-```
-
-### 12.3 `src/core/logger.py` (JSON + request_id por petición)
-
-```python
-import json, logging, sys
-from contextvars import ContextVar
-from datetime import datetime, timezone
-
-_request_id: ContextVar[str] = ContextVar("request_id", default="")
-
-
-def set_request_id(value: str) -> None:
-  _request_id.set(value)
-
-
-def get_request_id() -> str:
-  return _request_id.get()
-
-
-class JsonFormatter(logging.Formatter):
-  def format(self, record: logging.LogRecord) -> str:
-    entry = {"timestamp": datetime.now(tz=timezone.utc).isoformat(), "level": record.levelname,
-             "logger": record.name, "message": record.getMessage(), "request_id": get_request_id()}
-    if hasattr(record, "props"):
-      entry.update(record.props)
-    return json.dumps(entry, ensure_ascii=False)
-
-
-def setup_logger() -> logging.Logger:
-  logger = logging.getLogger("api")
-  logger.setLevel(logging.INFO)
-  handler = logging.StreamHandler(sys.stdout)
-  handler.setFormatter(JsonFormatter())
-  logger.addHandler(handler)
-  return logger
-
-
-logger = setup_logger()
-```
-
-```python
-# main.py — middleware que setea el request_id y loguea cada request
-@app.middleware("http")
-async def log_requests(request: Request, call_next):
-  request_id = str(uuid.uuid4())
-  set_request_id(request_id)
-  start = time.time()
-  response = await call_next(request)
-  logger.info("%s %s", request.method, request.url.path, extra={
-    "props": {"method": request.method, "path": request.url.path,
-              "status_code": response.status_code,
-              "duration_ms": round((time.time() - start) * 1000, 2)}})
-  return response
-```
+El código de los tres archivos y el middleware está en **`references/configuracion-logging.md`**.
 
 ---
 

@@ -1,6 +1,6 @@
 ---
 name: angular
-description: Patrón senior para aplicaciones Angular signal-based (v21+) con Tailwind y DaisyUI (CSR y SSR). Usar cuando se cree, modifique o revise código Angular: componentes, servicios, rxResource, CrudPage, MutationService, formularios, auth, interceptores o lint con angular-eslint. NO usar para sitios de contenido/SSR con Astro (eso es la skill 'astro'), diseño o mockups previos a implementar (eso es 'ui-ux-mockup'), ni backend (eso es 'dotnet' o 'fastapi').
+description: Patrón senior para apps Angular signal-based (v21+) con Tailwind y DaisyUI (CSR y SSR). Usar al crear, modificar o revisar código Angular: componentes, servicios, rxResource, CrudPage, formularios, auth, interceptores o lint. NO para sitios de contenido/SSR ('astro'), diseño/mockups ('ui-ux-mockup') ni backend ('dotnet'/'fastapi').
 ---
 
 # SKILL: Angular — Patrón Senior (transversal: CSR y SSR)
@@ -70,7 +70,7 @@ Porque resuelve los problemas que matan a las apps Angular cuando crecen, con de
 
 ## 3. Estructura de carpetas (plantilla)
 
-```
+```text
 admin/
 ├── src/server.ts                  → [SSR] Express SSR + proxy /ssr-api/ + handlers multipart (solo SSR)
 ├── eslint.config.js               → flat config: angular-eslint tsRecommended + templateRecommended + templateAccessibility; ignores dist/
@@ -287,7 +287,7 @@ El patrón de auth difiere según el modo.
 
 ### 5.2 [SSR] — Auth multi-tenant (por namespace)
 
-```
+```text
 GET /ssr-api/config                    → { googleClientIds } (mapa por namespace)
 POST /ssr-api/{namespace}/auth/google  → login con el client ID de ese namespace
 GET/POST/DELETE /ssr-api/{namespace}/{resource}  → CRUD con Bearer del namespace

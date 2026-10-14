@@ -1,6 +1,6 @@
 ---
 name: astro
-description: Patrón senior para sitios Astro 7 (SSR) con Tailwind y DaisyUI y despliegue en Vercel. Usar cuando se cree, modifique o revise un proyecto Astro: rutas, SSR, proxy al backend, auth con Google OAuth, formularios o componentes. NO usar para SPA Angular (eso es la skill 'angular'), diseño o mockups previos a implementar (eso es 'ui-ux-mockup'), ni backend (eso es 'dotnet' o 'fastapi').
+description: Patrón senior para sitios Astro 7 (SSR) con Tailwind y DaisyUI y despliegue en Vercel. Usar al crear, modificar o revisar un proyecto Astro: rutas, SSR, proxy al backend, auth con Google OAuth, formularios o componentes. NO para SPA Angular ('angular'), diseño/mockups ('ui-ux-mockup') ni backend ('dotnet'/'fastapi').
 ---
 
 # SKILL: Frontend Astro — Patrón Senior (transversal)
@@ -70,7 +70,7 @@ Porque resuelve los problemas que matan a los proyectos Astro cuando crecen, con
 
 ## 3. Estructura de carpetas (plantilla)
 
-```
+```text
 frontend/
 ├── astro.config.mjs        → output: 'server', adapter vercel, alias @/* → src/*
 ├── package.json            → scripts: build/dev/preview/check

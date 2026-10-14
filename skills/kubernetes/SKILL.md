@@ -1,6 +1,6 @@
 ---
 name: kubernetes
-description: Orquestación con Kubernetes. Usar cuando se cree, modifique o revise manifiestos o despliegues de Kubernetes: deployment, service, ingress, configmap, secret, Helm, Kustomize o GitOps. NO usar para construir la imagen o correr contenedores locales (eso es la skill 'docker') ni para pipelines de CI/CD (eso es 'github-actions').
+description: Orquestación con Kubernetes. Usar al crear, modificar o revisar manifiestos o despliegues de Kubernetes: deployment, service, ingress, configmap, secret, Helm, Kustomize o GitOps. NO para construir la imagen o correr contenedores locales ('docker') ni pipelines de CI/CD ('github-actions').
 ---
 
 # Kubernetes — Patrón senior

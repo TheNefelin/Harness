@@ -1,6 +1,6 @@
 ---
 name: dotnet
-description: Patrón senior para APIs REST en .NET (ASP.NET Core) con Clean Architecture, Dapper o Entity Framework Core sobre SQL Server o PostgreSQL, incluidos clientes MAUI (MVVM). Usar cuando se cree, modifique o revise código .NET/C#: controladores, servicios, repositorios, capa de datos, auth, manejo de errores o testing. NO usar para APIs Python/FastAPI (eso es la skill 'fastapi'), diseño de esquema, índices o motores de BD (eso es 'sql' o 'nosql'), ni frontend Angular/Astro (eso es 'angular' o 'astro').
+description: Patrón senior para APIs REST en .NET (ASP.NET Core) con Clean Architecture, Dapper o EF Core y MAUI (MVVM). Usar al crear, modificar o revisar código .NET/C#: controladores, servicios, repositorios, auth, errores o testing. NO para Python/FastAPI ('fastapi'), esquema/motores ('sql'/'nosql') ni frontend ('angular'/'astro').
 ---
 
 # SKILL: .NET (C#) — Patrón Senior (transversal)
@@ -9,7 +9,7 @@ Guía de referencia para construir APIs REST en **.NET (ASP.NET Core)** siguiend
 
 Este archivo es un **skill**: se lee para replicar el patrón en cualquier proyecto .NET nuevo. No es una receta dogmática; es la lista de decisiones que convierten un CRUD simple en un backend mantenible, seguro y desplegable.
 
-**Referencias** (se leen bajo demanda, ruta relativa a esta skill): `references/maui.md` (clientes MAUI), `references/dapper.md` (acceso a datos con Dapper), `references/efcore.md` (acceso a datos con EF Core).
+**Referencias** (se leen bajo demanda, ruta relativa a esta skill): `references/maui.md` (clientes MAUI), `references/dapper.md` (acceso a datos con Dapper), `references/efcore.md` (acceso a datos con EF Core), `references/errores.md` (GlobalExceptionHandler y 400 uniforme), `references/auth.md` (PBKDF2, JWT, ApiKey), `references/rate-limiting-cors.md` (rate limiting y CORS).
 
 ## Cuándo NO usar
 
@@ -64,7 +64,7 @@ Porque resuelve los problemas que matan a las APIs .NET cuando crecen, con decis
 
 ## 3. Estructura de carpetas (Clean Architecture)
 
-```
+```text
 WebApiCore.sln
 ├── WebApiCore.Domain/          # Modelos, DTOs, entidades (sin dependencias)
 │   └── Models/                 # e.g. ApiResponse<T>, User, LoginRequest
@@ -145,7 +145,6 @@ public async Task<User?> GetByEmailAsync(string email)
 
 Con EF Core, el equivalente es un `DbContext` con `DbSet<User>` y una consulta LINQ (`references/efcore.md`). En ambos casos: **consultas parametrizadas**, sin concatenar valores (ver skill `sql`).
 
-
 ---
 
 ## 5. Contrato uniforme de respuesta (Envelope)
@@ -195,58 +194,7 @@ public async Task<IActionResult> GetById(int id)
 
 ## 6. Manejo de errores global
 
-### `GlobalExceptionHandler`
-
-Un solo manejador central captura excepciones no controladas, las **loguea** y responde 500 genérico:
-
-```csharp
-public class GlobalExceptionHandler : IExceptionHandler
-{
-    public async ValueTask<bool> TryHandleAsync(HttpContext ctx, Exception ex, CancellationToken ct)
-    {
-        _logger.LogError(ex, "Error no controlado");
-        var response = new ApiResponse<object>
-        {
-            IsSuccess = false,
-            StatusCode = 500,
-            Message = "Ha ocurrido un error interno."
-        };
-        ctx.Response.StatusCode = 500;
-        ctx.Response.ContentType = "application/json";
-        await ctx.Response.WriteAsJsonAsync(response, ct);
-        return true;
-    }
-}
-```
-
-Registro:
-
-```csharp
-builder.Services.AddExceptionHandler<GlobalExceptionHandler>();
-// ...
-app.UseExceptionHandler();
-```
-
-### Error de modelo (400) uniforme
-
-```csharp
-builder.Services.AddControllers()
-    .ConfigureApiBehaviorOptions(opts =>
-    {
-        opts.InvalidModelStateResponseFactory = ctx =>
-        {
-            var errors = ctx.ModelState.Values
-                .SelectMany(v => v.Errors)
-                .Select(e => e.ErrorMessage)
-                .ToList();
-            return new BadRequestObjectResult(new ApiResponse<object>
-            {
-                IsSuccess = false, StatusCode = 400,
-                Message = "Datos de entrada inválidos.", Errors = errors
-            });
-        };
-    });
-```
+Un solo `GlobalExceptionHandler` (`IExceptionHandler`) captura las excepciones no controladas, las **loguea** y responde 500 genérico. El 400 de modelo se unifica con `InvalidModelStateResponseFactory`. El código de ambos está en **`references/errores.md`**.
 
 **Regla**: el mensaje de 500 es genérico para el cliente; el detalle real va al log. Nunca `ex.Message` en una respuesta 500.
 
@@ -254,124 +202,20 @@ builder.Services.AddControllers()
 
 ## 7. Autenticación y autorización
 
-### Contraseñas (PBKDF2)
+Tres piezas separadas: **contraseñas**, **JWT** (identifica al usuario) y **ApiKey global** (identifica al origen). El código está en **`references/auth.md`**.
 
-```csharp
-public static string HashPassword(string password)
-{
-    byte[] salt = RandomNumberGenerator.GetBytes(16);
-    byte[] hash = Rfc2898DeriveBytes.Pbkdf2(
-        password, salt, 10000, HashAlgorithmName.SHA256, 32);
-    return Convert.ToBase64String(salt) + ":" + Convert.ToBase64String(hash);
-}
-```
-
-**Nunca**: texto plano, MD5, SHA1, o el mismo hash para todos los usuarios (sin salt).
-
-### JWT
-
-```csharp
-builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
-    .AddJwtBearer(opts =>
-    {
-        opts.TokenValidationParameters = new TokenValidationParameters
-        {
-            ValidateIssuer = true, ValidateAudience = true,
-            ValidateLifetime = true, ClockSkew = TimeSpan.Zero,
-            ValidateIssuerSigningKey = true,
-            IssuerSigningKey = new SymmetricSecurityKey(
-                Encoding.UTF8.GetBytes(config["JWT:Key"]!)),
-            ValidIssuer = config["JWT:Issuer"],
-            ValidAudience = config["JWT:Audience"]
-        };
-        // 401 uniforme si falla el token
-        opts.Events = new JwtBearerEvents
-        {
-            OnChallenge = ctx =>
-            {
-                ctx.HandleResponse();
-                ctx.Response.StatusCode = 401;
-                ctx.Response.ContentType = "application/json";
-                return ctx.Response.WriteAsJsonAsync(new ApiResponse<object>
-                { IsSuccess = false, StatusCode = 401, Message = "No autorizado." });
-            }
-        };
-    });
-```
-
-### ApiKey global (separada del JWT)
-
-El origen (Swagger, Postman, frontend) envía la ApiKey configurada en BD (`Mae_Config`). Se valida en un filtro de acción:
-
-```csharp
-public class ApiKeyFilter : IAsyncActionFilter
-{
-    public async Task OnActionExecutionAsync(ActionExecutingContext ctx, ActionExecutionDelegate next)
-    {
-        if (!ctx.HttpContext.Request.Headers.TryGetValue("X-Api-Key", out var apiKey))
-        {
-            ctx.Result = new UnauthorizedObjectResult(new ApiResponse<object>
-                { IsSuccess = false, StatusCode = 401, Message = "ApiKey requerida." });
-            return;
-        }
-        // comparar contra el valor almacenado en BD (Mae_Config) de forma segura
-        var stored = await _configService.GetAsync("ApiKey");
-        if (!CryptographicOperations.FixedTimeEquals(
-                Encoding.UTF8.GetBytes(apiKey!),
-                Encoding.UTF8.GetBytes(stored)))
-        {
-            ctx.Result = new UnauthorizedObjectResult(/* 401 uniforme */);
-            return;
-        }
-        await next();
-    }
-}
-```
-
-**Regla**: la ApiKey viaja en header, **nunca en la query string** (queda en logs del servidor y del proxy).
+- **Contraseñas (PBKDF2)**: `Rfc2898DeriveBytes.Pbkdf2` con salt aleatorio de 16 bytes e iteraciones configurables. **Nunca**: texto plano, MD5, SHA1, ni hash sin salt.
+- **JWT**: `ValidateIssuer`/`ValidateAudience`/`ValidateLifetime` en `true`, `ClockSkew = TimeSpan.Zero`, `IssuerSigningKey` desde config; `OnChallenge` responde 401 uniforme con el envelope.
+- **ApiKey global**: se envía en el header `X-Api-Key` y se compara contra el valor de BD (`Mae_Config`) con `CryptographicOperations.FixedTimeEquals` (tiempo constante). **Nunca en la query string** (queda en logs del servidor y del proxy).
 
 ---
 
 ## 8. Rate limiting y CORS
 
-### Rate limiting por cliente
+El código está en **`references/rate-limiting-cors.md`**.
 
-```csharp
-builder.Services.AddRateLimiter(opts =>
-{
-    opts.RejectionStatusCode = 429;
-    opts.AddFixedWindowLimiter("fixed", lim =>
-    {
-        lim.PermitLimit = 10;
-        lim.Window = TimeSpan.FromMinutes(1);
-        lim.QueueLimit = 0;
-        lim.PartitionKey = PartitionKey.Get<HttpContext>(ctx =>
-        {
-            // detrás de proxy/load balancer
-            var fwd = ctx.Request.Headers["X-Forwarded-For"].FirstOrDefault();
-            return string.IsNullOrWhiteSpace(fwd)
-                ? ctx.Connection.RemoteIpAddress?.ToString() ?? "unknown"
-                : fwd;
-        });
-    });
-});
-// ...
-app.UseRateLimiter();
-// en controladores sensibles:
-[EnableRateLimiting("fixed")]
-```
-
-**Anti-patrón**: rate limit global sin partición por IP → un solo usuario abusivo bloquea a todos, o la regla no aplica tras un proxy porque todos llegan con la IP del balanceador.
-
-### CORS (allow-list explícita)
-
-```csharp
-var cors = config.GetSection("Cors").Get<string[]>() ?? Array.Empty<string>();
-builder.Services.AddCors(o => o.AddPolicy("Default", p =>
-    p.WithOrigins(cors).AllowAnyHeader().AllowAnyMethod()));
-```
-
-**Regla**: `WithOrigins` con lista explícita. **Nunca** `SetIsOriginAllowed(_ => true)` ni `AllowAnyOrigin()` en producción, salvo API pública documentada.
+- **Rate limiting**: `AddRateLimiter` con **fixed window** y `PartitionKey` por cliente (`X-Forwarded-For` → IP). `RejectionStatusCode = 429`. **Anti-patrón**: límite global sin partición → un abusador bloquea a todos, o no aplica tras un proxy porque todos llegan con la IP del balanceador.
+- **CORS**: allow-list explícita (`WithOrigins` desde config). **Nunca** `SetIsOriginAllowed(_ => true)` ni `AllowAnyOrigin()` en producción, salvo API pública documentada.
 
 ---
 

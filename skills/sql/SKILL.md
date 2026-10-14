@@ -1,6 +1,6 @@
 ---
 name: sql
-description: Diseño y uso de bases de datos relacionales (SQL Server y PostgreSQL): modelado, esquema, consultas, índices, constraints, transacciones y migraciones. Usar cuando se diseñe o revise un esquema, se escriban consultas, índices, constraints o migraciones, o se gestionen transacciones, paginación y rendimiento. NO usar para NoSQL, caché o documental (eso es la skill 'nosql'), ni para el acceso a datos desde el ORM/código (eso es 'dotnet' o 'fastapi').
+description: Bases de datos relacionales (SQL Server/PostgreSQL): esquema, consultas, índices, constraints, transacciones y migraciones. Usar al diseñar o revisar un esquema, escribir consultas, índices o migraciones, o gestionar transacciones, paginación y rendimiento. NO para NoSQL/caché ('nosql') ni acceso a datos desde el ORM/código ('dotnet'/'fastapi').
 ---
 
 # Bases de datos relacionales — Patrón senior (SQL Server + PostgreSQL)
@@ -88,7 +88,49 @@ El **diseño del esquema y la consulta SQL** (motor-agnóstico) vive aquí; el *
 | Sin constraints (UNIQUE/FK/CHECK) | Integridad solo "en el código" | Declarar en la BD |
 | Tests contra otro motor | Verde en falso | Mismo motor que producción |
 
-## 7. Checklist
+## 7. Patrones copiables (Bad → Good)
+
+**Parametrización** (nunca concatenar valores):
+```sql
+-- ❌ Bad: la app concatena el valor → inyección + plan no reutilizable
+SELECT id, email FROM app_users WHERE email = 'cualquiera';
+
+-- ✅ Good: parámetro — PostgreSQL ($1) / SQL Server (@Email)
+SELECT id, email FROM app_users WHERE email = $1;
+SELECT id, email FROM app_users WHERE email = @Email;
+```
+
+**Paginación** (keyset para volúmenes grandes):
+```sql
+-- ❌ Bad: OFFSET grande degrada al crecer
+SELECT id, name FROM app_products ORDER BY id LIMIT 20 OFFSET 100000;
+
+-- ✅ Good: keyset/seek (id > último visto)
+SELECT id, name FROM app_products WHERE id > 100000 ORDER BY id LIMIT 20;
+```
+
+**Upsert idempotente** (webhooks, reintentos):
+```sql
+-- PostgreSQL
+INSERT INTO app_users (email, name) VALUES ('a@x.com', 'A')
+ON CONFLICT (email) DO UPDATE SET name = EXCLUDED.name;
+
+-- SQL Server
+MERGE app_users AS t
+USING (SELECT 'a@x.com' AS email, 'A' AS name) AS s ON t.email = s.email
+WHEN MATCHED THEN UPDATE SET name = s.name
+WHEN NOT MATCHED THEN INSERT (email, name) VALUES (s.email, s.name);
+```
+
+**Dinero** (nunca `float`):
+```sql
+-- ❌ Bad
+price float
+-- ✅ Good
+price_cents integer NOT NULL CHECK (price_cents >= 0)
+```
+
+## 8. Checklist
 
 - [ ] Esquema normalizado (o desnormalización justificada y medida)
 - [ ] PK definida; clave natural como `UNIQUE`

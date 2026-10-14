@@ -1,6 +1,6 @@
 ---
 name: docker
-description: Contenedorización con Docker y Docker Compose. Usar cuando se cree, modifique o revise un Dockerfile, .dockerignore, docker-compose.yml/compose.yaml, una imagen o un contenedor: build, run, volúmenes, redes, entornos locales multi-servicio o multi-stage builds. NO usar para orquestación en clúster (eso es la skill 'kubernetes') ni para pipelines de CI/CD (eso es 'github-actions').
+description: Contenedorización con Docker y Docker Compose. Usar al crear, modificar o revisar un Dockerfile, .dockerignore, docker-compose.yml/compose.yaml, una imagen o un contenedor: build, run, volúmenes, redes, entornos locales multi-servicio o multi-stage builds. NO para orquestación en clúster ('kubernetes') ni pipelines de CI/CD ('github-actions').
 ---
 
 # Docker + Docker Compose — Patrón senior
