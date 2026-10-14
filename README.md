@@ -17,7 +17,7 @@ Harness/
 ├─ LICENSE                # MIT
 ├─ VERSION                # versión del harness
 ├─ AGENTS.md              # reglas        ┐
-├─ skills/                # 8 skills      ├─ lo que se instala (global o por proyecto)
+├─ skills/                # 10 skills     ├─ lo que se instala (global o por proyecto)
 ├─ templates/
 │  ├─ opencode.json       # config del proyecto (instructions + skills.paths + permisos)
 │  ├─ README.md           # ┐
@@ -40,7 +40,7 @@ Es **agnóstico**: no hay set por defecto. Siempre indicás **qué** skills y **
 .\install.ps1 -List
 
 # Por proyecto (local): vive en <proyecto>\harness\
-.\install.ps1 -Project "D:\ruta\al\proyecto" -Skills dotnet,postgres
+.\install.ps1 -Project "D:\ruta\al\proyecto" -Skills dotnet,sql
 
 # Global (toda la máquina): ~/.config/opencode\
 .\install.ps1 -Global -Skills git,ui-ux-mockup
@@ -90,7 +90,7 @@ proyecto/
 
 **App nueva (desde cero)**
 
-1. Instala con tus skills y contexto: `.\install.ps1 -Project "<ruta>" -Skills dotnet,postgres -Context`.
+1. Instala con tus skills y contexto: `.\install.ps1 -Project "<ruta>" -Skills dotnet,sql -Context`.
 2. Rellena `README.md`: qué es, para quién y el alcance del MVP.
 3. Rellena `DEVELOPMENT.md` con las primeras decisiones (stack, arquitectura, pendientes).
 4. Avanza en pasos pequeños; al cerrar cada paso, actualiza `DEVELOPMENT.md`.
@@ -110,7 +110,7 @@ En ambos casos el agente lee primero `AGENTS.md` + `DEVELOPMENT.md`: cuanto mejo
 Para cambiar el set, pasá `-Skills` de nuevo:
 
 ```powershell
-.\install.ps1 -Project "D:\ruta\al\proyecto" -Skills dotnet,postgres,redis
+.\install.ps1 -Project "D:\ruta\al\proyecto" -Skills dotnet,sql,nosql
 ```
 
 ## Hoja de ruta (diferido)
@@ -119,7 +119,7 @@ Estos conceptos existen en harness avanzados, pero **no** se incluyen todavía p
 
 - **Hands** — conexiones/herramientas que se le dan al agente (servidores MCP o scripts con credenciales). Ejemplos posibles: Brevo (email transaccional), Cloudinary (documentos e imágenes).
 - **Hooks** — automatismos vía plugins de openCode. En gran parte cubiertos ya por `permission` (bloquear `.env`, pedir permiso para Git/instalaciones).
-- **Agentes** — subagentes de openCode (`.opencode/agent/`). Otra capa con su propio coste de contexto; se evaluará si aporta.
+- **Agentes** — subagentes de openCode (`.opencode/agents/`). Otra capa con su propio coste de contexto; se evaluará si aporta.
 
 ## Créditos
 

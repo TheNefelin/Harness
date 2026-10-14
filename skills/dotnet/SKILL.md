@@ -1,15 +1,15 @@
 ---
 name: dotnet
-description: Patrón senior para APIs REST en .NET (ASP.NET Core) con Dapper y SQL Server y Clean Architecture, incluidos clientes MAUI (MVVM). Usar cuando se cree, modifique o revise código .NET/C#: controladores, servicios, repositorios, auth, manejo de errores o testing.
+description: Patrón senior para APIs REST en .NET (ASP.NET Core) con Clean Architecture, Dapper o Entity Framework Core sobre SQL Server o PostgreSQL, incluidos clientes MAUI (MVVM). Usar cuando se cree, modifique o revise código .NET/C#: controladores, servicios, repositorios, capa de datos, auth, manejo de errores o testing.
 ---
 
 # SKILL: .NET (C#) — Patrón Senior (transversal)
 
-Guía de referencia para construir APIs REST en **.NET (ASP.NET Core) + Dapper + SQL Server** siguiendo una arquitectura y convenciones senior validadas en producción (`WebApiCore`, Clean Architecture). Es **transversal**: los ejemplos son genéricos (auth, CRUD, manejo de errores, configuración) y aplican a cualquier dominio. Cubre también buenas prácticas para clientes **MAUI** (MVVM) porque comparten las mismas reglas de C#, seguridad y testing.
+Guía de referencia para construir APIs REST en **.NET (ASP.NET Core)** siguiendo una arquitectura y convenciones senior validadas en producción (`WebApiCore`, Clean Architecture). La **capa de datos** usa **Dapper o Entity Framework Core** sobre **SQL Server o PostgreSQL**; la elección se documenta en §4. El diseño de esquema, tipos y motores vive en la skill **`sql`**; el modelado documental/caché, en la skill **`nosql`**. Es **transversal**: los ejemplos son genéricos (auth, CRUD, manejo de errores, configuración) y aplican a cualquier dominio. Cubre también buenas prácticas para clientes **MAUI** (MVVM) porque comparten las mismas reglas de C#, seguridad y testing.
 
 Este archivo es un **skill**: se lee para replicar el patrón en cualquier proyecto .NET nuevo. No es una receta dogmática; es la lista de decisiones que convierten un CRUD simple en un backend mantenible, seguro y desplegable.
 
-**Referencias** (se leen bajo demanda, ruta relativa a esta skill): `references/maui.md`.
+**Referencias** (se leen bajo demanda, ruta relativa a esta skill): `references/maui.md` (clientes MAUI), `references/dapper.md` (acceso a datos con Dapper), `references/efcore.md` (acceso a datos con EF Core).
 
 ---
 
@@ -23,11 +23,11 @@ Porque resuelve los problemas que matan a las APIs .NET cuando crecen, con decis
 | **Envelope uniforme `ApiResponse<T>`** | Toda respuesta (éxito y error) tiene el mismo contrato `{isSuccess, statusCode, message, data, errors}`. El frontend tiene un solo patrón de consumo |
 | **`GlobalExceptionHandler` → 500 genérico + `ProblemDetails`** | El detalle real de la excepción va al log, nunca al cliente. Sin fuga de stack traces ni internos |
 | **Fail-fast de configuración** | Config inválida (connection string faltante, CORS vacío, JWT sin sección) → excepción al arrancar, no fallas en runtime difíciles de diagnosticar |
-| **Connection string por entorno** (`Development` → `SqlServer`, resto → `SqlServerWeb`) | El mismo código corre en local y en producción sin tocar el repositorio; la config correcta la decide el entorno |
+| **Connection string por entorno** (`Development` → local, resto → producción) | El mismo código corre en local y en producción sin tocar el repositorio; la config correcta la decide el entorno |
 | **JWT identifica + `ApiKey` global** | Separa "quién puede llamar a la API" (ApiKey del origen, validada contra BD) de "quién es el usuario" (JWT) |
 | **Rate limiting por cliente (`X-Forwarded-For` → IP)** | Protección de fuerza bruta que no bloquea a todos los usuarios por igual |
 | **Contraseñas con PBKDF2 (KDF)** | Hash seguro con salt e iteraciones configurables; nunca almacenar texto plano ni MD5/SHA simples |
-| **Stored Procedures + Dapper** | La lógica de datos vive en la BD (reutilizable, auditable); Dapper es simple y sin magic strings del ORM |
+| **Dapper o EF Core, sobre SQL Server o PostgreSQL** | Acceso a datos explícito y sin dependencia del ORM en el dominio; la capa Application no conoce el ORM ni el motor |
 | **Tests de integración con BD real** | Validan el flujo completo (DTO → SP → respuesta) contra la base real, no contra mocks que mienten |
 | **Sin secretos en el código** | Connection strings, claves JWT y ApiKeys van en configuración/secrets del entorno, nunca hardcodeadas ni en el repo |
 
@@ -38,8 +38,8 @@ Porque resuelve los problemas que matan a las APIs .NET cuando crecen, con decis
 | Capa | Tecnología | Nota |
 |------|-----------|------|
 | API | ASP.NET Core (net8/net9/net10 según contexto) | Web API con Controllers, no minimal API para CRUD corporativo |
-| ORM | **Dapper** + `System.Data.SqlClient` | Ligero, explícito, sin tracking |
-| BD | SQL Server + Stored Procedures | Lógica de datos en la BD |
+| ORM | **Dapper** o **Entity Framework Core** | Elegir por caso (§4); ver `references/dapper.md` / `references/efcore.md` |
+| BD | **SQL Server** o **PostgreSQL** | Esquema y motores según la skill `sql` |
 | Auth | JWT (Microsoft.AspNetCore.Authentication.JwtBearer) + ApiKey propio | Filter/attr |
 | Rate limiting | ASP.NET Core RateLimiter | Fixed window + partition por IP |
 | Logs | ILogger + GlobalExceptionHandler | Sin librería de terceros necesaria |
@@ -79,87 +79,59 @@ Reglas de dependencia (una sola dirección):
 
 ---
 
-## 4. Capa de datos (Dapper + SPs)
+## 4. Capa de datos (Dapper o EF Core, sobre SQL Server o PostgreSQL)
 
-### Contexto (IDapperContext)
+La elección del ORM es una **decisión explícita**, no una imposición. Ambos respetan Clean Architecture: los repositorios viven en `Infrastructure`, exponen interfaces y la capa `Application` no los conoce.
+
+| ORM | Cuándo elegirlo | Detalle |
+|-----|-----------------|---------|
+| **Dapper** | Control total del SQL, stored procedures, consultas a medida, máximo rendimiento. Cuando la lógica de datos vive (también) en la BD | `references/dapper.md` |
+| **EF Core** | Modelo de dominio rico, migraciones, LINQ, change tracking, evolución del esquema | `references/efcore.md` |
+
+- El diseño del esquema, tipos, índices y motores (SQL Server / PostgreSQL) está en la skill **`sql`**.
+- La lógica de negocio **nunca** vive en la capa de datos: los repositorios reciben datos ya procesados (p. ej. el `passwordHash` ya calculado).
+
+### Connection string por entorno (fail-fast)
 
 ```csharp
-public interface IDapperContext
+public interface IDbConnectionFactory
 {
     string ConnectionString { get; }
 }
-```
 
-Implementación que toma la connection string del entorno activo:
-
-```csharp
-public class DapperContext : IDapperContext
+public class DbConnectionFactory : IDbConnectionFactory
 {
     public string ConnectionString { get; }
 
-    public DapperContext(IConfiguration config, IHostEnvironment env)
+    public DbConnectionFactory(IConfiguration config, IHostEnvironment env)
     {
-        // Fail-fast: si falta, la API no arranca.
+        // La clave depende del motor ("SqlServer" | "Postgres"); debe existir.
+        var name = config["Database:ConnectionName"] ?? "Default";
         var conn = env.IsDevelopment()
-            ? config.GetConnectionString("SqlServer")
-            : config.GetConnectionString("SqlServerWeb");
+            ? config.GetConnectionString(name)
+            : config.GetConnectionString($"{name}Web");
 
+        // Fail-fast: si falta, la API no arranca.
         if (string.IsNullOrWhiteSpace(conn))
-            throw new InvalidOperationException("No se encontró ConnectionStrings:SqlServer/SqlServerWeb");
+            throw new InvalidOperationException($"No se encontró ConnectionStrings:{name}/{name}Web");
         ConnectionString = conn;
     }
 }
 ```
 
-### Stored Procedures con contrato de respuesta (SqlResponse)
-
-Cada SP devuelve un resultado con `IsSuccess`, `StatusCode` y `Message` para que la capa de aplicación sepa si la operación fue exitosa sin adivinar:
-
-```sql
--- Patrón de SP de escritura
-CREATE PROCEDURE Auth_Login
-    @Email NVARCHAR(100),
-    @PasswordHash NVARCHAR(500),
-    @IsSuccess BIT OUTPUT,
-    @StatusCode INT OUTPUT,
-    @Message NVARCHAR(500) OUTPUT
-AS
-BEGIN
-    SET NOCOUNT ON;
-    IF NOT EXISTS (SELECT 1 FROM Auth_Users WHERE Email = @Email)
-    BEGIN
-        SET @IsSuccess = 0; SET @StatusCode = 400;
-        SET @Message = N'Usuario o contraseña incorrecta'; RETURN;
-    END
-    -- validar hash...
-END
-```
-
-### Uso desde repositorio
+### Ejemplo mínimo con Dapper (detalle en `references/dapper.md`)
 
 ```csharp
-public async Task<LoginResult?> GetUserAsync(string email, string passwordHash)
+public async Task<User?> GetByEmailAsync(string email)
 {
-    using var connection = new SqlConnection(_context.ConnectionString);
-    var p = new DynamicParameters();
-    p.Add("@Email", email);
-    p.Add("@PasswordHash", passwordHash);
-    p.Add("@IsSuccess", dbType: DbType.Boolean, direction: ParameterDirection.Output);
-    p.Add("@StatusCode", dbType: DbType.Int32, direction: ParameterDirection.Output);
-    p.Add("@Message", dbType: DbType.String, size: 500, direction: ParameterDirection.Output);
-
-    await connection.ExecuteAsync("Auth_Login", p, commandType: CommandType.StoredProcedure);
-
-    var isSuccess = p.Get<bool>("@IsSuccess");
-    if (!isSuccess)
-        return new LoginResult(false, p.Get<int>("@StatusCode"), p.Get<string>("@Message"));
-
-    // segunda consulta para datos del usuario...
-    return new LoginResult(true, 200, "OK", user);
+    using var connection = new SqlConnection(_context.ConnectionString); // o NpgsqlConnection (PostgreSQL)
+    const string sql = "SELECT id, email, password_hash FROM app_users WHERE email = @Email";
+    return await connection.QueryFirstOrDefaultAsync<User>(sql, new { Email = email });
 }
 ```
 
-**Regla**: los repositorios reciben datos ya procesados (por ejemplo, el `passwordHash` calculado en Application); la capa de datos no aplica lógica de negocio.
+Con EF Core, el equivalente es un `DbContext` con `DbSet<User>` y una consulta LINQ (`references/efcore.md`). En ambos casos: **consultas parametrizadas**, sin concatenar valores (ver skill `sql`).
+
 
 ---
 
@@ -396,6 +368,7 @@ builder.Services.AddCors(o => o.AddPolicy("Default", p =>
 
 ```json
 {
+  "Database": { "ConnectionName": "SqlServer" },
   "ConnectionStrings": {
     "SqlServer": "Server=LOCAL;Database=...;Integrated Security=True",
     "SqlServerWeb": "Server=...;Database=...;User Id=...;Password=...;TrustServerCertificate=True"
@@ -405,6 +378,8 @@ builder.Services.AddCors(o => o.AddPolicy("Default", p =>
   "RateLimit": { "PermitLimit": 10, "WindowMinutes": 1 }
 }
 ```
+
+Con PostgreSQL, `ConnectionName` = `"Postgres"` y las claves `Postgres`/`PostgresWeb` (p. ej. `Host=localhost;Database=app;Username=...;Password=...`).
 
 Fail-fast: validar la config requerida **al arrancar**, no al primer request:
 
@@ -462,7 +437,7 @@ El detalle de MAUI (MVVM, DI, Shell y navegación, Core vs MAUI, timers, audio, 
 ## 12. Tests
 
 - **xUnit + `WebApplicationFactory<T>`** para tests de integración de la API.
-- Probar **contra BD real** (o instancia de prueba) para validar DTO → SP → respuesta completa.
+- Probar **contra BD real** (o instancia de prueba) para validar DTO → capa de datos → respuesta completa.
 - Verificar el **envelope**: `IsSuccess`, `StatusCode`, `Message` correctos para éxito, 400, 401, 404, 429 y 500.
 - No mockear repositorios para probar la API: el valor está en el flujo real.
 - Comando: `dotnet run --project NavajaSuiza.Test/NavajaSuiza.Test.csproj` (no ejecutar sin autorización del usuario según las reglas del repo). La suite usa xUnit.net v3 con runner in-process; `dotnet test` no es compatible con el SDK de .NET 10.

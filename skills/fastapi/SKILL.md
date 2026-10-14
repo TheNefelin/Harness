@@ -300,6 +300,8 @@ async def delete(db: AsyncSession, item: models.Product) -> None:
 
 ## 5. Modelos (SQLAlchemy 2.0 `Mapped`)
 
+> El diseño de esquema, tipos, índices, constraints y migraciones sigue la skill **`sql`**; aquí se cubre el mapeo con SQLAlchemy sobre PostgreSQL.
+
 - Un único `models.py` (evita imports circulares).
 - Tablas con prefijo del proyecto (p. ej. `app_` o `acme_`). El mismo prefijo se usa en los tests para dropear solo tus tablas.
 - Identidades: si una PK/columna es `GENERATED ALWAYS AS IDENTITY`, **no insertar valores explícitos** para esa columna (Postgres lanza `ProgrammingError`). Para idempotencia en el seed: si la columna tiene UNIQUE (`ON CONFLICT (col)`), y si NO la tiene (`INSERT ... SELECT ... WHERE NOT EXISTS`).
