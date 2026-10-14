@@ -1,237 +1,237 @@
 ---
 name: ui-ux-mockup
-description: Plan and create distinctive, reference-driven UI/UX designs and browser-previewable mockups before implementing production websites. Use when starting or redesigning a website, landing page, portfolio, content site, or web application and the user wants a deliberate visual direction rather than a generic template.
+description: Planificar y crear diseños UI/UX distintivos, guiados por referencias, y mockups previsualizables en el navegador antes de implementar sitios en producción. Usar cuando se inicie o rediseñe un sitio web, landing page, portafolio, sitio de contenido o aplicación web y el usuario quiera una dirección visual deliberada en lugar de una plantilla genérica.
 ---
 
-# UI/UX Mockup — Design First, Implement Second
+# UI/UX Mockup — Primero el diseño, después la implementación
 
-## Purpose
+## Propósito
 
-Create websites with a deliberate visual identity, strong composition, and a clear reason behind each design decision. Do not default to generic AI-generated layouts or familiar WordPress-style templates.
+Crear sitios web con una identidad visual deliberada, una composición sólida y una razón clara detrás de cada decisión de diseño. No caer por defecto en layouts genéricos generados por IA ni en plantillas familiares tipo WordPress.
 
-The first deliverable is a **visual direction and an isolated, browser-previewable mockup**. Production implementation begins only after the user approves the design.
+El primer entregable es una **dirección visual y un mockup aislado, previsualizable en el navegador**. La implementación en producción comienza solo después de que el usuario aprueba el diseño.
 
-This skill is framework-independent. It can be used with Astro, Angular, React, Vue, Svelte, plain HTML/CSS/JavaScript, or another stack already chosen by the project.
+Esta skill es independiente del framework. Se puede usar con Astro, Angular, React, Vue, Svelte, HTML/CSS/JavaScript puro u otro stack ya elegido por el proyecto.
 
-## Core principles
+## Principios centrales
 
-1. **Design for this project, not for a trend.** Start from the audience, purpose, content, brand, and context.
-2. **Use references to understand decisions, not to copy pages.** Identify the visual principles worth learning from each reference and adapt them to the current project.
-3. **Distinctiveness must be intentional.** Establish a clear art direction before selecting components or writing layout code.
-4. **Function and aesthetics are partners.** Visual impact must not compromise readability, accessibility, performance, navigation, or conversion.
-5. **Prototype before production.** Keep the mockup separate from production code until the user approves it.
-6. **Explain trade-offs in plain language.** The user may not have formal design training; explain what matters and ask focused questions.
-7. **Do not claim visual verification without doing it.** If browser preview or screenshot inspection is unavailable, disclose that limitation.
+1. **Diseñar para este proyecto, no para una tendencia.** Parte de la audiencia, el propósito, el contenido, la marca y el contexto.
+2. **Usar las referencias para entender decisiones, no para copiar páginas.** Identifica los principios visuales que vale la pena aprender de cada referencia y adáptalos al proyecto actual.
+3. **La distinción debe ser intencional.** Define una dirección de arte clara antes de elegir componentes o escribir el layout.
+4. **Función y estética son socias.** El impacto visual no debe comprometer legibilidad, accesibilidad, rendimiento, navegación ni conversión.
+5. **Prototipar antes de producción.** Mantén el mockup separado del código de producción hasta que el usuario lo apruebe.
+6. **Explicar los trade-offs en lenguaje llano.** El usuario puede no tener formación formal en diseño; explica lo que importa y haz preguntas concretas.
+7. **No afirmar verificación visual sin hacerla.** Si no puedes previsualizar en el navegador ni inspeccionar una captura, declara esa limitación.
 
-## Phase 1 — Understand the project
+## Fase 1 — Entender el proyecto
 
-Before designing, inspect the existing project and relevant instructions, including `AGENTS.md`, package files, existing styles, assets, and any project-specific skills.
+Antes de diseñar, inspecciona el proyecto existente y las instrucciones relevantes, incluidos `AGENTS.md`, archivos de paquetes, estilos existentes, assets y skills propias del proyecto.
 
-Establish, as far as the available information allows:
+Establece, hasta donde la información disponible lo permita:
 
-- What the website or application is for.
-- Who will use it and what they need to do.
-- The most important action or user journey.
-- The brand's personality and any existing identity.
-- The content, imagery, video, and assets available.
-- The target devices and accessibility requirements.
-- The existing technology stack and constraints.
-- What should be preserved, changed, or avoided.
+- Para qué sirve el sitio o la aplicación.
+- Quién lo usará y qué necesita hacer.
+- La acción o el recorrido de usuario más importante.
+- La personalidad de la marca y cualquier identidad existente.
+- El contenido, las imágenes, el video y los assets disponibles.
+- Los dispositivos objetivo y los requisitos de accesibilidad.
+- El stack tecnológico existente y sus restricciones.
+- Qué conviene conservar, cambiar o evitar.
 
-Ask only the essential unanswered questions. Do not make the user complete a long design questionnaire if the repository or conversation already answers most of it.
+Pregunta solo lo esencial que siga sin respuesta. No hagas que el usuario complete un cuestionario de diseño largo si el repositorio o la conversación ya responden a casi todo.
 
-## Phase 2 — Analyze references
+## Fase 2 — Analizar referencias
 
-Use any references the user provides: live websites, screenshots, moodboards, images, or local files.
+Usa las referencias que el usuario aporte: sitios en vivo, capturas, moodboards, imágenes o archivos locales.
 
-For each relevant reference, analyze:
+Para cada referencia relevante, analiza:
 
-- **Art direction:** the overall visual concept and emotional tone.
-- **Composition:** full-screen sections, asymmetry, spacing, scale, and visual rhythm.
-- **Typography:** hierarchy, character, readability, and use of display fonts.
-- **Color and contrast:** palette, overlays, contrast, and emphasis.
-- **Media:** photography, illustration, video, 3D, textures, and how they support the content.
-- **Motion and interaction:** scroll effects, pinned elements, transitions, hover states, and navigation.
-- **Content architecture:** how information is prioritized and discovered.
-- **Practical trade-offs:** accessibility, responsiveness, loading performance, and maintenance.
+- **Dirección de arte:** el concepto visual general y el tono emocional.
+- **Composición:** secciones a pantalla completa, asimetría, espaciado, escala y ritmo visual.
+- **Tipografía:** jerarquía, carácter, legibilidad y uso de fuentes display.
+- **Color y contraste:** paleta, overlays, contraste y énfasis.
+- **Medios:** fotografía, ilustración, video, 3D, texturas y cómo sostienen el contenido.
+- **Movimiento e interacción:** efectos de scroll, elementos fijos (pinned), transiciones, estados hover y navegación.
+- **Arquitectura del contenido:** cómo se prioriza y se descubre la información.
+- **Trade-offs prácticos:** accesibilidad, responsividad, rendimiento de carga y mantenimiento.
 
-Record what to learn from a reference and what **not** to copy. Do not reproduce its exact layout, branding, text, artwork, or distinctive assets unless the user has the rights and explicitly asks for that use.
+Registra qué aprender de una referencia y qué **no** copiar. No reproduzcas su layout exacto, su marca, sus textos, su arte ni sus assets distintivos, salvo que el usuario tenga los derechos y lo pida explícitamente.
 
-If a site cannot be inspected, say so. Do not invent observations about its appearance or behavior. Ask for screenshots or a description if the reference is essential.
+Si un sitio no se puede inspeccionar, dilo. No inventes observaciones sobre su apariencia o comportamiento. Pide capturas o una descripción si la referencia es imprescindible.
 
-### Reference examples and possible lessons
+### Ejemplos de referencias y posibles lecciones
 
-Treat these as starting points, not mandatory styles:
+Tómalas como puntos de partida, no como estilos obligatorios:
 
-- **Tesla:** restrained product presentation, confident imagery, and a clear visual hierarchy.
-- **Rockstar Games / GTA VI:** cinematic art direction, world-building, and media-led storytelling.
-- **La Velada del Año:** event identity, strong graphic language, and presentation of personalities.
-- **Study Together:** atmosphere, immersive backgrounds, and media integrated into an experience.
-- **Bruno Simon:** a portfolio built around a memorable interactive concept; use only when such interaction serves the project.
-- **The user's own projects:** useful evidence of the user's existing work and preferences. Analyze them individually rather than treating one as a universal template.
+- **Tesla:** presentación de producto contenida, imagen con seguridad y jerarquía visual clara.
+- **Rockstar Games / GTA VI:** dirección de arte cinematográfica, construcción de mundo y narrativa liderada por medios.
+- **La Velada del Año:** identidad de evento, lenguaje gráfico fuerte y presentación de personalidades.
+- **Study Together:** atmósfera, fondos inmersivos y medios integrados en una experiencia.
+- **Bruno Simon:** un portafolio construido alrededor de un concepto interactivo memorable; úsalo solo cuando ese tipo de interacción sirva al proyecto.
+- **Los proyectos del propio usuario:** evidencia útil del trabajo y las preferencias existentes. Analízalos individualmente en lugar de tomar uno como plantilla universal.
 
-The user may prefer an original direction that shares none of these references' surface styles. That is valid.
+El usuario puede preferir una dirección original que no comparta el estilo superficial de ninguna de estas referencias. Eso es válido.
 
-## Phase 3 — Define the art direction
+## Fase 3 — Definir la dirección de arte
 
-Before building the mockup, create **three genuinely different art directions** when the scope and available information support it. Do not present three near-identical layouts with only different colors.
+Antes de construir el mockup, crea **tres direcciones de arte genuinamente distintas** cuando el alcance y la información disponible lo permitan. No presentes tres layouts casi idénticos que solo cambian de color.
 
-For each direction, briefly define:
+Para cada dirección, define brevemente:
 
-- Name and central idea.
-- Intended feeling and audience.
-- Layout and composition.
-- Typography and color approach.
-- Image/video/illustration approach.
-- Motion and interaction approach.
-- Main advantages and risks.
+- Nombre e idea central.
+- Sensación buscada y audiencia.
+- Layout y composición.
+- Enfoque de tipografía y color.
+- Enfoque de imagen/video/ilustración.
+- Enfoque de movimiento e interacción.
+- Principales ventajas y riesgos.
 
-Possible directions may include editorial, cinematic, minimalist, expressive, technical, playful, premium, atmospheric, or content-dense — but choose based on the project, not this list.
+Las direcciones posibles pueden ser editorial, cinematográfica, minimalista, expresiva, técnica, lúdica, premium, atmosférica o densa en contenido, pero elige según el proyecto, no según esta lista.
 
-Recommend the strongest direction and explain why. Then ask the user to select or combine directions **before building a detailed mockup**, unless the user has already explicitly authorized the assistant to choose and proceed.
+Recomienda la dirección más fuerte y explica por qué. Luego pide al usuario que elija o combine direcciones **antes de construir un mockup detallado**, salvo que ya haya autorizado explícitamente al asistente a elegir y continuar.
 
-## Phase 4 — Build an isolated mockup
+## Fase 4 — Construir un mockup aislado
 
-Create a standalone prototype that the user can open and evaluate in a browser.
+Crea un prototipo independiente que el usuario pueda abrir y evaluar en el navegador.
 
-### Location and isolation
+### Ubicación y aislamiento
 
-- Prefer a clearly named directory such as `design-preview/` or another location agreed with the user.
-- Inspect the repository first; do not overwrite or reorganize existing project files.
-- Keep the mockup isolated from production code and avoid changing application behavior.
-- If a project-specific prototype already exists, reuse it only when appropriate.
+- Prefiere un directorio con nombre claro, como `design-preview/`, u otra ubicación acordada con el usuario.
+- Inspecciona el repositorio primero; no sobrescribas ni reorganicen archivos existentes del proyecto.
+- Mantén el mockup aislado del código de producción y evita cambiar el comportamiento de la aplicación.
+- Si ya existe un prototipo propio del proyecto, reutilízalo solo cuando corresponda.
 
-### Technology
+### Tecnología
 
-- Default to semantic HTML, CSS, and JavaScript for a lightweight, framework-independent mockup.
-- Use an existing framework or tool if it materially improves the preview, matches project constraints, or the user requests it.
-- Do not install dependencies just to add novelty.
-- Use available project assets when appropriate; do not replace distinctive assets with generic stock imagery without a reason.
-- If using remote assets, ensure the prototype has a reasonable fallback and explain any dependency on external hosting.
+- Por defecto, usa HTML, CSS y JavaScript semánticos para un mockup ligero e independiente del framework.
+- Usa un framework o herramienta existente si mejora materialmente la previsualización, encaja con las restricciones del proyecto o el usuario lo pide.
+- No instales dependencias solo para agregar novedad.
+- Usa los assets disponibles del proyecto cuando corresponda; no reemplaces assets distintivos por imágenes de stock genéricas sin una razón.
+- Si usas assets remotos, asegura un fallback razonable y explica cualquier dependencia de hosting externo.
 
-### Visual quality
+### Calidad visual
 
-The mockup should demonstrate the intended visual direction, not merely wireframes or a collection of generic cards.
+El mockup debe demostrar la dirección visual buscada, no simples wireframes ni una colección de tarjetas genéricas.
 
-Consider, when appropriate:
+Considera, cuando corresponda:
 
-- A distinctive hero composition.
-- Strong hierarchy and intentional whitespace.
-- Meaningful contrast in scale, density, and alignment.
-- A deliberate type system and color palette.
-- High-quality, relevant imagery or video.
-- Section transitions and a coherent visual rhythm.
-- Realistic content instead of repeated placeholder text.
-- Custom details that connect to the project's identity.
-- Clear calls to action and understandable navigation.
+- Una composición hero distintiva.
+- Jerarquía fuerte y espacios en blanco intencionales.
+- Contraste significativo en escala, densidad y alineación.
+- Un sistema tipográfico y una paleta deliberados.
+- Imágenes o video relevantes y de alta calidad.
+- Transiciones entre secciones y un ritmo visual coherente.
+- Contenido realista en lugar de texto de relleno repetido.
+- Detalles propios que conecten con la identidad del proyecto.
+- Llamados a la acción claros y navegación comprensible.
 
-Do not automatically use:
+No uses automáticamente:
 
-- A centered hero with a generic headline and two buttons.
-- The same three-column card grid for every section.
-- Purple/blue gradients just because the project is digital.
-- Floating glass cards, oversized rounded corners, or pill buttons everywhere.
-- Generic SaaS language, invented statistics, fake testimonials, or meaningless badges.
-- Animation that has no purpose.
-- A template-like section order regardless of content.
+- Un hero centrado con un titular genérico y dos botones.
+- La misma grilla de tarjetas de tres columnas en cada sección.
+- Gradientes morado/azul solo porque el proyecto es digital.
+- Tarjetas flotantes tipo glass, esquinas muy redondeadas o botones pill por todos lados.
+- Lenguaje SaaS genérico, estadísticas inventadas, testimonios falsos o badges sin sentido.
+- Animación sin propósito.
+- Un orden de secciones tipo plantilla, sin importar el contenido.
 
-These patterns are not prohibited when they genuinely fit; they must not be defaults.
+Estos patrones no están prohibidos cuando encajan de verdad; no deben ser la opción por defecto.
 
-## Phase 5 — Motion, media, and immersive effects
+## Fase 5 — Movimiento, medios y efectos inmersivos
 
-Choose interaction and motion to support the concept and content.
+Elige interacción y movimiento para sostener el concepto y el contenido.
 
-Potential techniques include:
+Técnicas posibles:
 
-- Scroll-triggered reveals.
-- Sticky or pinned sections.
-- Parallax and layered depth.
-- Full-screen visual sections.
-- Background video with a static overlay.
-- Sliders or carousels.
-- Microinteractions and intentional hover/focus states.
-- Subtle transitions between sections.
+- Apariciones (reveals) disparadas por scroll.
+- Secciones sticky o fijas (pinned).
+- Parallax y profundidad por capas.
+- Secciones visuales a pantalla completa.
+- Video de fondo con un overlay estático.
+- Sliders o carruseles.
+- Microinteracciones y estados hover/focus intencionales.
+- Transiciones sutiles entre secciones.
 
-Use libraries such as SwiperJS, Font Awesome, Tailwind CSS, Tailwind animation utilities, GSAP, or other tools only when useful and compatible with the project. Verify actual library APIs and installed versions instead of assuming a package is present.
+Usa librerías como SwiperJS, Font Awesome, Tailwind CSS, utilidades de animación de Tailwind, GSAP u otras herramientas solo cuando sean útiles y compatibles con el proyecto. Verifica las APIs reales y las versiones instaladas en lugar de asumir que un paquete está presente.
 
-### Background video guidance
+### Guía para video de fondo
 
-For atmospheric experiences, a background video may be appropriate — for example, a tarot website using slow candlelight, drifting smoke, or a night sky. It must remain subordinate to the content.
+Para experiencias atmosféricas, un video de fondo puede ser apropiado; por ejemplo, un sitio de tarot con luz de vela lenta, humo a la deriva o un cielo nocturno. Debe quedar siempre subordinado al contenido.
 
-When using background video:
+Al usar video de fondo:
 
-- Prefer muted, looping, non-essential footage; never make audio autoplay.
-- Add a contrast overlay or gradient where necessary for readable text.
-- Ensure controls and foreground content remain accessible.
-- Provide a poster or static image fallback, particularly for mobile and reduced-data situations.
-- Respect `prefers-reduced-motion`; provide a still alternative when appropriate.
-- Optimize file size, resolution, and encoding; avoid large videos that delay meaningful content.
-- Do not assume that `background-attachment: fixed` behaves consistently on mobile. Test the target browsers and use a fixed video layer or an alternative effect if needed.
-- Make sure the video is decorative, not the only way to understand the content.
+- Prefiere material silenciado, en loop y no esencial; nunca hagas que el audio se reproduzca automáticamente.
+- Agrega un overlay de contraste o un gradiente donde haga falta para que el texto sea legible.
+- Asegura que los controles y el contenido en primer plano sigan siendo accesibles.
+- Ofrece un póster o una imagen estática de respaldo, sobre todo para móvil y situaciones de pocos datos.
+- Respeta `prefers-reduced-motion`; ofrece una alternativa estática cuando corresponda.
+- Optimiza tamaño de archivo, resolución y codificación; evita videos grandes que retrasen el contenido relevante.
+- No asumas que `background-attachment: fixed` se comporta igual en móvil. Prueba los navegadores objetivo y usa una capa de video fija u otro efecto si hace falta.
+- Asegúrate de que el video sea decorativo, no la única forma de entender el contenido.
 
-### Accessibility and responsiveness
+### Accesibilidad y responsividad
 
-- Use semantic landmarks and sensible heading order.
-- Make navigation and interactions keyboard accessible.
-- Provide visible focus states.
-- Maintain sufficient text contrast over images and video.
-- Avoid motion that can cause discomfort; honor reduced-motion preferences.
-- Design for narrow screens, touch, and different viewport sizes.
-- Do not hide essential information behind hover-only behavior.
+- Usa landmarks semánticos y un orden de encabezados coherente.
+- Haz que la navegación y las interacciones sean accesibles por teclado.
+- Proporciona estados de foco visibles.
+- Mantén contraste de texto suficiente sobre imágenes y video.
+- Evita movimiento que pueda causar incomodidad; respeta las preferencias de movimiento reducido.
+- Diseña para pantallas angostas, touch y distintos tamaños de viewport.
+- No escondas información esencial detrás de comportamiento solo-hover.
 
-## Phase 6 — Inspect and iterate
+## Fase 6 — Inspeccionar e iterar
 
-Before presenting the mockup:
+Antes de presentar el mockup:
 
-1. Run it using an available local preview method.
-2. Inspect the actual rendered page at desktop and mobile sizes when tools permit.
-3. Check spacing, clipping, typography, image crops, overlays, contrast, and navigation.
-4. Test interactive controls and obvious error states.
-5. Check console/build output when available.
-6. Fix clear visual or functional problems before asking the user to review it.
+1. Ejecútalo con un método de previsualización local disponible.
+2. Inspecciona la página realmente renderizada en tamaños desktop y móvil cuando las herramientas lo permitan.
+3. Revisa espaciado, recortes, tipografía, recortes de imagen, overlays, contraste y navegación.
+4. Prueba los controles interactivos y los estados de error evidentes.
+5. Revisa la salida de consola/build cuando esté disponible.
+6. Corrige problemas visuales o funcionales claros antes de pedir al usuario que lo revise.
 
-If browser inspection is unavailable, provide the mockup and clearly state what was and was not verified. Never claim to have tested a behavior that was not tested.
+Si la inspección en el navegador no está disponible, entrega el mockup y declara claramente qué se verificó y qué no. Nunca afirmes haber probado un comportamiento que no probaste.
 
-Ask for concrete feedback using visual concepts the user can understand, for example:
+Pide feedback concreto usando conceptos visuales que el usuario pueda entender; por ejemplo:
 
-- “¿El fondo tiene demasiada presencia?”
-- “¿La página se siente demasiado corporativa?”
-- “¿Quieres más espacio o más contenido visible?”
-- “¿El movimiento aporta atmósfera o distrae?”
+- "¿El fondo tiene demasiada presencia?"
+- "¿La página se siente demasiado corporativa?"
+- "¿Quieres más espacio o más contenido visible?"
+- "¿El movimiento aporta atmósfera o distrae?"
 
-Make changes iteratively. Avoid vague instructions like “make it modern”; translate feedback into specific design decisions.
+Haz los cambios de forma iterativa. Evita instrucciones vagas como "hazlo más moderno"; traduce el feedback en decisiones de diseño específicas.
 
-## Phase 7 — Approval and production implementation
+## Fase 7 — Aprobación e implementación en producción
 
-Do not port the mockup into the production application until the user explicitly approves the direction, unless they previously authorized implementation without a separate approval.
+No portes el mockup a la aplicación de producción hasta que el usuario apruebe explícitamente la dirección, salvo que antes haya autorizado la implementación sin una aprobación separada.
 
-After approval:
+Después de la aprobación:
 
-1. Confirm the target framework and any project constraints if not already clear.
-2. Translate the approved visual system into reusable design tokens and components where appropriate.
-3. Reuse the approved composition, typography, colors, media treatment, and interactions rather than redesigning it during implementation.
-4. Follow the project's existing architecture and coding conventions.
-5. Ensure responsive behavior, accessibility, and performance remain intact.
-6. Avoid unnecessary dependency changes or broad refactors.
-7. Compare the production page against the approved mockup and correct meaningful deviations.
-8. Report what was implemented, what was tested, and any remaining limitations.
+1. Confirma el framework objetivo y las restricciones del proyecto si aún no están claros.
+2. Traduce el sistema visual aprobado a design tokens y componentes reutilizables donde corresponda.
+3. Reutiliza la composición, la tipografía, los colores, el tratamiento de medios y las interacciones aprobadas en lugar de rediseñar durante la implementación.
+4. Sigue la arquitectura y las convenciones de código existentes del proyecto.
+5. Asegura que la responsividad, la accesibilidad y el rendimiento se mantengan intactos.
+6. Evita cambios de dependencias innecesarios o refactors amplios.
+7. Compara la página de producción con el mockup aprobado y corrige desviaciones significativas.
+8. Reporta qué se implementó, qué se probó y las limitaciones que queden.
 
-## Deliverables
+## Entregables
 
-Depending on project stage, provide:
+Según la etapa del proyecto, entrega:
 
-1. A concise project/reference analysis.
-2. Three art directions with a recommendation, when needed.
-3. An isolated, browser-previewable mockup.
-4. A short explanation of the visual decisions.
-5. A list of known limitations or unverified behavior.
-6. Production implementation only after approval.
+1. Un análisis conciso del proyecto y las referencias.
+2. Tres direcciones de arte con una recomendación, cuando haga falta.
+3. Un mockup aislado, previsualizable en el navegador.
+4. Una explicación breve de las decisiones visuales.
+5. Una lista de limitaciones conocidas o comportamiento no verificado.
+6. La implementación en producción solo después de la aprobación.
 
-## Working style
+## Estilo de trabajo
 
-- Be collaborative and direct.
-- Do not overwhelm the user with design jargon.
-- Explain design choices in plain language.
-- Ask one focused question at a time unless multiple independent details are genuinely required.
-- Prefer a small number of thoughtful decisions over a large pile of effects.
-- The goal is not merely a pretty screenshot: it is a distinctive, usable, accessible, and maintainable experience.
+- Sé colaborativo y directo.
+- No abrumes al usuario con jerga de diseño.
+- Explica las decisiones de diseño en lenguaje llano.
+- Haz una pregunta concreta por vez, salvo que realmente hagan falta varios detalles independientes.
+- Prefiere pocas decisiones bien pensadas antes que una pila grande de efectos.
+- El objetivo no es solo una captura bonita: es una experiencia distintiva, usable, accesible y mantenible.

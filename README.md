@@ -5,7 +5,7 @@ Conjunto reutilizable de **reglas**, **skills** y **plantillas de contexto** par
 ## Qué resuelve
 
 - El agente no improvisa: reglas claras en `AGENTS.md`.
-- Las skills se cargan **solo cuando hacen falta** → menos tokens por sesión.
+- Las skills se cargan **solo cuando hacen falta** → menos tokens por sesión. Dentro de una skill, el detalle vive en `references/*.md` y se lee **bajo demanda** (progressive disclosure).
 - El contexto del proyecto persiste entre sesiones (`README` / `DEVELOPMENT` / `SKILL`).
 - Vos elegís el alcance: **global** (cero drift) o **por proyecto** (solo lo necesario).
 
