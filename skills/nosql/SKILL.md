@@ -1,6 +1,6 @@
 ---
 name: nosql
-description: Bases de datos NoSQL: MongoDB (documental), Azure Cosmos DB, Redis (clave-valor/caché) y Amazon DynamoDB. Usar cuando se modele, consulte u opere datos no relacionales: documentos, caché, colecciones, claves de partición, consistencia o patrones de acceso.
+description: Bases de datos NoSQL: MongoDB (documental), Azure Cosmos DB, Redis (clave-valor/caché) y Amazon DynamoDB. Usar cuando se modele, consulte u opere datos no relacionales: documentos, caché, colecciones, claves de partición, consistencia o patrones de acceso. NO usar para bases relacionales/SQL (eso es la skill 'sql'), ni para el acceso a datos desde el ORM/código (eso es 'dotnet' o 'fastapi').
 ---
 
 # Bases de datos NoSQL — Patrón senior
@@ -8,6 +8,17 @@ description: Bases de datos NoSQL: MongoDB (documental), Azure Cosmos DB, Redis 
 > Criterio transversal para MongoDB, Azure Cosmos DB, Redis y DynamoDB. Lo común va en este archivo; el detalle por motor, en `references/`.
 
 **Referencias** (se leen bajo demanda, rutas relativas a esta skill): `references/mongodb.md`, `references/cosmosdb.md`, `references/redis.md`, `references/dynamodb.md`.
+
+## Cuándo NO usar
+
+| Situación | Skill |
+|-----------|-------|
+| Base relacional, integridad referencial fuerte, transacciones multi-tabla, consultas ad-hoc | `sql` |
+| Cómo consultar desde el ORM/SDK del lenguaje (Dapper, EF Core, SQLAlchemy, drivers) | `dotnet` / `fastapi` |
+
+Usá NoSQL solo cuando el modelo de datos o el patrón de acceso lo justifiquen; si dudás, el relacional (`sql`) suele ser la elección correcta.
+
+> **Alcance y frescura:** este skill cubre patrones de arquitectura y acceso (particionado, consistencia, idempotencia), no atados a versiones. Los detalles de API, límites y cuotas deben verificarse contra la documentación oficial vigente de cada motor.
 
 ---
 

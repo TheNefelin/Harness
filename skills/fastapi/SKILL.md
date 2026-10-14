@@ -1,11 +1,11 @@
 ---
 name: fastapi
-description: Patrón senior para APIs REST en Python con FastAPI, SQLAlchemy 2.0 async y PostgreSQL. Usar cuando se cree, modifique o revise una API FastAPI: endpoints, modelos, servicios, auth, uploads, email o testing.
+description: Patrón senior para APIs REST en Python con FastAPI, SQLAlchemy 2.1 async y PostgreSQL. Usar cuando se cree, modifique o revise una API FastAPI: endpoints, modelos, servicios, auth, uploads, email o testing. NO usar para APIs .NET (eso es la skill 'dotnet'), diseño de esquema, índices o motores de BD (eso es 'sql' o 'nosql'), ni frontend (eso es 'angular' o 'astro').
 ---
 
 # SKILL: API FastAPI en Python — Patrón Senior (transversal)
 
-Guía de referencia para construir APIs REST con **FastAPI + SQLAlchemy 2.0 (async) + PostgreSQL**, siguiendo una arquitectura y convenciones senior validadas en producción. Es **transversal**: los ejemplos son genéricos (CRUD, catálogos, auth, uploads, email) y aplican a cualquier dominio — e-commerce, SaaS, contenido, fintech, lo que sea.
+Guía de referencia para construir APIs REST con **FastAPI + SQLAlchemy 2.1 (async) + PostgreSQL**, siguiendo una arquitectura y convenciones senior validadas en producción. Es **transversal**: los ejemplos son genéricos (CRUD, catálogos, auth, uploads, email) y aplican a cualquier dominio — e-commerce, SaaS, contenido, fintech, lo que sea.
 
 Este archivo es un **skill**: se lee para replicar el patrón en cualquier API nueva. No es una receta dogmática, es la lista de decisiones que convierten un CRUD simple en un backend mantenible.
 
@@ -15,6 +15,17 @@ Este archivo es un **skill**: se lee para replicar el patrón en cualquier API n
 - **Email transaccional**: Brevo (`api/contact/brevo.py`) — REST API `/v3/smtp/email` con httpx async; el patrón aplica a cualquier proveedor.
 
 **Referencias** (se leen bajo demanda, rutas relativas a esta skill): `references/auth.md`, `references/uploads.md`, `references/email.md`, `references/rate-limiting.md`, `references/tests.md`.
+
+## Cuándo NO usar
+
+| Situación | Skill |
+|-----------|-------|
+| API en .NET / C# / ASP.NET Core | `dotnet` |
+| Diseño de esquema, tipos, índices, constraints o migraciones del motor | `sql` (SQL Server / PostgreSQL) o `nosql` |
+| Frontend Angular o Astro | `angular` / `astro` |
+| Diseño visual / mockups previos a implementar | `ui-ux-mockup` |
+
+El **cómo** se escribe la API (feature-based, route→service→repository, DTOs, errores RFC 9457) vive aquí; el **esquema de la BD** y el mapeo con SQLAlchemy se apoyan en `sql`.
 
 ---
 
@@ -49,7 +60,7 @@ Porque resuelve los problemas que matan a las APIs FastAPI cuando crecen, con de
 |------|-----------|
 | Runtime | Python 3.12+ |
 | Framework | FastAPI (última estable) + Uvicorn |
-| ORM | SQLAlchemy 2.0 (estilo `Mapped`/`mapped_column`) + `asyncpg` |
+| ORM | SQLAlchemy 2.1 (estilo `Mapped`/`mapped_column`) + `asyncpg` |
 | Validación | Pydantic v2 (`from_attributes=True`) |
 | Auth | Google OAuth (opcional), `python-jose` (JWT HS256), refresh token rotation |
 | Errores | `fastapi-problem` (RFC 9457) |
@@ -58,6 +69,8 @@ Porque resuelve los problemas que matan a las APIs FastAPI cuando crecen, con de
 | Imágenes | Cloudinary (o cualquier servicio: el patrón es el mismo) |
 | Email transaccional | Brevo REST API (`/v3/smtp/email`) con `httpx` async (el patrón aplica a cualquier proveedor) |
 | Tests | `pytest` + `pytest-asyncio` + `httpx` |
+
+> **Frescura (verificado 2026-10-13 en PyPI):** FastAPI **0.143.0**, SQLAlchemy **2.1.4**, Pydantic **2.14.1**; PostgreSQL **18** (estable desde 2025-09-25). El estilo `Mapped`/`mapped_column` y las APIs async siguen vigentes en 2.1.
 
 ---
 
@@ -298,7 +311,7 @@ async def delete(db: AsyncSession, item: models.Product) -> None:
 
 ---
 
-## 5. Modelos (SQLAlchemy 2.0 `Mapped`)
+## 5. Modelos (SQLAlchemy 2.1 `Mapped`)
 
 > El diseño de esquema, tipos, índices, constraints y migraciones sigue la skill **`sql`**; aquí se cubre el mapeo con SQLAlchemy sobre PostgreSQL.
 

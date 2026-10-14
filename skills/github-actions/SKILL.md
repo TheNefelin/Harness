@@ -1,11 +1,20 @@
 ---
 name: github-actions
-description: CI/CD con GitHub Actions. Usar cuando se cree, modifique o revise un workflow o pipeline: jobs, matrix, secrets, cache, artifacts o despliegues en GitHub Actions.
+description: CI/CD con GitHub Actions. Usar cuando se cree, modifique o revise un workflow o pipeline: jobs, matrix, secrets, cache, artifacts o despliegues en GitHub Actions. NO usar para diseñar el Dockerfile o la imagen (eso es la skill 'docker') ni los manifiestos de clúster (eso es 'kubernetes'); Actions solo los ejecuta.
 ---
 
 # GitHub Actions — Patrón senior
 
 > Pipelines de CI/CD con GitHub Actions. Convenciones, anti-patrones y patrones; no es un tutorial de YAML.
+
+## Cuándo NO usar
+
+| Situación | Skill |
+|-----------|-------|
+| Dockerfile, imagen o Compose local | `docker` |
+| Manifiestos de Kubernetes, Helm, Kustomize, GitOps | `kubernetes` |
+
+Actions **orquesta el pipeline**; el Dockerfile lo diseña `docker` y los manifiestos los define `kubernetes`.
 
 ## Decisiones y convenciones
 

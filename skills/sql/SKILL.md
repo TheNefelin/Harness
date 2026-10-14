@@ -1,6 +1,6 @@
 ---
 name: sql
-description: Diseño y uso de bases de datos relacionales (SQL Server y PostgreSQL). Usar cuando se diseñe o revise un esquema, se escriban consultas, índices, constraints o migraciones, o se gestionen transacciones, paginación y rendimiento en SQL Server o PostgreSQL.
+description: Diseño y uso de bases de datos relacionales (SQL Server y PostgreSQL): modelado, esquema, consultas, índices, constraints, transacciones y migraciones. Usar cuando se diseñe o revise un esquema, se escriban consultas, índices, constraints o migraciones, o se gestionen transacciones, paginación y rendimiento. NO usar para NoSQL, caché o documental (eso es la skill 'nosql'), ni para el acceso a datos desde el ORM/código (eso es 'dotnet' o 'fastapi').
 ---
 
 # Bases de datos relacionales — Patrón senior (SQL Server + PostgreSQL)
@@ -8,6 +8,18 @@ description: Diseño y uso de bases de datos relacionales (SQL Server y PostgreS
 > Conocimiento transversal de bases de datos relacionales. Lo común va en este archivo; lo específico de cada motor, en `references/sqlserver.md` y `references/postgresql.md`.
 
 **Referencias** (se leen bajo demanda, rutas relativas a esta skill): `references/sqlserver.md`, `references/postgresql.md`. El uso del ORM vive en la skill de cada stack (`dotnet` para Dapper/EF Core, `fastapi` para SQLAlchemy).
+
+## Cuándo NO usar
+
+| Situación | Skill |
+|-----------|-------|
+| MongoDB, Cosmos DB, Redis, DynamoDB; caché o documental | `nosql` |
+| Cómo consultar la BD desde el ORM (Dapper, EF Core, SQLAlchemy) | `dotnet` / `fastapi` |
+| Diseño visual / mockups (si el problema es de UI, no de datos) | `ui-ux-mockup` |
+
+El **diseño del esquema y la consulta SQL** (motor-agnóstico) vive aquí; el **acceso desde el código** es `dotnet`/`fastapi`.
+
+> **Frescura (verificado 2026-10-13):** sintaxis conforme a **SQL:2023 (ISO/IEC 9075:2023)**; PostgreSQL **18** es la versión estable (2025-09-25, soporte 5 años). Las notas de SQL Server son estables entre versiones recientes.
 
 ---
 

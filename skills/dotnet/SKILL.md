@@ -1,6 +1,6 @@
 ---
 name: dotnet
-description: Patrón senior para APIs REST en .NET (ASP.NET Core) con Clean Architecture, Dapper o Entity Framework Core sobre SQL Server o PostgreSQL, incluidos clientes MAUI (MVVM). Usar cuando se cree, modifique o revise código .NET/C#: controladores, servicios, repositorios, capa de datos, auth, manejo de errores o testing.
+description: Patrón senior para APIs REST en .NET (ASP.NET Core) con Clean Architecture, Dapper o Entity Framework Core sobre SQL Server o PostgreSQL, incluidos clientes MAUI (MVVM). Usar cuando se cree, modifique o revise código .NET/C#: controladores, servicios, repositorios, capa de datos, auth, manejo de errores o testing. NO usar para APIs Python/FastAPI (eso es la skill 'fastapi'), diseño de esquema, índices o motores de BD (eso es 'sql' o 'nosql'), ni frontend Angular/Astro (eso es 'angular' o 'astro').
 ---
 
 # SKILL: .NET (C#) — Patrón Senior (transversal)
@@ -10,6 +10,17 @@ Guía de referencia para construir APIs REST en **.NET (ASP.NET Core)** siguiend
 Este archivo es un **skill**: se lee para replicar el patrón en cualquier proyecto .NET nuevo. No es una receta dogmática; es la lista de decisiones que convierten un CRUD simple en un backend mantenible, seguro y desplegable.
 
 **Referencias** (se leen bajo demanda, ruta relativa a esta skill): `references/maui.md` (clientes MAUI), `references/dapper.md` (acceso a datos con Dapper), `references/efcore.md` (acceso a datos con EF Core).
+
+## Cuándo NO usar
+
+| Situación | Skill |
+|-----------|-------|
+| API en Python / FastAPI / SQLAlchemy | `fastapi` |
+| Diseño de esquema, tipos, índices, constraints o migraciones del motor | `sql` (SQL Server / PostgreSQL) o `nosql` |
+| Frontend Angular o Astro | `angular` / `astro` |
+| Diseño visual / mockups previos a implementar | `ui-ux-mockup` |
+
+El **cómo** se escribe C#/.NET (Clean Architecture, envelope, auth, capa de datos) vive aquí; el **esquema de la BD** es `sql`, y el **frontend** es `angular`/`astro`.
 
 ---
 
@@ -46,6 +57,8 @@ Porque resuelve los problemas que matan a las APIs .NET cuando crecen, con decis
 | Tests | xUnit + WebApplicationFactory | Integración contra BD real |
 | Serialización | System.Text.Json | CamelCase, sin ciclos |
 | Documentación | Swagger/Swashbuckle | Versionado compatible (ver §10) |
+
+> **Frescura (verificado 2026-10-13):** .NET 10 es **LTS** desde el **2025-11-11** (soporte hasta 2028-11-10) e incluye **C# 14** y **EF Core 10**; .NET 8 y .NET 9 llegan a **fin de soporte el 2026-11-10**. Fuente: .NET Blog, *Announcing .NET 10* (2025-11-11); Microsoft Learn, *What's New in EF Core 10*.
 
 ---
 

@@ -1,6 +1,6 @@
 ---
 name: ui-ux-mockup
-description: Planificar y crear diseños UI/UX distintivos, guiados por referencias, y mockups previsualizables en el navegador antes de implementar sitios en producción. Usar cuando se inicie o rediseñe un sitio web, landing page, portafolio, sitio de contenido o aplicación web y el usuario quiera una dirección visual deliberada en lugar de una plantilla genérica.
+description: Planificar y crear diseños UI/UX distintivos, guiados por referencias, y mockups previsualizables en el navegador antes de implementar sitios en producción. Usar cuando se inicie o rediseñe un sitio web, landing page, portafolio, sitio de contenido o aplicación web y el usuario quiera una dirección visual deliberada en lugar de una plantilla genérica. NO usar para implementar el frontend (eso es 'angular' o 'astro') ni el backend (eso es 'dotnet' o 'fastapi').
 ---
 
 # UI/UX Mockup — Primero el diseño, después la implementación
@@ -13,6 +13,15 @@ El primer entregable es una **dirección visual y un mockup aislado, previsualiz
 
 Esta skill es independiente del framework. Se puede usar con Astro, Angular, React, Vue, Svelte, HTML/CSS/JavaScript puro u otro stack ya elegido por el proyecto.
 
+## Cuándo NO usar
+
+| Situación | Skill |
+|-----------|-------|
+| Implementar el frontend (componentes, rutas, signals, SSR) | `angular` / `astro` |
+| Backend o API | `dotnet` / `fastapi` |
+
+Esta skill **decide y previsualiza el diseño**; la implementación en producción es de `angular`/`astro`.
+
 ## Principios centrales
 
 1. **Diseñar para este proyecto, no para una tendencia.** Parte de la audiencia, el propósito, el contenido, la marca y el contexto.
@@ -22,6 +31,18 @@ Esta skill es independiente del framework. Se puede usar con Astro, Angular, Rea
 5. **Prototipar antes de producción.** Mantén el mockup separado del código de producción hasta que el usuario lo apruebe.
 6. **Explicar los trade-offs en lenguaje llano.** El usuario puede no tener formación formal en diseño; explica lo que importa y haz preguntas concretas.
 7. **No afirmar verificación visual sin hacerla.** Si no puedes previsualizar en el navegador ni inspeccionar una captura, declara esa limitación.
+
+## Anti-patrones
+
+| Anti-patrón | Problema | Alternativa |
+|-------------|----------|-------------|
+| Layout genérico de IA (hero centrado, tres tarjetas, gradiente morado) | Irreconocible; parece plantilla | Dirección de arte anclada a la marca y el contenido |
+| Copiar una referencia tal cual | No aporta identidad propia | Extraer el principio y adaptarlo al proyecto |
+| Implementar en producción antes de aprobar el mockup | Retrabajo y decisiones a ciegas | Fase 7: implementar solo tras aprobar el diseño |
+| Sacrificar legibilidad, contraste o accesibilidad por impacto | Excluye usuarios y rompe conversión | Función y estética socias; validar accesibilidad |
+| Demasiados acentos visuales compitiendo | Ruido; nada destaca | Una idea fuerte; el resto en segundo plano |
+| Afirmar "se ve bien" sin previsualizar ni capturar | Verificación inventada | Previsualizar o declarar la limitación |
+| Depender de imágenes/video no disponibles | Layout roto o genérico | Diseñar con los assets reales o placeholders explícitos |
 
 ## Fase 1 — Entender el proyecto
 

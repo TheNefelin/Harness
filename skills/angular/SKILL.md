@@ -1,6 +1,6 @@
 ---
 name: angular
-description: Patrón senior para aplicaciones Angular signal-based con Tailwind y DaisyUI (CSR y SSR). Usar cuando se cree, modifique o revise código Angular: componentes, servicios, rxResource, CrudPage, MutationService, formularios, auth, interceptores o lint con angular-eslint.
+description: Patrón senior para aplicaciones Angular signal-based (v21+) con Tailwind y DaisyUI (CSR y SSR). Usar cuando se cree, modifique o revise código Angular: componentes, servicios, rxResource, CrudPage, MutationService, formularios, auth, interceptores o lint con angular-eslint. NO usar para sitios de contenido/SSR con Astro (eso es la skill 'astro'), diseño o mockups previos a implementar (eso es 'ui-ux-mockup'), ni backend (eso es 'dotnet' o 'fastapi').
 ---
 
 # SKILL: Angular — Patrón Senior (transversal: CSR y SSR)
@@ -11,6 +11,18 @@ Guía de referencia para construir aplicaciones web con **Angular (Signal-based)
 >
 > - **[CSR]**: SPA pura. La API se consume directo (URL base desde `environment.apiUrl`). Sin `server.ts`, sin proxy.
 > - **[SSR]**: con Express (`src/server.ts`) y proxy `/ssr-api/...`; las credenciales de la API quedan solo en el servidor.
+
+## Cuándo NO usar
+
+| Situación | Skill |
+|-----------|-------|
+| Sitios de contenido / SSR con Astro | `astro` |
+| Diseño visual / mockups previos a implementar | `ui-ux-mockup` |
+| Backend de la API | `dotnet` / `fastapi` |
+
+El **cómo** se construye la SPA Angular (signals, `rxResource`, `CrudPage`, auth) vive aquí.
+
+> **Frescura (verificado 2026-10-13):** Angular **21** es signal-based y zoneless por defecto (release 2025-11-19, blog.angular.dev); Angular **22** ya está disponible (2026-06-03). Este skill asume v21+.
 
 ---
 

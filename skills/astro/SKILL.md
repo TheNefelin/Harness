@@ -1,6 +1,6 @@
 ---
 name: astro
-description: Patrón senior para sitios Astro 7 (SSR) con Tailwind y DaisyUI y despliegue en Vercel. Usar cuando se cree, modifique o revise un proyecto Astro: rutas, SSR, proxy al backend, auth con Google OAuth, formularios o componentes.
+description: Patrón senior para sitios Astro 7 (SSR) con Tailwind y DaisyUI y despliegue en Vercel. Usar cuando se cree, modifique o revise un proyecto Astro: rutas, SSR, proxy al backend, auth con Google OAuth, formularios o componentes. NO usar para SPA Angular (eso es la skill 'angular'), diseño o mockups previos a implementar (eso es 'ui-ux-mockup'), ni backend (eso es 'dotnet' o 'fastapi').
 ---
 
 # SKILL: Frontend Astro — Patrón Senior (transversal)
@@ -13,6 +13,18 @@ Este archivo es un **skill**: se lee para replicar el patrón en cualquier proye
 - **Auth**: Google OAuth (login popup con `google.accounts.oauth2`) + JWT + refresh token en cookie HttpOnly del BFF — reemplazable por cualquier proveedor OAuth.
 - **API**: cualquier backend REST autenticado con `X-API-Key` (origen) + Bearer JWT (usuario) — accedido únicamente vía proxy SSR.
 - **Hosting**: Vercel (adapter `@astrojs/vercel`, `output: 'server'`) — el patrón SSR aplica a cualquier host Node.
+
+## Cuándo NO usar
+
+| Situación | Skill |
+|-----------|-------|
+| SPA Angular (app de administración, signals) | `angular` |
+| Diseño visual / mockups previos a implementar | `ui-ux-mockup` |
+| Backend de la API | `dotnet` / `fastapi` |
+
+El **cómo** se construye el sitio Astro (SSR, proxy BFF, auth Google, `Result<T>`) vive aquí.
+
+> **Frescura (verificado 2026-10-13):** Astro **7.3** (2026-09-03; última 7.3.8 el 2026-10-08), Tailwind **4** y DaisyUI **5**. Fuente: astro.build/blog.
 
 ---
 
