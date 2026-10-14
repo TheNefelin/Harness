@@ -7,7 +7,7 @@ Conjunto reutilizable de **reglas**, **skills** y **plantillas de contexto** par
 - El agente no improvisa: reglas claras en `AGENTS.md`.
 - Las skills se cargan **solo cuando hacen falta** → menos tokens por sesión. Dentro de una skill, el detalle vive en `references/*.md` y se lee **bajo demanda** (progressive disclosure).
 - El contexto del proyecto persiste entre sesiones (`README` / `DEVELOPMENT` / `SKILL`).
-- Vos elegís el alcance: **global** (cero drift) o **por proyecto** (solo lo necesario).
+- Tú eliges el alcance: **global** (cero drift) o **por proyecto** (solo lo necesario).
 
 ## Estructura
 
@@ -17,7 +17,7 @@ Harness/
 ├─ LICENSE                # MIT
 ├─ VERSION                # versión del harness
 ├─ AGENTS.md              # reglas        ┐
-├─ skills/                # 11 skills     ├─ lo que se instala (global o por proyecto)
+├─ skills/                # 15 skills     ├─ lo que se instala (global o por proyecto)
 ├─ templates/
 │  ├─ opencode.json       # config del proyecto (instructions + skills.paths + permisos)
 │  ├─ README.md           # ┐
@@ -33,7 +33,7 @@ Harness/
 
 ## Instalación
 
-Es **agnóstico**: no hay set por defecto. Siempre indicás **qué** skills y **dónde**.
+Es **agnóstico**: no hay set por defecto. Siempre indicas **qué** skills y **dónde**.
 
 ```powershell
 # Catálogo disponible (nombre + descripción)
@@ -45,7 +45,7 @@ Es **agnóstico**: no hay set por defecto. Siempre indicás **qué** skills y **
 # Global (toda la máquina): ~/.config/opencode\
 .\install.ps1 -Global -Skills git,ui-ux-mockup
 
-# Actualizar lo ya declarado, en su scope (no necesitás recordar cuál)
+# Actualizar lo ya declarado, en su scope (no necesitas recordar cuál)
 .\install.ps1 -Update -Project "D:\ruta\al\proyecto"
 .\install.ps1 -Update -Global
 ```
@@ -77,7 +77,7 @@ proyecto/
 **Global** (fuera del proyecto): `~/.config/opencode/` → `AGENTS.md`, `skills/`, `.harness.json`. No toca el proyecto.
 
 - **Commit**: reglas, declaración y memoria. **Ignorado**: las skills (copias gestionadas; se refrescan con `-Update`).
-- openCode combina **global + proyecto**, así que podés mezclar: skills universales globales y de stack por proyecto.
+- openCode combina **global + proyecto**, así que puedes mezclar: skills universales globales y de stack por proyecto.
 
 ## Uso
 
@@ -107,7 +107,7 @@ En ambos casos el agente lee primero `AGENTS.md` + `DEVELOPMENT.md`: cuanto mejo
 
 `.\install.ps1 -Update` (con `-Project` o `-Global`) refresca las skills y reglas declaradas, en su scope, sin que tengas que recordar cuál. Alinea el set (agrega y poda) y respalda lo que reemplace.
 
-Para cambiar el set, pasá `-Skills` de nuevo:
+Para cambiar el set, pasa `-Skills` de nuevo:
 
 ```powershell
 .\install.ps1 -Project "D:\ruta\al\proyecto" -Skills dotnet,sql,nosql
