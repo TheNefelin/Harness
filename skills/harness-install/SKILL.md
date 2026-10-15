@@ -1,6 +1,6 @@
 ---
 name: harness-install
-description: Instalar o actualizar el Harness (reglas + skills de openCode) en un proyecto o en la máquina, clonando el repositorio y ejecutando su instalador con el scope y las skills. Usar cuando el usuario pida instalar, actualizar o refrescar el Harness o sus skills. NO para instalar openCode ni para crear skills nuevas (eso es editar el repositorio).
+description: Instalar, actualizar o diagnosticar el Harness (reglas + skills de openCode), local o global, clonando el repositorio y ejecutando su instalador. Usar cuando el usuario pida instalar, actualizar, refrescar o diagnosticar el Harness o sus skills. NO para instalar openCode ni para crear skills (eso es editar el repositorio).
 ---
 
 # Harness — Instalación y actualización

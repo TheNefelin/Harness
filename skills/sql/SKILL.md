@@ -1,6 +1,6 @@
 ---
 name: sql
-description: Bases de datos relacionales (SQL Server/PostgreSQL): esquema, consultas, índices, constraints, transacciones y migraciones. Usar al diseñar o revisar un esquema, escribir consultas, índices o migraciones, o gestionar transacciones, paginación y rendimiento. NO para NoSQL/caché ('nosql') ni acceso a datos desde el ORM/código ('dotnet'/'fastapi').
+description: Bases de datos relacionales (SQL Server/PostgreSQL): esquema, consultas, índices, constraints, transacciones y migraciones. Usar al diseñar o revisar un esquema, escribir consultas, índices o migraciones, o gestionar transacciones, paginación y rendimiento. NO para NoSQL/caché ('nosql') ni acceso desde el ORM/código ('dotnet'/'fastapi').
 ---
 
 # Bases de datos relacionales — Patrón senior (SQL Server + PostgreSQL)
