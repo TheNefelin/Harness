@@ -63,6 +63,8 @@ Toda skill del catálogo se evalúa con esta rúbrica. Distingue lo **universal*
 
 Los "universal" son obligatorios; los "condicional" se juzgan caso a caso, no se fuerzan. Si dos skills se solapan, la rúbrica no basta: se ajustan las `description` (ver abajo).
 
+**Por qué 400 y references/ (tokens).** Cada skill aporta su `description` al contexto **siempre** (es lo que permite elegirla), mientras que el cuerpo de `SKILL.md` se carga **solo al activarse**. De ahí dos presupuestos distintos: `description` corta y distintiva (≤1024 caracteres; lo vigila `check.ps1`) y cuerpo acotado (≤400 líneas). Cuando una skill roza el límite o se ramifica, mueve el detalle a `references/*.md` (se cargan bajo demanda) y deja el `SKILL.md` como índice. `check.ps1` falla por encima de 400 y, sin bloquear, lista las que superan el **80%** para actuar antes.
+
 ## Evals de disparo
 
 `evals/triggers.json` es la red que evita que dos skills se disparen a la vez. Cada caso exige que **gane** la skill esperada (no solo que aparezca). Formato:

@@ -168,6 +168,16 @@ else {
     foreach ($f in $script:Fail) { Write-Host "  FALLO  $f" -ForegroundColor Red }
 }
 
+# Headroom de tamano (informativo; no falla). Avisa antes de rozar MaxBodyLines.
+$headroomPct = 80
+$near = @($catalog | Where-Object { $_.Meta.BodyLines -ge ($MaxBodyLines * $headroomPct / 100) } | Sort-Object -Property { $_.Meta.BodyLines } -Descending)
+if ($near.Count -gt 0) {
+    Write-Host ("  Seguimiento (>={0}% de MaxBodyLines=$MaxBodyLines; considera references/):" -f $headroomPct) -ForegroundColor DarkGray
+    foreach ($s in $near) {
+        Write-Host ("    {0,4} lineas ({1,3}%)  {2}" -f $s.Meta.BodyLines, [int](100 * $s.Meta.BodyLines / $MaxBodyLines), $s.Name) -ForegroundColor DarkGray
+    }
+}
+
 # --- 2. Solapamiento de triggers --------------------------------------------
 Write-Host ""
 Write-Host "[2/4] Solapamiento de triggers (Jaccard distintivo > $OverlapThreshold)" -ForegroundColor White

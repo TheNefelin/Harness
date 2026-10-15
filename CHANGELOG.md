@@ -14,6 +14,7 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es/1.1.0/); vers
 - `evals/triggers.json`: esquema enriquecido (`id`, `tipo` positivo/ambiguo/frontera/negativo, `nota`) y **43 casos** (31 positivos, 4 ambiguos, 3 de frontera y 5 negativos): cubre las 16 skills, los límites `NO para`, un caso con tildes/ñ (no-ASCII) y fronteras entre skills vecinas.
 - `tools/test.ps1`: pruebas de integración auto-contenidas (sin módulos externos) de `install.ps1` y `check.ps1` en un sandbox temporal (instalación local, `-WhatIf`, `-Update` con conflicto y respaldo, `-Detect`, guard de `schemaVersion`, protección de skills ajenas y códigos de salida). Salen 0/1.
 - `tools/check.ps1`: rechaza una `description` sin citar que contenga `: ` o ` #` (frontmatter YAML inválido).
+- `tools/check.ps1`: **seguimiento de headroom** — lista (sin bloquear) las skills cuyo cuerpo supera el **80%** de `MaxBodyLines`, para mover detalle a `references/` antes de rozar el límite.
 
 ### Cambiado
 
@@ -38,6 +39,7 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es/1.1.0/); vers
 - `CONTRIBUTING.md`: guía para añadir/editar skills y evals, checklist de PR (incluye `tools/test.ps1` y el criterio de solapamiento Jaccard) y convenciones.
 - `CONTRIBUTING.md`: **rúbrica de una skill** — separa lo universal (description con `NO para`, anti-patrones, honestidad sobre límites, longitud) de lo condicional (`references/` y marcador de frescura), y amplía el checklist del PR.
 - `CONTRIBUTING.md`: documenta la estrategia de evals — los negativos son **globales** y la frontera de cada skill la cubren ambiguos/frontera + Jaccard; se decide **no** exigir un negativo por skill (consciente, para no inflar el mantenimiento).
+- `CONTRIBUTING.md`: explica el presupuesto de **tokens** (la `description` se carga siempre; el cuerpo solo al activarse) y por qué el límite de 400 líneas y `references/`.
 - `.github/workflows/check.yml`: además del verificador, ejecuta `tools/test.ps1` (pruebas de integración).
 - `evals/triggers.json`: un negativo usa `expect: "none"` para ejercitar la forma alternativa documentada (el resto usa `null`); `CONTRIBUTING.md` aclara que el matcher normaliza tildes/ñ antes de comparar.
 - `tools/check.ps1`: portabilidad de separadores de ruta (LF/cross-platform).
