@@ -16,14 +16,14 @@
 
 > Los límites **se reinician el día 1 de cada mes**: no se acumulan ni se arrastran.
 
-## Ofertas de 12 meses (solo cuentas nuevas) — NO son Always Free
+## Ofertas temporales — NO son Always Free
 
-| Servicio | Límite mensual (12 meses desde el alta) |
-|----------|-----------------------------------------|
-| **S3** | 5 GB Standard + 20.000 GET + 2.000 PUT (la **salida/egress no es gratis**) |
-| **API Gateway** | 1 M de llamadas **REST**/mes (HTTP APIs tienen oferta aparte) |
+| Servicio | Límite mensual | Dónde aplica |
+|----------|----------------|--------------|
+| **S3** | 5 GB Standard + 20.000 GET + 2.000 PUT (la **salida/egress no es gratis**) | legacy (12 meses) / plan Free (consume créditos) |
+| **API Gateway** | 1 M de llamadas **REST**/mes (HTTP APIs tienen oferta aparte) | legacy (12 meses) / plan Free (consume créditos) |
 
-> Al terminar los 12 meses, o al agotar créditos, **empieza la facturación** aunque el recurso siga creado. Las instancias EC2/EBS/RDS elegibles (sección siguiente) también son ofertas temporales.
+> En cuentas **nuevas (≥ 2025-07-15)** ya **no** existen tiers de "12 meses": la cobertura sale de los **créditos** y del **plan Free (6 meses)**. Los "12 meses" aplican solo a cuentas **legacy (< 2025-07-15)**. Al agotar créditos o vencer el plan/plazo, **empieza la facturación** aunque el recurso siga creado. Las instancias EC2/EBS/RDS elegibles (sección siguiente) también son ofertas temporales.
 
 ## Plan Free (créditos) y legacy de 12 meses
 

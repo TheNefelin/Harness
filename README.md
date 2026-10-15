@@ -14,6 +14,7 @@ Conjunto reutilizable de **reglas**, **skills** y **plantillas de contexto** par
 ```
 Harness/
 ├─ README.md              # este archivo
+├─ CHANGELOG.md           # historial de versiones
 ├─ LICENSE                # MIT
 ├─ VERSION                # versión del harness
 ├─ AGENTS.md              # reglas        ┐
@@ -23,7 +24,13 @@ Harness/
 │  ├─ README.md           # ┐
 │  ├─ DEVELOPMENT.md      # ├─ plantillas de memoria (contexto)
 │  └─ SKILL.md            # ┘
-└─ install.ps1            # instalador / actualizador
+├─ install.ps1            # instalador / actualizador
+├─ tools/
+│  └─ check.ps1           # verificador del catálogo (estructura, triggers, evals, frescura)
+├─ evals/
+│  └─ triggers.json       # casos de disparo por skill
+└─ .github/workflows/
+   └─ check.yml           # CI: push/PR + mensual
 ```
 
 ## Requisitos
@@ -156,6 +163,27 @@ Tres capas separadas, para poder mejorar el Harness sin perder tus cambios:
 - `-WhatIf` muestra todo esto **antes** de tocar nada.
 
 Las actualizaciones son **seguras**: primero preparan la copia en un directorio temporal y la validan; recién entonces reemplazan. Si algo falla, restauran el respaldo automáticamente (**rollback**). Nunca queda una skill a medias.
+
+## Verificación (CI)
+
+El catálogo se autoverifica con un script **determinista**, sin depender de openCode: sirve en local y en CI.
+
+```powershell
+.\tools\check.ps1            # estructura, triggers, evals y frescura
+.\tools\check.ps1 -Strict    # los avisos también cuentan como fallo
+.\tools\check.ps1 -MaxAgeDays 120 -OverlapThreshold 0.4
+```
+
+Comprueba cuatro cosas sobre `skills/`:
+
+1. **Estructura** — cada `SKILL.md` tiene frontmatter, `name` igual a su carpeta, `description` presente y acotada, y cuerpo ≤ 400 líneas.
+2. **Solapamiento de triggers** — cuánto se pisan las `description` (vocabulario distintivo, ignorando el bloque `NO ...`). Avisa si dos skills superan el umbral (Jaccard).
+3. **Evals de disparo** — casos curados en `evals/triggers.json` (`{prompt, expect}`): exige que gane la skill esperada, no solo que aparezca.
+4. **Frescura** — antigüedad de los marcadores `verificado YYYY-MM-DD`; **falla** si superan `-MaxAgeDays` (180 por defecto).
+
+Sale con código **0** (ok, con avisos) o **1** (fallo), igual que `install.ps1 -Doctor`. El workflow [`.github/workflows/check.yml`](.github/workflows/check.yml) lo ejecuta en cada push/PR y **una vez al mes** (para detectar drift de frescura aunque no haya commits).
+
+Al crear o cambiar una skill, añade casos a `evals/triggers.json`: es la red que evita que dos skills se disparen a la vez.
 
 ## Hoja de ruta (diferido)
 

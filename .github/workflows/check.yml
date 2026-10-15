@@ -1,0 +1,21 @@
+name: check
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+  schedule:
+    - cron: '0 6 1 * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  catalogo:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Verificar catalogo (estructura, triggers, evals, frescura)
+        shell: powershell
+        run: ./tools/check.ps1

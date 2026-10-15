@@ -29,7 +29,7 @@ description: Arquitectura, seguridad y costes en AWS (EC2, S3, Lambda, IAM, VPC)
 | Al cerrar/terminar | 90 días para pasar a Paid y rescatar datos | — | — |
 
 - **Always Free**: 30+ servicios con límite mensual, mientras seas cliente, en ambos planes (Lambda, DynamoDB, CloudFront, SQS/SNS, CloudWatch, Cognito).
-- **Ojo con la etiqueta "Free"**: `S3` (5 GB), `API Gateway` (1 M REST) y las instancias EC2/RDS **no** son Always Free — son ofertas de **12 meses** o consumen créditos del plan Free. Al vencer, facturan aunque el recurso siga creado.
+- **Ojo con la etiqueta "Free"**: `S3` (5 GB), `API Gateway` (1 M REST) y las instancias EC2/RDS **no** son Always Free — son **ofertas temporales**: 12 meses en cuentas legacy, o consumo de créditos / plan Free (6 meses) en cuentas nuevas. Al vencer o agotarse, facturan aunque el recurso siga creado.
 - **Límite de región**: el Free Tier **no aplica** en China (ZHY/BJS) ni, salvo excepciones (Lambda), en GovCloud. El uso se acumula **en todas las regiones**.
 - Verificar siempre el detalle en la fuente oficial antes de desplegar: los límites y las condiciones cambian con frecuencia.
 
