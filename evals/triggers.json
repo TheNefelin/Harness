@@ -23,10 +23,22 @@
   { "id": "angular-pos-02", "tipo": "positivo", "prompt": "crear un componente con signals e interceptores", "expect": "angular" },
   { "id": "ui-ux-mockup-pos-02", "tipo": "positivo", "prompt": "un mockup previsualizable en el navegador", "expect": "ui-ux-mockup" },
   { "id": "harness-install-pos-02", "tipo": "positivo", "prompt": "upgradar el harness y sus skills a la ultima version", "expect": "harness-install" },
+  { "id": "fastapi-pos-02", "tipo": "positivo", "prompt": "crear dependencias y validacion de entrada en una api fastapi", "expect": "fastapi" },
+  { "id": "astro-pos-02", "tipo": "positivo", "prompt": "crear una pagina con proxy al backend y componentes en un sitio astro", "expect": "astro" },
+  { "id": "godot-pos-02", "tipo": "positivo", "prompt": "crear un autoload y conectar senales en godot", "expect": "godot" },
+  { "id": "aws-pos-02", "tipo": "positivo", "prompt": "crear una politica iam y una lambda en aws", "expect": "aws" },
+  { "id": "azure-pos-02", "tipo": "positivo", "prompt": "configurar app service y almacenamiento blob en azure", "expect": "azure" },
+  { "id": "oci-pos-02", "tipo": "positivo", "prompt": "crear una instancia ampere y un bucket en oracle cloud", "expect": "oci" },
+  { "id": "sql-pos-03", "tipo": "positivo", "prompt": "diseñar el esquema de índices y revisar una consulta lenta", "expect": "sql", "nota": "incluye tildes/ñ para verificar que el matching aguanta no-ASCII" },
 
   { "id": "nosql-amb-01", "tipo": "ambiguo", "prompt": "cachear las sesiones de usuario en redis", "expect": "nosql", "nota": "redis tambien aparece en dotnet; debe ganar la skill de datos" },
   { "id": "sql-amb-01", "tipo": "ambiguo", "prompt": "crear un indice compuesto y un explain de una consulta lenta en postgres", "expect": "sql", "nota": "lenguaje de BD sin mencionar ORM; no debe ganar dotnet/fastapi" },
   { "id": "kubernetes-amb-01", "tipo": "ambiguo", "prompt": "dockerizar la api y desplegarla en un cluster de kubernetes", "expect": "kubernetes", "nota": "menciona docker; el destino (cluster/helm) manda" },
+  { "id": "harness-amb-01", "tipo": "ambiguo", "prompt": "revisar si las versiones y los enlaces del catalogo siguen vigentes", "expect": "harness-freshness", "nota": "frontera harness-freshness vs harness-install (ambos hablan del harness)" },
+
+  { "id": "frontier-sql-01", "tipo": "frontera", "prompt": "agregar una migracion y un indice al esquema de la base de datos", "expect": "sql", "nota": "tienta a dotnet/fastapi por ORM; debe ganar el diseno de esquema" },
+  { "id": "frontier-k8s-01", "tipo": "frontera", "prompt": "escribir un manifiesto y un helm chart para el cluster", "expect": "kubernetes", "nota": "tienta a docker; el manifiesto/helm manda" },
+  { "id": "frontier-gha-01", "tipo": "frontera", "prompt": "definir jobs y matrix en el pipeline de integracion continua", "expect": "github-actions", "nota": "tienta a docker; el pipeline/CI manda" },
 
   { "id": "none-neg-01", "tipo": "negativo", "prompt": "resumir este correo en tres lineas y sin tecnicismos", "expect": null, "nota": "tarea de texto general, ninguna skill del catalogo" },
   { "id": "none-neg-02", "tipo": "negativo", "prompt": "traducir este texto tecnico al ingles", "expect": null, "nota": "traduccion, fuera de alcance" },

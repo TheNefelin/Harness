@@ -146,7 +146,10 @@ function Get-Catalog {
         $skillFile = Join-Path $dir.FullName 'SKILL.md'
         if (-not (Test-Path -LiteralPath $skillFile)) { continue }
         $desc = ''
-        foreach ($line in (Get-Content -LiteralPath $skillFile -TotalCount 30 -Encoding UTF8)) {
+        $inFrontmatter = $false
+        foreach ($line in (Get-Content -LiteralPath $skillFile -Encoding UTF8)) {
+            if (-not $inFrontmatter) { if ($line.Trim() -eq '---') { $inFrontmatter = $true }; continue }
+            if ($line.Trim() -eq '---') { break }
             if ($line -match '^description:\s*(.+)$') {
                 $desc = $Matches[1].Trim().Trim('"').Trim("'")
                 break
@@ -378,7 +381,8 @@ $projectDecl = if ($Project) { Join-Path $Project '.harness.json' } else { $null
 
 if ($Scope -eq 'Auto') {
     if ($Project -and (Test-Path -LiteralPath $projectDecl)) {
-        $d = Get-Content -LiteralPath $projectDecl -Raw | ConvertFrom-Json
+        try { $d = Get-Content -LiteralPath $projectDecl -Raw | ConvertFrom-Json }
+        catch { throw "El manifiesto $projectDecl no es JSON valido: $($_.Exception.Message)" }
         $Scope = [string]$d.scope
     }
     elseif ($Project) { $Scope = 'Local' }
@@ -412,7 +416,8 @@ else {
 $declared = @()
 $existingDeclObj = $null
 if (Test-Path -LiteralPath $DeclFile) {
-    $existingDeclObj = Get-Content -LiteralPath $DeclFile -Raw | ConvertFrom-Json
+    try { $existingDeclObj = Get-Content -LiteralPath $DeclFile -Raw | ConvertFrom-Json }
+    catch { throw "El manifiesto $DeclFile no es JSON valido: $($_.Exception.Message)" }
     if ($existingDeclObj.PSObject.Properties.Name -contains 'skills') { $declared = @($existingDeclObj.skills) }
 }
 
@@ -589,7 +594,7 @@ function Deploy-Skill {
             else { Remove-Item -LiteralPath $Dst -Recurse -Force }
         }
         Move-Item -LiteralPath $tmp -Destination $Dst
-        Set-Content -LiteralPath (Join-Path $Dst $MarkerName) -Value (New-MarkerValue -Hash $SrcHash)
+        [System.IO.File]::WriteAllText((Join-Path $Dst $MarkerName), (New-MarkerValue -Hash $SrcHash), (New-Object System.Text.UTF8Encoding($false)))
     }
     catch {
         # 3) Recuperacion: limpiar staging y restaurar el respaldo
@@ -624,7 +629,7 @@ foreach ($name in $desired) {
             if ($dstHash -eq $srcHash) {
                 if ($WhatIf) { Write-Host "WOULD  sin cambios  $name" -ForegroundColor DarkCyan }
                 else {
-                    Set-Content -LiteralPath (Join-Path $dst $MarkerName) -Value (New-MarkerValue -Hash $srcHash)
+                    [System.IO.File]::WriteAllText((Join-Path $dst $MarkerName), (New-MarkerValue -Hash $srcHash), (New-Object System.Text.UTF8Encoding($false)))
                     Write-Host "OK     skill $name (sin cambios)" -ForegroundColor DarkGray
                 }
                 continue
@@ -654,11 +659,13 @@ if (Test-Path -LiteralPath $SkillsDir) {
         $isOurs = Test-Path -LiteralPath (Join-Path $dir.FullName $MarkerName)
         if ($isOurs -and ($dir.Name -notin $desired)) {
             if ($WhatIf) {
-                Write-Host "WOULD  podar $($dir.Name)" -ForegroundColor DarkCyan
+                Write-Host "WOULD  podar $($dir.Name) -> .harness-backup" -ForegroundColor DarkCyan
             }
             else {
-                Remove-Item -LiteralPath $dir.FullName -Recurse -Force
-                Write-Host "PRUNE  $($dir.Name)" -ForegroundColor DarkGray
+                New-Item -ItemType Directory -Path $BackupDir -Force | Out-Null
+                $pdest = Join-Path $BackupDir ("{0}-{1}" -f $dir.Name, (Get-Date -Format 'yyyyMMdd-HHmmss'))
+                Move-Item -LiteralPath $dir.FullName -Destination $pdest
+                Write-Host "PRUNE  $($dir.Name) -> .harness-backup" -ForegroundColor DarkGray
             }
         }
     }

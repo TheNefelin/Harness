@@ -54,7 +54,7 @@ Si alguno sale distinto de `0`, el PR no es aceptable. El CI ejecuta lo mismo (`
 ```
 
 - `id`: identificador único y legible (para citar en un fallo de CI).
-- `tipo`: `positivo`, `ambiguo` o `negativo` (informativo; `check.ps1` lo usa para el desglose).
+- `tipo`: `positivo`, `ambiguo`, `frontera` o `negativo` (informativo; `check.ps1` lo usa para el desglose).
 - `expect`: el nombre de la skill esperada, `"none"` o `null` (ninguna debe activarse).
 
 Al añadir una skill, incluye **al menos**:
@@ -62,6 +62,7 @@ Al añadir una skill, incluye **al menos**:
 - **1 positivo claro** — el prompt obvio que debe activarla.
 - **1 ambiguo** — un prompt que podría encajar en dos skills y debe ganar esta. Si no sabes cuál debería ganar, las `description` se solapan demasiado: ajústalas antes.
 - **1 negativo** — un prompt que **no** debe activar ninguna del catálogo (`expect: null`).
+- **1 de frontera** (recomendado) — un prompt que *tienta* a una skill vecina pero debe ganar esta (`expect: <esta>`); cubre el caso "activa la skill equivocada".
 
 ## Solapamiento de triggers
 

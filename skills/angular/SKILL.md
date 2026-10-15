@@ -8,6 +8,8 @@ description: "Patrón senior para apps Angular signal-based (v21+) con Tailwind 
 Guía de referencia para construir aplicaciones web con **Angular (Signal-based) + Tailwind + DaisyUI**, siguiendo una arquitectura y convenciones senior validadas en producción. Este skill es **transversal**: aplica tanto a **CSR** (SPA clásica) como a **SSR** (con Express), y los ejemplos son genéricos (CRUD de administración, listados paginados, formularios, uploads, auth). No es una receta dogmática, es la lista de decisiones que convierten un CRUD simple en un admin mantenible.
 
 > **Cómo leer este documento:** hay dos modos de ejecución. La mayoría de las reglas aplican a **ambos**. Cuando una regla es específica de un modo, se marca con **[CSR]** o **[SSR]**.
+
+> **Contexto de nombres:** los *principios* (signals, servicio base, CRUD tipado, accesibilidad) son portables a cualquier proyecto Angular; los *nombres concretos* (`CrudPage`, `MutationService`, `ApiService`, `linkedSignal`) provienen de un proyecto de referencia. Adáptalos a tu nomenclatura.
 >
 > - **[CSR]**: SPA pura. La API se consume directo (URL base desde `environment.apiUrl`). Sin `server.ts`, sin proxy.
 > - **[SSR]**: con Express (`src/server.ts`) y proxy `/ssr-api/...`; las credenciales de la API quedan solo en el servidor.
