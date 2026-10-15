@@ -137,6 +137,9 @@ if (Test-Path -LiteralPath $VersionFile) {
     $Version = (Get-Content -LiteralPath $VersionFile -Raw).Trim()
 }
 
+# schemaVersion de .harness.json que entiende este instalador.
+$SchemaVersion = 1
+
 function Get-Catalog {
     $result = @()
     foreach ($dir in Get-ChildItem -LiteralPath $CatalogDir -Directory) {
@@ -187,7 +190,15 @@ function Get-Marker {
     return [pscustomobject]@{ version = $raw; hash = $null }
 }
 
-function Add-Detected {
+function Get-SchemaStatus {
+    param($Manifest)
+    if ($null -eq $Manifest) { return 'warn' }
+    if (-not ($Manifest.PSObject.Properties.Name -contains 'schemaVersion')) { return 'warn' }
+    $v = 0
+    if (-not [int]::TryParse([string]$Manifest.schemaVersion, [ref]$v)) { return 'err' }
+    if ($v -gt $SchemaVersion) { return 'err' }
+    return 'ok'
+}
     param([System.Collections.Generic.HashSet[string]]$Set, [string]$Name, [string]$Why)
     [void]$Set.Add($Name)
     if ($script:DetectEvidence.ContainsKey($Name)) {
@@ -403,6 +414,13 @@ if (Test-Path -LiteralPath $DeclFile) {
     if ($existingDeclObj.PSObject.Properties.Name -contains 'skills') { $declared = @($existingDeclObj.skills) }
 }
 
+if ($existingDeclObj -and -not $Doctor) {
+    switch (Get-SchemaStatus $existingDeclObj) {
+        'err'  { throw "El manifiesto .harness.json usa un schemaVersion incompatible o mas nuevo que este install.ps1 (soportado: $SchemaVersion). Actualiza el Harness con -Source antes de modificarlo." }
+        'warn' { Write-Host 'AVISO  manifiesto sin schemaVersion; se asume 1.' -ForegroundColor Yellow }
+    }
+}
+
 if ($Doctor) {
     $errCount = 0
     $warnCount = 0
@@ -425,6 +443,11 @@ if ($Doctor) {
     }
     else {
         Write-Check OK "manifiesto presente: $DeclFile"
+        switch (Get-SchemaStatus $existingDeclObj) {
+            'ok'   { Write-Check OK ("schemaVersion {0} soportado" -f $existingDeclObj.schemaVersion) }
+            'warn' { Write-Check WARN 'manifiesto sin schemaVersion (formato antiguo)' }
+            'err'  { Write-Check ERR "schemaVersion incompatible o mas nuevo (soportado: $SchemaVersion)" }
+        }
         try {
             $decl = Get-Content -LiteralPath $DeclFile -Raw | ConvertFrom-Json
             if ([string]$decl.scope -eq $Scope.ToLower()) { Write-Check OK "scope declarado: $($decl.scope)" }

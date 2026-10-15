@@ -11,7 +11,8 @@
                    y cuerpo <= MaxBodyLines.
       - Triggers : solapamiento de vocabulario distintivo entre las descriptions
                    (parte positiva, antes de la clausula "NO ...").
-      - Evals    : casos de evals/triggers.json -> exige que gane la skill esperada.
+      - Evals    : casos de evals/triggers.json -> exige que gane la skill esperada,
+                   o que NO se active ninguna cuando 'expect' es 'none'.
       - Frescura : marcadores 'verificado YYYY-MM-DD' y su antiguedad frente a MaxAgeDays.
 
 .PARAMETER MaxAgeDays
@@ -189,16 +190,24 @@ for ($i = 0; $i -lt $N; $i++) {
         $pairs += [pscustomobject]@{ A = $catalog[$i].Name; B = $catalog[$j].Name; J = $jac; Shared = ((@($inter) | Sort-Object) -join ',') }
     }
 }
-$offenders = @($pairs | Where-Object { $_.J -ge $OverlapThreshold } | Sort-Object -Property J -Descending)
+$rankedPairs = @($pairs | Sort-Object -Property J -Descending)
+$offenders = @($rankedPairs | Where-Object { $_.J -ge $OverlapThreshold })
 if ($offenders.Count -eq 0) {
-    $max = @($pairs | Sort-Object -Property J -Descending)[0]
-    if ($null -ne $max) { Write-Host ("  OK: ninguno supera {0}. Mayor observado: {1} <-> {2} = {3}" -f $OverlapThreshold, $max.A, $max.B, $max.J) -ForegroundColor Green }
+    if ($rankedPairs.Count -gt 0) { Write-Host ("  OK: ninguno supera {0}." -f $OverlapThreshold) -ForegroundColor Green }
     else { Write-Host "  OK: sin pares comparables." -ForegroundColor Green }
 }
 else {
     foreach ($o in $offenders) {
         Add-Warn ("solapamiento {0}: {1} <-> {2} (comparten: {3})" -f $o.J, $o.A, $o.B, $o.Shared)
-        Write-Host ("  AVISO  {0}  {1} <-> {2}  [{3}]" -f $o.J, $o.A, $o.B, $o.Shared) -ForegroundColor Yellow
+        Write-Host ("  AVISO  {0}  {1} <-> {2}" -f $o.J, $o.A, $o.B) -ForegroundColor Yellow
+        Write-Host ("         comparten: {0}" -f $o.Shared) -ForegroundColor DarkGray
+        Write-Host ("         accion: afina la description de '{0}' o '{1}', o agrega la otra al bloque 'NO para ...'" -f $o.A, $o.B) -ForegroundColor DarkGray
+    }
+}
+if ($rankedPairs.Count -gt 0) {
+    Write-Host "  Seguimiento (mayor solapamiento; para vigilar la deriva):" -ForegroundColor DarkGray
+    foreach ($p in (@($rankedPairs | Select-Object -First 3))) {
+        Write-Host ("    {0,5:N3}  {1} <-> {2}  [{3}]" -f $p.J, $p.A, $p.B, $p.Shared) -ForegroundColor Gray
     }
 }
 
@@ -213,7 +222,12 @@ else {
     $cases = @()
     foreach ($c in (Get-Content -LiteralPath $EvalsFile -Raw -Encoding UTF8 | ConvertFrom-Json)) { $cases += $c }
     $pass = 0
+    $tipos = @{}
     foreach ($case in $cases) {
+        $cid = if ($case.PSObject.Properties.Name -contains 'id') { [string]$case.id } else { [string]$case.prompt }
+        $ctipo = if ($case.PSObject.Properties.Name -contains 'tipo') { [string]$case.tipo } else { 'sin-tipo' }
+        if (-not $tipos.ContainsKey($ctipo)) { $tipos[$ctipo] = 0 }
+        $tipos[$ctipo]++
         $ptokens = @(Get-Tokens -Text $case.prompt)
         $pset = [System.Collections.Generic.HashSet[string]]::new([string[]]$ptokens, [System.StringComparer]::OrdinalIgnoreCase)
         $ranked = foreach ($s in $catalog) {
@@ -229,24 +243,35 @@ else {
         }
         $ranked = @($ranked | Sort-Object -Property Score -Descending)
         $top = $ranked[0]
-        if ($top.Name -eq $case.expect) { $pass++ }
+        $expect = if ($null -eq $case.expect) { '' } else { [string]$case.expect }
+        if ($expect -eq 'none' -or $expect -eq '') {
+            if ($top.Score -lt 1.0) { $pass++ }
+            else {
+                $alt = ($ranked | Select-Object -First 3 | ForEach-Object { '{0}={1:N1}' -f $_.Name, $_.Score }) -join ', '
+                Add-Fail "eval negativo fallido ($cid): '$($case.prompt)' -> activo '$($top.Name)' (se esperaba ninguno)"
+                Write-Host "  FALLO  [$cid] '$($case.prompt)'" -ForegroundColor Red
+                Write-Host "         se esperaba 'none', se activo '$($top.Name)'  ->  $alt" -ForegroundColor DarkGray
+            }
+        }
+        elseif ($top.Name -eq $expect) { $pass++ }
         else {
             $alt = ($ranked | Select-Object -First 3 | ForEach-Object { '{0}={1:N1}' -f $_.Name, $_.Score }) -join ', '
-            Add-Fail "eval fallido: '$($case.prompt)' -> gano '$($top.Name)', se esperaba '$($case.expect)' (top: $alt)"
-            Write-Host "  FALLO  '$($case.prompt)'" -ForegroundColor Red
-            Write-Host "         esperado '$($case.expect)', gano '$($top.Name)'  ->  $alt" -ForegroundColor DarkGray
+            Add-Fail "eval fallido ($cid): '$($case.prompt)' -> gano '$($top.Name)', se esperaba '$expect' (top: $alt)"
+            Write-Host "  FALLO  [$cid] '$($case.prompt)'" -ForegroundColor Red
+            Write-Host "         esperado '$expect', gano '$($top.Name)'  ->  $alt" -ForegroundColor DarkGray
         }
     }
     $total = @($cases).Count
     $color = if ($pass -eq $total) { 'Green' } else { 'Red' }
-    Write-Host "  $pass/$total casos correctos." -ForegroundColor $color
+    $desglose = (@($tipos.Keys | Sort-Object | ForEach-Object { '{0} {1}' -f $tipos[$_], $_ })) -join ', '
+    Write-Host "  $pass/$total casos correctos  ($desglose)." -ForegroundColor $color
 }
 
 # --- 4. Frescura -------------------------------------------------------------
 Write-Host ""
 Write-Host "[4/4] Frescura (marcadores 'verificado YYYY-MM-DD', max $MaxAgeDays dias)" -ForegroundColor White
 $today = (Get-Date).Date
-$rx = [regex]'(?i)verificad[oa]s?\s+(\d{4})-(\d{2})-(\d{2})'
+$rx = [regex]'(?i)verificad[oa]s?:?\s+(\d{4})-(\d{2})-(\d{2})'
 $rxMarker = [regex]'(?i)frescura\s*:'
 $mdFiles = @(Get-ChildItem -LiteralPath $SkillsDir -Recurse -File -Filter *.md)
 $stale = 0; $undated = 0

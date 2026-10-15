@@ -204,12 +204,12 @@ Comprueba cuatro cosas sobre `skills/`:
 
 1. **Estructura** — cada `SKILL.md` tiene frontmatter, `name` igual a su carpeta, `description` presente y acotada, y cuerpo ≤ 400 líneas.
 2. **Solapamiento de triggers** — cuánto se pisan las `description` (vocabulario distintivo, ignorando el bloque `NO ...`). Avisa si dos skills superan el umbral de Jaccard (`-OverlapThreshold`, **0,5** por defecto; el catálogo actual no pasa de 0,25, así que hay margen ×2).
-3. **Evals de disparo** — casos curados en `evals/triggers.json` (`{prompt, expect}`): exige que gane la skill esperada, no solo que aparezca.
+3. **Evals de disparo** — casos curados en `evals/triggers.json` (`{id, tipo, prompt, expect}`: `expect` es el nombre de la skill esperada, `"none"` o `null` para negativos). Exige que **gane** la skill esperada, no solo que aparezca. El desglose por `tipo` (positivo/ambiguo/negativo) sale en el resumen.
 4. **Frescura** — antigüedad de los marcadores `verificado YYYY-MM-DD`; **falla** si superan `-MaxAgeDays` (180 por defecto).
 
 Sale con código **0** (ok, con avisos) o **1** (fallo), igual que `install.ps1 -Doctor`. El workflow [`.github/workflows/check.yml`](.github/workflows/check.yml) lo ejecuta en cada push/PR y **una vez al mes** (para detectar drift de frescura aunque no haya commits).
 
-Al crear o cambiar una skill, añade casos a `evals/triggers.json`: es la red que evita que dos skills se disparen a la vez.
+Al crear o cambiar una skill, añade casos a `evals/triggers.json` (positivo + ambiguo + negativo): es la red que evita que dos skills se disparen a la vez. Ver [CONTRIBUTING](CONTRIBUTING.md) para el detalle.
 
 ### Versionado
 
@@ -219,7 +219,7 @@ El repo sigue **SemVer** (`VERSION` + `CHANGELOG.md`): `MAJOR` rompe compatibili
 - Añadir skills, opciones o comprobaciones compatibles → **MINOR**.
 - Correcciones de contenido (frescura, erratas) → **PATCH**.
 
-El manifiesto lleva `schemaVersion` (hoy `1`); si el formato cambia, se sube y la migración se documenta aquí.
+El manifiesto lleva `schemaVersion` (hoy `1`). Si el formato cambia, se sube `schemaVersion` y se documenta la migración aquí. Mientras tanto, `install.ps1` **avisa** si el campo falta (formato antiguo) y **aborta** (`-Update`/instalación) si el manifiesto trae un `schemaVersion` más nuevo del soportado, para no corromper una instalación hecha con una versión posterior.
 
 ## Alcance (intencional)
 
@@ -229,6 +229,7 @@ Este Harness está **acoplado a openCode** a propósito, no por omisión: se apo
 
 Estos conceptos existen en harness avanzados, pero **no** se incluyen todavía porque no hay un requisito que los justifique (evitar sobreingeniería):
 
+- **Portabilidad y tests del instalador** — Hoy el instalador es Windows-first (PowerShell); `check.ps1` ya es portable. Decidir plataforma (mantener `pwsh` 7 o portar a Node) y añadir tests (Pester o `node:test`) se difiere **juntos**, porque comparten la misma decisión. Se deja constancia aquí para que no parezca olvido.
 - **Hands** — conexiones/herramientas que se le dan al agente (servidores MCP o scripts con credenciales). Ejemplos posibles: Brevo (email transaccional), Cloudinary (documentos e imágenes).
 - **Hooks** — automatismos vía plugins de openCode. En gran parte cubiertos ya por `permission` (bloquear `.env`, pedir permiso para Git/instalaciones).
 - **Agentes** — subagentes de openCode (`.opencode/agents/`). Otra capa con su propio coste de contexto; se evaluará si aporta.
