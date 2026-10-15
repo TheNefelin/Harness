@@ -20,7 +20,7 @@ Harness/
 ├─ VERSION                # versión del harness
 ├─ .gitattributes         # normaliza saltos de línea (LF)
 ├─ AGENTS.md              # reglas        ┐
-├─ skills/                # 16 skills     ├─ lo que se instala (global o por proyecto)
+├─ skills/                # 17 skills     ├─ lo que se instala (global o por proyecto)
 ├─ templates/
 │  ├─ opencode.json       # config del proyecto (instructions + skills.paths + permisos)
 │  ├─ README.md           # ┐

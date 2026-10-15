@@ -15,6 +15,7 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es/1.1.0/); vers
 - `tools/test.ps1`: pruebas de integración auto-contenidas (sin módulos externos) de `install.ps1` y `check.ps1` en un sandbox temporal (instalación local, `-WhatIf`, `-Update` con conflicto y respaldo, `-Detect`, guard de `schemaVersion`, protección de skills ajenas y códigos de salida). Salen 0/1.
 - `tools/check.ps1`: rechaza una `description` sin citar que contenga `: ` o ` #` (frontmatter YAML inválido).
 - `tools/check.ps1`: **seguimiento de headroom** — lista (sin bloquear) las skills cuyo cuerpo supera el **80%** de `MaxBodyLines`, para mover detalle a `references/` antes de rozar el límite.
+- `skills/arduino`: nueva skill — firmware para AVR (Uno/Nano/Mega) y ESP32/ESP8266 (núcleo agnóstico + `arduino-cli`/PlatformIO): modelo `setup()`/`loop()`, no bloqueante con `millis()`, límites de memoria en AVR, ADC/PWM, I2C/SPI, interrupciones, bajo consumo y anti-patrones; con marcador de frescura y evals (2 positivos, 1 ambiguo, 1 de frontera, 1 negativo). `evals/triggers.json` pasa a **48 casos** y el README a **17 skills**.
 
 ### Cambiado
 

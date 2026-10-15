@@ -30,19 +30,24 @@
   { "id": "azure-pos-02", "tipo": "positivo", "prompt": "configurar app service y almacenamiento blob en azure", "expect": "azure" },
   { "id": "oci-pos-02", "tipo": "positivo", "prompt": "crear una instancia ampere y un bucket en oracle cloud", "expect": "oci" },
   { "id": "sql-pos-03", "tipo": "positivo", "prompt": "diseñar el esquema de índices y revisar una consulta lenta", "expect": "sql", "nota": "incluye tildes/ñ para verificar que el matching aguanta no-ASCII" },
+  { "id": "arduino-pos-01", "tipo": "positivo", "prompt": "escribir un sketch que parpadee un led sin bloquear con millis en un arduino uno", "expect": "arduino" },
+  { "id": "arduino-pos-02", "tipo": "positivo", "prompt": "crear el firmware para leer un sensor por i2c en una placa esp32 y publicarlo por wifi", "expect": "arduino" },
 
   { "id": "nosql-amb-01", "tipo": "ambiguo", "prompt": "cachear las sesiones de usuario en redis", "expect": "nosql", "nota": "redis tambien aparece en dotnet; debe ganar la skill de datos" },
   { "id": "sql-amb-01", "tipo": "ambiguo", "prompt": "crear un indice compuesto y un explain de una consulta lenta en postgres", "expect": "sql", "nota": "lenguaje de BD sin mencionar ORM; no debe ganar dotnet/fastapi" },
   { "id": "kubernetes-amb-01", "tipo": "ambiguo", "prompt": "dockerizar la api y desplegarla en un cluster de kubernetes", "expect": "kubernetes", "nota": "menciona docker; el destino (cluster/helm) manda" },
   { "id": "harness-amb-01", "tipo": "ambiguo", "prompt": "revisar si las versiones y los enlaces del catalogo siguen vigentes", "expect": "harness-freshness", "nota": "frontera harness-freshness vs harness-install (ambos hablan del harness)" },
+  { "id": "arduino-amb-01", "tipo": "ambiguo", "prompt": "leer la temperatura de un sensor y servirla con un servidor web en el esp32", "expect": "arduino", "nota": "menciona 'servidor web' (tienta a fastapi); el trabajo es el firmware del esp32" },
 
   { "id": "frontier-sql-01", "tipo": "frontera", "prompt": "agregar una migracion y un indice al esquema de la base de datos", "expect": "sql", "nota": "tienta a dotnet/fastapi por ORM; debe ganar el diseno de esquema" },
   { "id": "frontier-k8s-01", "tipo": "frontera", "prompt": "escribir un manifiesto y un helm chart para el cluster", "expect": "kubernetes", "nota": "tienta a docker; el manifiesto/helm manda" },
   { "id": "frontier-gha-01", "tipo": "frontera", "prompt": "definir jobs y matrix en el pipeline de integracion continua", "expect": "github-actions", "nota": "tienta a docker; el pipeline/CI manda" },
+  { "id": "frontier-arduino-01", "tipo": "frontera", "prompt": "escribir el firmware del nodo esp32 que reporta las lecturas a una api rest", "expect": "arduino", "nota": "tienta a fastapi/dotnet por 'api rest'; el nodo es arduino y el backend lo hace fastapi" },
 
   { "id": "none-neg-01", "tipo": "negativo", "prompt": "resumir este correo en tres lineas y sin tecnicismos", "expect": "none", "nota": "forma explicita 'none' (los demas negativos usan null): ninguna skill del catalogo" },
   { "id": "none-neg-02", "tipo": "negativo", "prompt": "traducir este texto tecnico al ingles", "expect": null, "nota": "traduccion, fuera de alcance" },
   { "id": "none-neg-02b", "tipo": "negativo", "prompt": "explicame que es un closure en javascript", "expect": null, "nota": "pregunta conceptual, sin stack del catalogo" },
   { "id": "none-neg-03", "tipo": "negativo", "prompt": "escribir un poema corto sobre el oceano", "expect": null, "nota": "no debe activar ninguna skill" },
-  { "id": "none-neg-04", "tipo": "negativo", "prompt": "explicar la teoria de la relatividad a un nino", "expect": null, "nota": "conocimiento general, fuera de alcance" }
+  { "id": "none-neg-04", "tipo": "negativo", "prompt": "explicar la teoria de la relatividad a un nino", "expect": null, "nota": "conocimiento general, fuera de alcance" },
+  { "id": "none-neg-05", "tipo": "negativo", "prompt": "disenar el esquematico y el layout del pcb de la placa en kicad", "expect": null, "nota": "hardware (esquematico/pcb), fuera de alcance: esta skill es firmware" }
 ]
