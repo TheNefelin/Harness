@@ -45,6 +45,24 @@ Si alguno sale distinto de `0`, el PR no es aceptable. El CI ejecuta lo mismo (`
 
 5. **Verifica**: `.\tools\check.ps1 -Strict`.
 
+## Rúbrica de una skill
+
+Toda skill del catálogo se evalúa con esta rúbrica. Distingue lo **universal** (obligatorio en todas) de lo **condicional** (depende del tipo de skill).
+
+| Aspecto | ¿Aplica a todas? | Qué se exige |
+| --- | --- | --- |
+| Frontmatter | Universal | `name` == carpeta y `description` válida. Lo valida `check.ps1`. |
+| Description (qué/cuándo/NO) | Universal | Empieza por el resultado, lista disparadores ("Usar al...") y cierra con `NO para ... ('<vecina>')`. |
+| Delimitación de alcance | Universal | Sección que excluye lo que cubren las skills vecinas. |
+| Contenido accionable | Universal | Decisiones y anti-patrones, no tutoriales. |
+| Anti-patrones | Universal | Al menos una sección de errores comunes; específicos para IA (p. ej. "afirmar sin verificar"). |
+| Honestidad sobre límites | Universal | Lo que la skill no puede verificar se declara; nada de resultados inventados. |
+| Longitud | Universal | Cuerpo ≤ 400 líneas. Lo valida `check.ps1`. |
+| Progressive disclosure | Condicional | `references/*.md` cuando la skill es larga (roza 400) o ramificada. Una guía secuencial y corta va autocontenida. |
+| Marcador de frescura | Condicional | Solo si hay datos que cambian (versiones, límites, precios, fechas). Las de método/principios no lo llevan. |
+
+Los "universal" son obligatorios; los "condicional" se juzgan caso a caso, no se fuerzan. Si dos skills se solapan, la rúbrica no basta: se ajustan las `description` (ver abajo).
+
 ## Evals de disparo
 
 `evals/triggers.json` es la red que evita que dos skills se disparen a la vez. Cada caso exige que **gane** la skill esperada (no solo que aparezca). Formato:
@@ -96,6 +114,7 @@ Cada marcador `verificado YYYY-MM-DD` cuenta. `check.ps1` **falla** si supera `-
 
 - [ ] `.\tools\check.ps1 -Strict` y `.\tools\test.ps1` en verde (0 fallos; los avisos, resueltos o justificados).
 - [ ] `name` == carpeta y `description` con bloque `NO para ...`.
+- [ ] Cumple la **rúbrica**: anti-patrones, honestidad sobre límites y (si aplica) `references/` y frescura.
 - [ ] La `description` no solapa con otra skill (Jaccard ≤ 0,5).
 - [ ] Cuerpo ≤ 400 líneas; el detalle, en `references/`.
 - [ ] Español neutro y **tuteo** (sin voseo).
