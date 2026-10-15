@@ -47,10 +47,16 @@ try { [Console]::OutputEncoding = [System.Text.Encoding]::UTF8 } catch {}
 
 $Root = Split-Path -Parent (Split-Path -Parent $MyInvocation.MyCommand.Path)
 $SkillsDir = Join-Path $Root 'skills'
-$EvalsFile = Join-Path $Root 'evals\triggers.json'
+$EvalsFile = Join-Path (Join-Path $Root 'evals') 'triggers.json'
 
 $script:Fail = [System.Collections.Generic.List[string]]::new()
 $script:Warn = [System.Collections.Generic.List[string]]::new()
+
+function Get-RelPath {
+    param([string]$Full)
+    if ($Full.StartsWith($Root, [System.StringComparison]::OrdinalIgnoreCase)) { return $Full.Substring($Root.Length).TrimStart('\', '/') }
+    return $Full
+}
 
 function Add-Fail { param([string]$m) [void]$script:Fail.Add($m) }
 function Add-Warn { param([string]$m) [void]$script:Warn.Add($m) }
@@ -251,7 +257,7 @@ foreach ($file in $mdFiles) {
         $d = [datetime]::ParseExact(($m.Groups[1].Value + '-' + $m.Groups[2].Value + '-' + $m.Groups[3].Value), 'yyyy-MM-dd', [System.Globalization.CultureInfo]::InvariantCulture)
         if ($null -eq $max -or $d -gt $max) { $max = $d }
     }
-    $rel = $file.FullName.Substring($Root.Length + 1)
+    $rel = Get-RelPath $file.FullName
     if ($null -eq $max) {
         if ($rxMarker.IsMatch($text)) { $undated++; Add-Warn "marcador de frescura sin fecha: $rel"; Write-Host "  AVISO  marcador sin fecha  $rel" -ForegroundColor Yellow }
         continue
@@ -260,10 +266,10 @@ foreach ($file in $mdFiles) {
     if ($age -gt $MaxAgeDays) {
         $stale++
         Add-Fail "frescura vencida ($age d, $($max.ToString('yyyy-MM-dd'))): $rel"
-        Write-Host ("  FALLO  {0} d  {1}  {2}" -f $age, $max.ToString('yyyy-MM-dd'), $file.FullName.Substring($Root.Length + 1)) -ForegroundColor Red
+        Write-Host ("  FALLO  {0} d  {1}  {2}" -f $age, $max.ToString('yyyy-MM-dd'), (Get-RelPath $file.FullName)) -ForegroundColor Red
     }
     else {
-        Write-Host ("  OK     {0,4}d  {1}  {2}" -f ('' + $age), ($max.ToString('yyyy-MM-dd')), ($file.FullName.Replace($Root + '\', ''))) -ForegroundColor DarkGray
+        Write-Host ("  OK     {0,4}d  {1}  {2}" -f ('' + $age), ($max.ToString('yyyy-MM-dd')), (Get-RelPath $file.FullName)) -ForegroundColor DarkGray
     }
 }
 if ($stale -eq 0) { Write-Host "  OK: ningun marcador supera $MaxAgeDays dias." -ForegroundColor Green }

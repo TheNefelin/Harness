@@ -66,6 +66,7 @@
     .\install.ps1 -Project "D:\Repo\App" -Doctor
     .\install.ps1 -Global -Doctor
 #>
+[CmdletBinding()]
 param(
     [ValidateSet('Auto', 'Global', 'Local')]
     [string]$Scope = 'Auto',
@@ -99,6 +100,7 @@ try { [Console]::OutputEncoding = [System.Text.Encoding]::UTF8 } catch {}
 
 $ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
 $MarkerName = '.harness-source'
+$script:DetectEvidence = @{}
 
 # Capa 1 (catalogo): clon local o URL git, para actualizar sin abrir el repo
 $SourceRoot = $ScriptDir
@@ -185,10 +187,20 @@ function Get-Marker {
     return [pscustomobject]@{ version = $raw; hash = $null }
 }
 
+function Add-Detected {
+    param([System.Collections.Generic.HashSet[string]]$Set, [string]$Name, [string]$Why)
+    [void]$Set.Add($Name)
+    if ($script:DetectEvidence.ContainsKey($Name)) {
+        if (-not ($script:DetectEvidence[$Name] -contains $Why)) { $script:DetectEvidence[$Name] = @($script:DetectEvidence[$Name]) + $Why }
+    }
+    else { $script:DetectEvidence[$Name] = @($Why) }
+}
+
 function Get-ProjectTech {
     param([string]$Root)
 
     $skills = [System.Collections.Generic.HashSet[string]]::new([System.StringComparer]::OrdinalIgnoreCase)
+    $script:DetectEvidence = @{}
     if (-not (Test-Path -LiteralPath $Root)) { return @() }
 
     $exclude = '[\\/](node_modules|\.git|dist|build|bin|obj|\.godot|venv|\.venv|\.idea|\.vs|packages|harness|\.opencode|\.claude|\.agents)[\\/]'
@@ -204,31 +216,31 @@ function Get-ProjectTech {
     $fullNames = @($files | ForEach-Object { $_.FullName })
 
     # .NET
-    if ($exts.Contains('.csproj') -or $exts.Contains('.sln') -or $byName.ContainsKey('directory.packages.props')) { [void]$skills.Add('dotnet') }
+    if ($exts.Contains('.csproj') -or $exts.Contains('.sln') -or $byName.ContainsKey('directory.packages.props')) { Add-Detected $skills 'dotnet' 'proyecto .NET (.csproj/.sln/Directory.Packages.props)' }
     # Godot
-    if ($byName.ContainsKey('project.godot') -or $exts.Contains('.tscn') -or $exts.Contains('.gd')) { [void]$skills.Add('godot') }
+    if ($byName.ContainsKey('project.godot') -or $exts.Contains('.tscn') -or $exts.Contains('.gd')) { Add-Detected $skills 'godot' 'proyecto Godot (project.godot/.tscn/.gd)' }
     # Docker
     foreach ($n in @('dockerfile', 'compose.yaml', 'compose.yml', 'docker-compose.yaml', 'docker-compose.yml', '.dockerignore')) {
-        if ($byName.ContainsKey($n)) { [void]$skills.Add('docker'); break }
+        if ($byName.ContainsKey($n)) { Add-Detected $skills 'docker' "contenedores ($n)"; break }
     }
     # Kubernetes
-    if ($byName.ContainsKey('chart.yaml') -or $byName.ContainsKey('kustomization.yaml') -or $byName.ContainsKey('kustomization.yml') -or ($fullNames -match '[\\/](k8s|kubernetes|manifests|helm)[\\/]')) { [void]$skills.Add('kubernetes') }
+    if ($byName.ContainsKey('chart.yaml') -or $byName.ContainsKey('kustomization.yaml') -or $byName.ContainsKey('kustomization.yml') -or ($fullNames -match '[\\/](k8s|kubernetes|manifests|helm)[\\/]')) { Add-Detected $skills 'kubernetes' 'manifiestos de Kubernetes (Chart.yaml/kustomization/carpetas k8s|helm)' }
     # GitHub Actions
-    if ($fullNames -match '[\\/]\.github[\\/]workflows[\\/]') { [void]$skills.Add('github-actions') }
+    if ($fullNames -match '[\\/]\.github[\\/]workflows[\\/]') { Add-Detected $skills 'github-actions' '.github/workflows' }
     # SQL por archivos
-    if ($exts.Contains('.sql')) { [void]$skills.Add('sql') }
+    if ($exts.Contains('.sql')) { Add-Detected $skills 'sql' 'archivos .sql' }
 
     # package.json (Node / frameworks / drivers)
     if ($byName.ContainsKey('package.json')) {
         $pkg = Get-Content -LiteralPath $byName['package.json'] -Raw -ErrorAction SilentlyContinue
         if ($pkg) {
-            if ($pkg -match '@angular/core') { [void]$skills.Add('angular') }
-            if ($pkg -match '"astro"') { [void]$skills.Add('astro') }
-            if ($pkg -match '"(react|react-dom|next)"') { [void]$skills.Add('react') }
-            if ($pkg -match '"vue"') { [void]$skills.Add('vue') }
-            if ($pkg -match '"svelte"') { [void]$skills.Add('svelte') }
-            if ($pkg -match '"(pg|postgres|mysql|mysql2|mssql)"') { [void]$skills.Add('sql') }
-            if ($pkg -match '"(mongodb|redis|ioredis)"|@azure/cosmos|@aws-sdk/client-dynamodb') { [void]$skills.Add('nosql') }
+            if ($pkg -match '@angular/core') { Add-Detected $skills 'angular' 'package.json: @angular/core' }
+            if ($pkg -match '"astro"') { Add-Detected $skills 'astro' 'package.json: astro' }
+            if ($pkg -match '"(react|react-dom|next)"') { Add-Detected $skills 'react' 'package.json: react/next' }
+            if ($pkg -match '"vue"') { Add-Detected $skills 'vue' 'package.json: vue' }
+            if ($pkg -match '"svelte"') { Add-Detected $skills 'svelte' 'package.json: svelte' }
+            if ($pkg -match '"(pg|postgres|mysql|mysql2|mssql)"') { Add-Detected $skills 'sql' 'package.json: driver SQL (pg/mysql/mssql)' }
+            if ($pkg -match '"(mongodb|redis|ioredis)"|@azure/cosmos|@aws-sdk/client-dynamodb') { Add-Detected $skills 'nosql' 'package.json: driver NoSQL (mongodb/redis/cosmos/dynamodb)' }
         }
     }
 
@@ -237,11 +249,11 @@ function Get-ProjectTech {
         if ($byName.ContainsKey($n)) {
             $py = Get-Content -LiteralPath $byName[$n] -Raw -ErrorAction SilentlyContinue
             if ($py) {
-                if ($py -match 'fastapi') { [void]$skills.Add('fastapi') }
-                if ($py -match 'django') { [void]$skills.Add('django') }
-                if ($py -match 'flask') { [void]$skills.Add('flask') }
-                if ($py -match '(psycopg|sqlalchemy)') { [void]$skills.Add('sql') }
-                if ($py -match '(pymongo|\bredis\b)') { [void]$skills.Add('nosql') }
+                if ($py -match 'fastapi') { Add-Detected $skills 'fastapi' "${n}: fastapi" }
+                if ($py -match 'django') { Add-Detected $skills 'django' "${n}: django" }
+                if ($py -match 'flask') { Add-Detected $skills 'flask' "${n}: flask" }
+                if ($py -match '(psycopg|sqlalchemy)') { Add-Detected $skills 'sql' "${n}: psycopg/sqlalchemy" }
+                if ($py -match '(pymongo|\bredis\b)') { Add-Detected $skills 'nosql' "${n}: pymongo/redis" }
             }
         }
     }
@@ -251,8 +263,8 @@ function Get-ProjectTech {
         if ($f.Extension -eq '.csproj') {
             $cs = Get-Content -LiteralPath $f.FullName -Raw -ErrorAction SilentlyContinue
             if ($cs) {
-                if ($cs -match '(Npgsql|Microsoft\.Data\.SqlClient|EntityFrameworkCore\.(SqlServer|Npgsql|PostgreSql))') { [void]$skills.Add('sql') }
-                if ($cs -match '(StackExchange\.Redis|MongoDB\.Driver|Azure\.Cosmos|AWSSDK\.DynamoDB)') { [void]$skills.Add('nosql') }
+                if ($cs -match '(Npgsql|Microsoft\.Data\.SqlClient|EntityFrameworkCore\.(SqlServer|Npgsql|PostgreSql))') { Add-Detected $skills 'sql' '.csproj: proveedor SQL' }
+                if ($cs -match '(StackExchange\.Redis|MongoDB\.Driver|Azure\.Cosmos|AWSSDK\.DynamoDB)') { Add-Detected $skills 'nosql' '.csproj: driver NoSQL' }
             }
         }
     }
@@ -264,13 +276,13 @@ function Get-ProjectTech {
             if ($f.Extension -eq '.tf') {
                 $tf = Get-Content -LiteralPath $f.FullName -Raw -ErrorAction SilentlyContinue
                 if ($tf) {
-                    if ($tf -match 'provider\s+"aws"') { [void]$skills.Add('aws'); $sawProvider = $true }
-                    if ($tf -match 'provider\s+"azurerm"') { [void]$skills.Add('azure'); $sawProvider = $true }
-                    if ($tf -match 'provider\s+"oci"') { [void]$skills.Add('oci'); $sawProvider = $true }
+                    if ($tf -match 'provider\s+"aws"') { Add-Detected $skills 'aws' '.tf: provider aws'; $sawProvider = $true }
+                    if ($tf -match 'provider\s+"azurerm"') { Add-Detected $skills 'azure' '.tf: provider azurerm'; $sawProvider = $true }
+                    if ($tf -match 'provider\s+"oci"') { Add-Detected $skills 'oci' '.tf: provider oci'; $sawProvider = $true }
                 }
             }
         }
-        if (-not $sawProvider) { [void]$skills.Add('terraform') }
+        if (-not $sawProvider) { Add-Detected $skills 'terraform' 'archivos .tf sin provider cloud reconocido' }
     }
 
     return @($skills | Sort-Object)
@@ -306,6 +318,12 @@ function Write-ProjectTech {
             Write-Host ('  Con skill, no instalada:   {0}' -f ($notInstalled -join ', ')) -ForegroundColor Yellow
         }
     }
+
+    foreach ($t in $tech) {
+        if ($script:DetectEvidence.ContainsKey($t)) {
+            Write-Verbose ('  evidencia {0}: {1}' -f $t, ($script:DetectEvidence[$t] -join '; '))
+        }
+    }
 }
 
 if ($List) {
@@ -329,6 +347,7 @@ if ($Detect) {
     Write-Host ('  ' + ($catalog -join ', '))
     Write-Host ''
     Write-ProjectTech -Root $Project -Available $catalog
+    if ($VerbosePreference -eq 'SilentlyContinue') { Write-Host '  (usa -Verbose para ver la evidencia de cada deteccion)' -ForegroundColor DarkGray }
     exit 0
 }
 
@@ -715,6 +734,7 @@ if ($Context -and $Scope -eq 'Local') {
 $skillsJson = ($desired | ForEach-Object { '    "{0}"' -f $_ }) -join ",`n"
 $json = @"
 {
+  "schemaVersion": 1,
   "scope": "$($Scope.ToLower())",
   "rules": $($rulesManaged.ToString().ToLower()),
   "skills": [
@@ -727,7 +747,7 @@ if ($WhatIf) {
     Write-Host "WOULD  declaracion -> $DeclFile" -ForegroundColor DarkCyan
 }
 else {
-    Set-Content -LiteralPath $DeclFile -Value $json -Encoding UTF8
+    [System.IO.File]::WriteAllText($DeclFile, $json, (New-Object System.Text.UTF8Encoding($false)))
     Write-Host "OK     declaracion -> $DeclFile" -ForegroundColor Green
 }
 

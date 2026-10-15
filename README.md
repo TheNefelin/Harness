@@ -14,9 +14,11 @@ Conjunto reutilizable de **reglas**, **skills** y **plantillas de contexto** par
 ```
 Harness/
 ├─ README.md              # este archivo
+├─ CONTRIBUTING.md        # cómo añadir/editar skills y evals
 ├─ CHANGELOG.md           # historial de versiones
 ├─ LICENSE                # MIT
 ├─ VERSION                # versión del harness
+├─ .gitattributes         # normaliza saltos de línea (LF)
 ├─ AGENTS.md              # reglas        ┐
 ├─ skills/                # 16 skills     ├─ lo que se instala (global o por proyecto)
 ├─ templates/
@@ -36,7 +38,8 @@ Harness/
 ## Requisitos
 
 - [openCode](https://opencode.ai) instalado.
-- PowerShell (Windows) para `install.ps1`.
+- **PowerShell**: Windows PowerShell 5.1 (viene con Windows) o **PowerShell 7+ (`pwsh`)**, que corre también en Linux/macOS.
+- `install.ps1` está orientado a **Windows**; el verificador `tools/check.ps1` es **portable** (usa separadores nativos, sin dependencias).
 
 ## Instalación
 
@@ -73,7 +76,7 @@ Es **agnóstico**: no hay set por defecto. Siempre indicas **qué** skills y **d
 Qué hace:
 
 1. Copia las **skills elegidas** y las **reglas** (`AGENTS.md`) al destino del scope.
-2. Escribe `.harness.json` (`{scope, rules, skills, harnessVersion}`): la **declaración** que usa `-Update`.
+2. Escribe `.harness.json` (`{schemaVersion, scope, rules, skills, harnessVersion}`): la **declaración** que usa `-Update`.
 3. Local: crea `opencode.json` si falta y agrega `harness/skills/` a `.gitignore`.
 4. **Nunca pisa** skills/reglas ajenas: las **respalda** en `.harness-backup\` y las omite (o las reemplaza con `-Force`).
 5. `-Update` alinea el set: agrega las que falten y **poda** las que ya no declaraste.
@@ -83,6 +86,23 @@ Qué hace:
 `-WhatIf` previsualiza la operación completa (instalar, refrescar, respaldar, omitir, podar) **sin escribir nada**: úsalo para ver qué pasaría antes de aplicar.
 
 `-Doctor` audita la instalación del scope (manifiesto `.harness.json`, marcadores y hashes de cada skill, reglas y `opencode.json`) y sale con código **0** (ok, con avisos) o **1** (fallo): útil para saber si algo quedó a medias o para CI.
+
+### Detección de tecnologías (`-Detect`)
+
+Es **heurística** (marcadores de archivos y dependencias, no análisis de código) y recorre **todo el árbol** del proyecto, excluyendo `node_modules`, `bin`, `obj`, `.git`, `harness/` y similares. En monorepos detecta a nivel global (no separa por subcarpeta). Añade `-Verbose` para ver **la evidencia** de cada tecnología detectada.
+
+| Skill | Marcador |
+| --- | --- |
+| `dotnet` | `*.csproj` / `*.sln` / `Directory.Packages.props` |
+| `godot` | `project.godot` / `*.tscn` / `*.gd` |
+| `docker` | `Dockerfile` / `compose.yaml\|yml` / `docker-compose.*` / `.dockerignore` |
+| `kubernetes` | `Chart.yaml` / `kustomization.yaml\|yml` o carpetas `k8s` / `kubernetes` / `manifests` / `helm` |
+| `github-actions` | `.github/workflows/` |
+| `sql` | `*.sql`; o driver en `package.json` (`pg`/`mysql`/`mssql`), Python (`psycopg`/`sqlalchemy`) o `.csproj` (`Npgsql`/`SqlClient`/`EFCore`) |
+| `nosql` | driver en `package.json` (`mongodb`/`redis`/cosmos/dynamodb), Python (`pymongo`/`redis`) o `.csproj` |
+| `angular` / `astro` | `package.json`: `@angular/core` / `astro` |
+| `aws` / `azure` / `oci` | `*.tf` con `provider "aws"` / `"azurerm"` / `"oci"` |
+| `react` / `vue` / `svelte` / `django` / `flask` / `terraform` | reconocidos pero **sin skill** en el catálogo → aparecen como **candidatas a crear** |
 
 ## Qué queda en cada scope
 
@@ -128,6 +148,12 @@ proyecto/
 3. Revisa que `opencode.json` apunte a `harness/` y ajusta permisos si hace falta.
 
 En ambos casos el agente lee primero `AGENTS.md` + `DEVELOPMENT.md`: cuanto mejor sea ese contexto, menos tokens gastas repitiendo.
+
+**Colaborador (clon nuevo)**
+
+1. Las skills instaladas viven en `harness/skills/` y están **ignoradas por git** (son artefactos), así que un clon nuevo **no** las trae.
+2. Tras clonar, ejecuta `.\install.ps1 -Update` (lee `.harness.json`, que **sí** se versiona) para materializar las skills declaradas.
+3. Si no existiera `.harness.json`, instala con `-Skills` según el stack del proyecto.
 
 ## Actualizar
 
@@ -177,13 +203,27 @@ El catálogo se autoverifica con un script **determinista**, sin depender de ope
 Comprueba cuatro cosas sobre `skills/`:
 
 1. **Estructura** — cada `SKILL.md` tiene frontmatter, `name` igual a su carpeta, `description` presente y acotada, y cuerpo ≤ 400 líneas.
-2. **Solapamiento de triggers** — cuánto se pisan las `description` (vocabulario distintivo, ignorando el bloque `NO ...`). Avisa si dos skills superan el umbral (Jaccard).
+2. **Solapamiento de triggers** — cuánto se pisan las `description` (vocabulario distintivo, ignorando el bloque `NO ...`). Avisa si dos skills superan el umbral de Jaccard (`-OverlapThreshold`, **0,5** por defecto; el catálogo actual no pasa de 0,25, así que hay margen ×2).
 3. **Evals de disparo** — casos curados en `evals/triggers.json` (`{prompt, expect}`): exige que gane la skill esperada, no solo que aparezca.
 4. **Frescura** — antigüedad de los marcadores `verificado YYYY-MM-DD`; **falla** si superan `-MaxAgeDays` (180 por defecto).
 
 Sale con código **0** (ok, con avisos) o **1** (fallo), igual que `install.ps1 -Doctor`. El workflow [`.github/workflows/check.yml`](.github/workflows/check.yml) lo ejecuta en cada push/PR y **una vez al mes** (para detectar drift de frescura aunque no haya commits).
 
 Al crear o cambiar una skill, añade casos a `evals/triggers.json`: es la red que evita que dos skills se disparen a la vez.
+
+### Versionado
+
+El repo sigue **SemVer** (`VERSION` + `CHANGELOG.md`): `MAJOR` rompe compatibilidad, `MINOR` añade, `PATCH` corrige.
+
+- Cambiar el **formato** de `.harness.json`, la estructura de una skill o los parámetros de `install.ps1` de forma incompatible → **MAJOR**.
+- Añadir skills, opciones o comprobaciones compatibles → **MINOR**.
+- Correcciones de contenido (frescura, erratas) → **PATCH**.
+
+El manifiesto lleva `schemaVersion` (hoy `1`); si el formato cambia, se sube y la migración se documenta aquí.
+
+## Alcance (intencional)
+
+Este Harness está **acoplado a openCode** a propósito, no por omisión: se apoya en sus `AGENTS.md`, en el descubrimiento de skills por `description` y en su `opencode.json`. Otros agentes (Claude Code, Codex, Cursor...) usan formatos afines, pero adaptarlos es un trabajo aparte que hoy **no** está en alcance. Un solo target bien soportado es una decisión, no una limitación pendiente.
 
 ## Hoja de ruta (diferido)
 
