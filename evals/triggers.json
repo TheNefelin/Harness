@@ -40,7 +40,7 @@
   { "id": "frontier-k8s-01", "tipo": "frontera", "prompt": "escribir un manifiesto y un helm chart para el cluster", "expect": "kubernetes", "nota": "tienta a docker; el manifiesto/helm manda" },
   { "id": "frontier-gha-01", "tipo": "frontera", "prompt": "definir jobs y matrix en el pipeline de integracion continua", "expect": "github-actions", "nota": "tienta a docker; el pipeline/CI manda" },
 
-  { "id": "none-neg-01", "tipo": "negativo", "prompt": "resumir este correo en tres lineas y sin tecnicismos", "expect": null, "nota": "tarea de texto general, ninguna skill del catalogo" },
+  { "id": "none-neg-01", "tipo": "negativo", "prompt": "resumir este correo en tres lineas y sin tecnicismos", "expect": "none", "nota": "forma explicita 'none' (los demas negativos usan null): ninguna skill del catalogo" },
   { "id": "none-neg-02", "tipo": "negativo", "prompt": "traducir este texto tecnico al ingles", "expect": null, "nota": "traduccion, fuera de alcance" },
   { "id": "none-neg-02b", "tipo": "negativo", "prompt": "explicame que es un closure en javascript", "expect": null, "nota": "pregunta conceptual, sin stack del catalogo" },
   { "id": "none-neg-03", "tipo": "negativo", "prompt": "escribir un poema corto sobre el oceano", "expect": null, "nota": "no debe activar ninguna skill" },

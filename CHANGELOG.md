@@ -30,6 +30,7 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es/1.1.0/); vers
 - `skills/angular`: nota de contexto — los nombres concretos (`CrudPage`, `MutationService`, `ApiService`) son de un proyecto de referencia; los principios son portables.
 - `install.ps1`: `Get-TreeHash` calculaba la ruta relativa con `Substring($Path.Length)`; con una ruta **corta 8.3** (p. ej. `RUNNER~1`, la de `%TEMP%` en el runner de CI) los hijos devuelven `FullName` largo y el hash salía mal → toda skill se veía divergente en `-Update` y creaba `.harness-backup` (falso conflicto, CI en rojo). Ahora canonicaliza la raíz con `Get-Item`.
 - `skills/harness-install`: la delimitación con `harness-freshness` era **unidireccional**; ahora su `description` también excluye el caso (`NO para ... 'harness-freshness'`).
+- `install.ps1`: `.DESCRIPTION` desactualizado — la forma de `.harness.json` ya lista `schemaVersion` (antes omitía la clave que el script escribe y que el README documenta); añadido un bloque `.NOTES` con el diagnóstico `-Verbose` y el puntero a `tools/test.ps1`.
 
 ### Documentación
 
@@ -38,6 +39,7 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es/1.1.0/); vers
 - `CONTRIBUTING.md`: **rúbrica de una skill** — separa lo universal (description con `NO para`, anti-patrones, honestidad sobre límites, longitud) de lo condicional (`references/` y marcador de frescura), y amplía el checklist del PR.
 - `CONTRIBUTING.md`: documenta la estrategia de evals — los negativos son **globales** y la frontera de cada skill la cubren ambiguos/frontera + Jaccard; se decide **no** exigir un negativo por skill (consciente, para no inflar el mantenimiento).
 - `.github/workflows/check.yml`: además del verificador, ejecuta `tools/test.ps1` (pruebas de integración).
+- `evals/triggers.json`: un negativo usa `expect: "none"` para ejercitar la forma alternativa documentada (el resto usa `null`); `CONTRIBUTING.md` aclara que el matcher normaliza tildes/ñ antes de comparar.
 - `tools/check.ps1`: portabilidad de separadores de ruta (LF/cross-platform).
 
 ## [0.1.0] - 2026-10-13

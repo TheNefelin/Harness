@@ -9,8 +9,8 @@
       - Sin -Project  -> scope Global (~/.config/opencode\)
       - -Update       -> lee .harness.json y respeta el scope ya declarado
 
-    Escribe una declaracion .harness.json ({scope, rules, skills, harnessVersion}) para que
-    -Update sepa siempre donde actualizar. Nunca pisa skills ni reglas ajenas: las
+    Escribe una declaracion .harness.json ({schemaVersion, scope, rules, skills, harnessVersion})
+    para que -Update sepa siempre donde actualizar. Nunca pisa skills ni reglas ajenas: las
     respalda en .harness-backup\.
 
 .PARAMETER Scope
@@ -65,6 +65,10 @@
     .\install.ps1 -Project "D:\Repo\App" -Update
     .\install.ps1 -Project "D:\Repo\App" -Doctor
     .\install.ps1 -Global -Doctor
+
+.NOTES
+    Diagnostico: -Detect y -Doctor aceptan -Verbose para ver la evidencia de cada deteccion.
+    Pruebas de integracion del catalogo (install.ps1 + check.ps1): .\tools\test.ps1
 #>
 [CmdletBinding()]
 param(

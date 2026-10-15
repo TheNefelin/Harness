@@ -84,6 +84,8 @@ Al añadir una skill, incluye **al menos**:
 
 **Nota sobre los negativos.** Los negativos son **globales** (`expect: null`): verifican que ninguna skill se active ante tareas fuera del catálogo. **No hay un negativo por skill a propósito** — la frontera de cada skill (que *no* gane la vecina) ya la cubren los casos **ambiguos** y **de frontera** más el filtro Jaccard de la sección siguiente. En conjunto: positivos por skill + ambiguos/frontera para los cruces de mayor riesgo + un puñado de negativos globales. Si aparece un cruce real que se colaba, se añade ahí; no se rellena un negativo por skill.
 
+**Acentos.** El matcher normaliza a NFD y descarta las tildes/ñ antes de comparar, así que los prompts pueden escribirse con acentos naturales; no hacen falta variantes sin acento.
+
 ## Solapamiento de triggers
 
 `check.ps1` mide la similitud **Jaccard** entre las `description` (vocabulario distintivo, ignorando el bloque `NO ...`). Si dos skills superan el umbral (`-OverlapThreshold`, **0,5** por defecto), hay aviso; con `-Strict`, el PR no pasa. El reporte muestra el par, los términos que comparten y la acción sugerida.
