@@ -1,6 +1,6 @@
 ---
 name: azure
-description: Arquitectura, costes y despliegues en Microsoft Azure (VMs, App Service, Blob) incluido el free account y los servicios always-free. Usar al diseñar, desplegar o revisar infraestructura en Azure: compute, almacenamiento, PaaS o control de costes. NO para AWS ('aws'), Oracle Cloud ('oci') ni solo contenedores ('docker'/'kubernetes').
+description: "Arquitectura, costes y despliegues en Microsoft Azure (VMs, App Service, Blob) incluido el free account y los servicios always-free. Usar al diseñar, desplegar o revisar infraestructura en Azure: compute, almacenamiento, PaaS o control de costes. NO para AWS ('aws'), Oracle Cloud ('oci') ni solo contenedores ('docker'/'kubernetes')."
 ---
 
 # Azure — Patrón senior

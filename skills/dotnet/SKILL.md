@@ -1,6 +1,6 @@
 ---
 name: dotnet
-description: Patrón senior para APIs REST en .NET (ASP.NET Core) con Clean Architecture, Dapper o EF Core y MAUI (MVVM). Usar al crear, modificar o revisar código .NET/C#: controladores, servicios, repositorios, auth, errores o testing. NO para Python/FastAPI ('fastapi'), esquema/motores ('sql'/'nosql') ni frontend ('angular'/'astro').
+description: "Patrón senior para APIs REST en .NET (ASP.NET Core) con Clean Architecture, Dapper o EF Core y MAUI (MVVM). Usar al crear, modificar o revisar código .NET/C#: controladores, servicios, repositorios, auth, errores o testing. NO para Python/FastAPI ('fastapi'), esquema/motores ('sql'/'nosql') ni frontend ('angular'/'astro')."
 ---
 
 # SKILL: .NET (C#) — Patrón Senior (transversal)

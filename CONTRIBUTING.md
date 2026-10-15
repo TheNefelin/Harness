@@ -30,6 +30,7 @@ Si alguno sale distinto de `0`, el PR no es aceptable. El CI ejecuta lo mismo (`
 
    - `name` **debe** coincidir exactamente con el nombre de la carpeta.
    - La `description` hace que la skill se **dispare sola**: empieza por el resultado, lista los disparadores ("Usar al...") y cierra con el bloque `NO para ... ('otra-skill')` para desambiguar de las vecinas.
+   - Si la `description` contiene `: ` (dos puntos + espacio) o ` #`, **cítala con comillas dobles** (`description: "..."`); sin citar, YAML la rompe (GitHub y los parsers estrictos fallan). `check.ps1` lo detecta.
    - Cuerpo ≤ **400 líneas**. El detalle largo va en `references/*.md` (progressive disclosure).
 
 2. **Contenido**: decisiones y anti-patrones, no tutoriales. Español neutro y **tuteo** (nada de voseo).

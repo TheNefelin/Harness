@@ -1,6 +1,6 @@
 ---
 name: oci
-description: Arquitectura, costes y despliegues en Oracle Cloud Infrastructure (OCI), con foco en Always Free y en no generar cobros. Usar al diseñar o desplegar en Oracle Cloud: instancias Ampere, redes, buckets, backups o control de costes. NO para AWS ('aws') ni Azure ('azure') ni solo contenedores ('docker'/'kubernetes').
+description: "Arquitectura, costes y despliegues en Oracle Cloud Infrastructure (OCI), con foco en Always Free y en no generar cobros. Usar al diseñar o desplegar en Oracle Cloud: instancias Ampere, redes, buckets, backups o control de costes. NO para AWS ('aws') ni Azure ('azure') ni solo contenedores ('docker'/'kubernetes')."
 ---
 
 # OCI — Patrón senior

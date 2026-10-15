@@ -1,6 +1,6 @@
 ---
 name: nosql
-description: Bases de datos NoSQL: MongoDB (documental), Azure Cosmos DB, Redis (clave-valor/caché) y Amazon DynamoDB. Usar al modelar, consultar u operar datos no relacionales: documentos, caché, colecciones, claves de partición, consistencia o patrones de acceso. NO para relacional/SQL ('sql') ni el acceso a datos desde el ORM/código ('dotnet'/'fastapi').
+description: "Bases de datos NoSQL: MongoDB (documental), Azure Cosmos DB, Redis (clave-valor/caché) y Amazon DynamoDB. Usar al modelar, consultar u operar datos no relacionales: documentos, caché, colecciones, claves de partición, consistencia o patrones de acceso. NO para relacional/SQL ('sql') ni el acceso a datos desde el ORM/código ('dotnet'/'fastapi')."
 ---
 
 # Bases de datos NoSQL — Patrón senior

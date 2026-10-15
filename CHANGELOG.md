@@ -13,6 +13,7 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es/1.1.0/); vers
 - `install.ps1`: `-Detect -Verbose` muestra la **evidencia** (marcador) de cada tecnología; `.harness.json` incluye ahora `schemaVersion` y se escribe **sin BOM**; guard de `schemaVersion` (avisa si falta, **aborta** si el manifiesto trae uno más nuevo que el soportado).
 - `evals/triggers.json`: esquema enriquecido (`id`, `tipo` positivo/ambiguo/negativo, `nota`) y **32 casos** (+3 ambiguos de frontera y +5 negativos sobre los 24 iniciales).
 - `tools/test.ps1`: pruebas de integración auto-contenidas (sin módulos externos) de `install.ps1` y `check.ps1` en un sandbox temporal (instalación local, `-WhatIf`, `-Update` con conflicto y respaldo, `-Detect`, guard de `schemaVersion`, protección de skills ajenas y códigos de salida). Salen 0/1.
+- `tools/check.ps1`: rechaza una `description` sin citar que contenga `: ` o ` #` (frontmatter YAML inválido).
 
 ### Cambiado
 
@@ -23,6 +24,7 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es/1.1.0/); vers
 
 - `install.ps1`: restaurada la cabecera de `Add-Detected` (un reemplazo previo la había dejado fuera y el script no cargaba). Lo detectó `tools/test.ps1`.
 - `skills/docker`, `skills/nosql`: resueltos los marcadores de frescura sin fecha que marcaba `check.ps1 -Strict` — `docker` con fecha `(verificado 2026-10-14)` y `nosql` reformulado como nota de **Alcance** (no atado a versiones).
+- Frontmatter: 13 `description` con `: ` (YAML inválido: GitHub y otros parsers lo rechazan) quedan citadas con comillas dobles.
 
 ### Documentación
 

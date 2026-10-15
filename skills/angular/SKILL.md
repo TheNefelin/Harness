@@ -1,6 +1,6 @@
 ---
 name: angular
-description: Patrón senior para apps Angular signal-based (v21+) con Tailwind y DaisyUI (CSR y SSR). Usar al crear, modificar o revisar código Angular: componentes, servicios, rxResource, CrudPage, formularios, auth, interceptores o lint. NO para sitios de contenido/SSR ('astro'), diseño/mockups ('ui-ux-mockup') ni backend ('dotnet'/'fastapi').
+description: "Patrón senior para apps Angular signal-based (v21+) con Tailwind y DaisyUI (CSR y SSR). Usar al crear, modificar o revisar código Angular: componentes, servicios, rxResource, CrudPage, formularios, auth, interceptores o lint. NO para sitios de contenido/SSR ('astro'), diseño/mockups ('ui-ux-mockup') ni backend ('dotnet'/'fastapi')."
 ---
 
 # SKILL: Angular — Patrón Senior (transversal: CSR y SSR)

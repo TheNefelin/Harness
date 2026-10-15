@@ -1,6 +1,6 @@
 ---
 name: sql
-description: Bases de datos relacionales (SQL Server + PostgreSQL/postgres): modelado de esquema, tablas e índices, consultas y su rendimiento. Usar al diseñar o revisar un esquema, ajustar un índice, optimizar una consulta lenta (revisar su plan de ejecución con explain) y planificar transacciones y migraciones. NO para NoSQL/caché ('nosql') ni el acceso desde el ORM/código ('dotnet'/'fastapi').
+description: "Bases de datos relacionales (SQL Server + PostgreSQL/postgres): modelado de esquema, tablas e índices, consultas y su rendimiento. Usar al diseñar o revisar un esquema, ajustar un índice, optimizar una consulta lenta (revisar su plan de ejecución con explain) y planificar transacciones y migraciones. NO para NoSQL/caché ('nosql') ni el acceso desde el ORM/código ('dotnet'/'fastapi')."
 ---
 
 # Bases de datos relacionales — Patrón senior (SQL Server + PostgreSQL)

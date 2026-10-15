@@ -1,6 +1,6 @@
 ---
 name: fastapi
-description: Patrón senior para APIs REST en Python con FastAPI, SQLAlchemy 2.1 async y PostgreSQL. Usar al crear, modificar o revisar una API FastAPI: endpoints, modelos, servicios, auth, uploads, email o testing. NO para APIs .NET ('dotnet'), esquema/índices/motores ('sql'/'nosql') ni frontend ('angular'/'astro').
+description: "Patrón senior para APIs REST en Python con FastAPI, SQLAlchemy 2.1 async y PostgreSQL. Usar al crear, modificar o revisar una API FastAPI: endpoints, modelos, servicios, auth, uploads, email o testing. NO para APIs .NET ('dotnet'), esquema/índices/motores ('sql'/'nosql') ni frontend ('angular'/'astro')."
 ---
 
 # SKILL: API FastAPI en Python — Patrón Senior (transversal)

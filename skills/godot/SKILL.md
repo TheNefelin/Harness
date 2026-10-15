@@ -1,6 +1,6 @@
 ---
 name: godot
-description: Patrón senior para videojuegos en Godot 4 (GDScript y C#): escenas, nodos, señales, autoloads, recursos, rendimiento y exportación. Usar al crear, modificar o revisar un proyecto de Godot: gameplay, UI, física, input, guardado o build. NO para apps web ('angular'/'astro') ni APIs .NET ('dotnet') ni diseño visual ('ui-ux-mockup').
+description: "Patrón senior para videojuegos en Godot 4 (GDScript y C#): escenas, nodos, señales, autoloads, recursos, rendimiento y exportación. Usar al crear, modificar o revisar un proyecto de Godot: gameplay, UI, física, input, guardado o build. NO para apps web ('angular'/'astro') ni APIs .NET ('dotnet') ni diseño visual ('ui-ux-mockup')."
 ---
 
 # Godot — Patrón senior

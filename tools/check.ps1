@@ -101,22 +101,22 @@ function Get-SkillMeta {
     param([string]$SkillFile)
     $text = [System.IO.File]::ReadAllText($SkillFile, [System.Text.Encoding]::UTF8)
     $lines = @($text -split "\r?\n")
-    $name = ''; $desc = ''; $fmEnd = -1
+    $name = ''; $desc = ''; $descRaw = ''; $fmEnd = -1
     if ($lines.Count -ge 2 -and $lines[0].Trim() -eq '---') {
         for ($i = 1; $i -lt $lines.Count; $i++) {
             if ($lines[$i].Trim() -eq '---') { $fmEnd = $i; break }
             if ($lines[$i] -match '^name:\s*(.+)$') { $name = $Matches[1].Trim().Trim('"').Trim("'") }
             elseif ($lines[$i] -match '^description:\s*(.+)$') {
-                $d = $Matches[1].Trim()
-                if ($d.Length -ge 2 -and (($d[0] -eq '"' -and $d[-1] -eq '"') -or ($d[0] -eq "'" -and $d[-1] -eq "'"))) {
-                    $d = $d.Substring(1, $d.Length - 2)
+                $descRaw = $Matches[1].Trim()
+                $desc = $descRaw
+                if ($desc.Length -ge 2 -and (($desc[0] -eq '"' -and $desc[-1] -eq '"') -or ($desc[0] -eq "'" -and $desc[-1] -eq "'"))) {
+                    $desc = $desc.Substring(1, $desc.Length - 2)
                 }
-                $desc = $d
             }
         }
     }
     $body = if ($fmEnd -ge 0) { $lines.Count - ($fmEnd + 1) } else { $lines.Count }
-    return [pscustomobject]@{ Name = $name; Description = $desc; BodyLines = $body; HasFrontmatter = ($fmEnd -ge 0) }
+    return [pscustomobject]@{ Name = $name; Description = $desc; DescRaw = $descRaw; BodyLines = $body; HasFrontmatter = ($fmEnd -ge 0) }
 }
 
 # --- Cargar catalogo ---------------------------------------------------------
@@ -159,6 +159,7 @@ foreach ($s in $catalog) {
     elseif ($s.Meta.Name -ne $s.Name) { Add-Fail "name '$($s.Meta.Name)' != carpeta '$($s.Name)'" }
     if ([string]::IsNullOrWhiteSpace($s.Meta.Description)) { Add-Fail "description ausente: $($s.Name)/SKILL.md" }
     elseif ($s.Meta.Description.Length -gt $MaxDescription) { Add-Warn "description larga ($($s.Meta.Description.Length) > $MaxDescription): $($s.Name)" }
+    if ($s.Meta.DescRaw -and $s.Meta.DescRaw -notmatch '^["'']' -and $s.Meta.DescRaw -match '(: | #)') { Add-Fail "description sin citar con ': ' o ' #' (YAML invalido): $($s.Name)/SKILL.md" }
     if ($s.Meta.BodyLines -gt $MaxBodyLines) { Add-Fail "cuerpo $($s.Meta.BodyLines) > $MaxBodyLines lineas: $($s.Name)/SKILL.md" }
 }
 if ($script:Fail.Count -eq 0 -and $script:Warn.Count -eq 0) { Write-Host "  OK: $N skills con frontmatter y tamano validos." -ForegroundColor Green }

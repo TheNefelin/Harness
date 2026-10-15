@@ -1,6 +1,6 @@
 ---
 name: aws
-description: Arquitectura, seguridad y costes en AWS (EC2, S3, Lambda, IAM, VPC) incluido el Free Tier. Usar al diseñar, desplegar o revisar infraestructura o servicios en Amazon Web Services: instancias, almacenamiento, serverless, IAM, redes o control de costes. NO para Azure ('azure') ni Oracle Cloud ('oci') ni solo contenedores ('docker'/'kubernetes').
+description: "Arquitectura, seguridad y costes en AWS (EC2, S3, Lambda, IAM, VPC) incluido el Free Tier. Usar al diseñar, desplegar o revisar infraestructura o servicios en Amazon Web Services: instancias, almacenamiento, serverless, IAM, redes o control de costes. NO para Azure ('azure') ni Oracle Cloud ('oci') ni solo contenedores ('docker'/'kubernetes')."
 ---
 
 # AWS — Patrón senior
