@@ -1,11 +1,13 @@
 ---
 name: github-actions
-description: "CI/CD con GitHub Actions. Usar cuando se cree, modifique o revise un workflow o pipeline: jobs, matrix, secrets, cache, artifacts o despliegues en GitHub Actions. NO usar para diseñar el Dockerfile o la imagen (eso es la skill 'docker') ni los manifiestos de clúster (eso es 'kubernetes'); Actions solo los ejecuta."
+description: "CI/CD con GitHub Actions. Usar cuando se cree, modifique o revise un workflow o pipeline: jobs, matrix, secrets, cache, artifacts o despliegues en GitHub Actions. NO para diseñar el Dockerfile o la imagen ('docker') ni los manifiestos de clúster ('kubernetes'); Actions solo los ejecuta."
 ---
 
 # GitHub Actions — Patrón senior
 
 > Pipelines de CI/CD con GitHub Actions. Convenciones, anti-patrones y patrones; no es un tutorial de YAML.
+
+> **Frescura (verificado 2026-10-15):** `uses` citados: `actions/checkout@v7`, `setup-node@v7`, `upload-artifact@v7`, `download-artifact@v8` y CodeQL `@v4`. La matrix usa solo Node soportado (**18 y 20 están EOL**; 22 en mantenimiento, 24 LTS). Fuentes: `github.com/actions/*/releases`, `github.com/nodejs/Release`.
 
 ## Cuándo NO usar
 
@@ -18,7 +20,7 @@ Actions **orquesta el pipeline**; el Dockerfile lo diseña `docker` y los manifi
 
 ## Decisiones y convenciones
 
-- **Pinear cada `uses`** a un tag mayor (`@v4`) o, mejor, a un SHA completo: nunca `@master`/`@main`. Un action móvil es un riesgo de cadena de suministro.
+- **Pinear cada `uses`** a un tag mayor (`@v7`) o, mejor, a un SHA completo: nunca `@master`/`@main`. Un action móvil es un riesgo de cadena de suministro.
 - **Permisos mínimos**: `permissions: contents: read` a nivel de workflow y **escalar por job** solo lo necesario (`security-events: write`, etc.). Evitar el `write-all` por defecto.
 - **`concurrency` con `cancel-in-progress: true`** para CI en PRs: cancela runs viejos de la misma rama.
 - **`timeout-minutes`** por job: evita jobs colgados consumiendo minutos.
@@ -69,15 +71,15 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
         with:
-          node-version: '20'
+          node-version: '24'
           cache: 'npm'
       - run: npm ci
       - run: npm run lint
       - run: npm test -- --coverage
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         if: always()
         with:
           name: coverage
@@ -99,7 +101,7 @@ integration:
         --health-cmd pg_isready
         --health-interval 10s --health-timeout 5s --health-retries 5
   steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v7
     - run: npm ci
     - run: npm run test:integration
       env:
@@ -119,8 +121,8 @@ deploy-prod:
     contents: read
     id-token: write        # OIDC en vez de claves de larga vida
   steps:
-    - uses: actions/checkout@v4
-    - uses: actions/download-artifact@v4
+    - uses: actions/checkout@v7
+    - uses: actions/download-artifact@v8
       with: { name: build-output, path: dist/ }
     - run: kubectl set image deployment/my-app app=my-app:${{ github.sha }}
     - run: kubectl rollout status deployment/my-app --timeout=300s
@@ -133,11 +135,11 @@ test:
   strategy:
     fail-fast: false
     matrix:
-      node: [18, 20, 22]
+      node: [22, 24]
       os: [ubuntu-latest, windows-latest]
   runs-on: ${{ matrix.os }}
   steps:
-    - uses: actions/setup-node@v4
+    - uses: actions/setup-node@v7
       with: { node-version: ${{ matrix.node }} }
     - run: npm test
 ```
@@ -152,10 +154,10 @@ security:
     contents: read
     actions: read
   steps:
-    - uses: actions/checkout@v4
-    - uses: github/codeql-action/init@v3
+    - uses: actions/checkout@v7
+    - uses: github/codeql-action/init@v4
       with: { languages: javascript-typescript }
-    - uses: github/codeql-action/analyze@v3
+    - uses: github/codeql-action/analyze@v4
     - name: Escaneo de imagen con Trivy
       uses: aquasecurity/trivy-action@0.28.0     # versión fijada, no @master
       with:

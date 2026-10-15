@@ -20,6 +20,7 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es/1.1.0/); vers
 - `tools/check.ps1`: los evals aceptan `expect: "none"` o `null` → exige que **ninguna** skill se active; resumen con desglose por `tipo` y `id` en los fallos. El reporte de solapamiento ahora es **accionable** (muestra términos compartidos, acción sugerida y un top-3 de seguimiento). La frescura acepta también el estilo `verificado:`.
 - `skills/sql`: `description` ampliada (postgres, consulta lenta, explain, índice) — un eval de frontera destapó que un prompt SQL realista no la activaba.
 - `install.ps1`: lectura robusta de `.harness.json` (JSON corrupto da un error claro en vez de reventar); el marcador `.harness-source` se escribe **sin BOM**; `Get-Catalog` lee el **frontmatter completo** (no solo 30 líneas) para extraer la `description`; al **podar** una skill gestionada, la **respalda** en `.harness-backup` (antes la borraba).
+- `skills/github-actions`: `uses` al día (`checkout@v7`, `setup-node@v7`, `upload-artifact@v7`, `download-artifact@v8`, CodeQL `@v4`), matrix de Node solo sobre versiones soportadas (18/20 ya EOL → 22/24) y marcador de frescura; `description` normalizada al bloque `NO para`. La rúbrica destapó que el ejemplo estaba desactualizado.
 
 ### Corregido
 
