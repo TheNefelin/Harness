@@ -28,7 +28,8 @@ Harness/
 │  └─ SKILL.md            # ┘
 ├─ install.ps1            # instalador / actualizador
 ├─ tools/
-│  └─ check.ps1           # verificador del catálogo (estructura, triggers, evals, frescura)
+│  ├─ check.ps1           # verificador del catálogo (estructura, triggers, evals, frescura)
+│  └─ test.ps1            # pruebas de integración (install.ps1 / check.ps1)
 ├─ evals/
 │  └─ triggers.json       # casos de disparo por skill
 └─ .github/workflows/
@@ -209,6 +210,13 @@ Comprueba cuatro cosas sobre `skills/`:
 
 Sale con código **0** (ok, con avisos) o **1** (fallo), igual que `install.ps1 -Doctor`. El workflow [`.github/workflows/check.yml`](.github/workflows/check.yml) lo ejecuta en cada push/PR y **una vez al mes** (para detectar drift de frescura aunque no haya commits).
 
+Además, `tools/test.ps1` corre **pruebas de integración** de `install.ps1` y `check.ps1` en un sandbox temporal (instalación local, `-WhatIf`, `-Update` con conflicto y respaldo, `-Detect`, guard de `schemaVersion`, protección de skills ajenas y códigos de salida). Es auto-contenido (sin módulos externos) y el CI lo ejecuta junto al verificador.
+
+```powershell
+.\tools\test.ps1              # pruebas de integración
+.\tools\test.ps1 -KeepSandbox # conserva el sandbox para inspeccionarlo
+```
+
 Al crear o cambiar una skill, añade casos a `evals/triggers.json` (positivo + ambiguo + negativo): es la red que evita que dos skills se disparen a la vez. Ver [CONTRIBUTING](CONTRIBUTING.md) para el detalle.
 
 ### Versionado
@@ -229,7 +237,7 @@ Este Harness está **acoplado a openCode** a propósito, no por omisión: se apo
 
 Estos conceptos existen en harness avanzados, pero **no** se incluyen todavía porque no hay un requisito que los justifique (evitar sobreingeniería):
 
-- **Portabilidad y tests del instalador** — Hoy el instalador es Windows-first (PowerShell); `check.ps1` ya es portable. Decidir plataforma (mantener `pwsh` 7 o portar a Node) y añadir tests (Pester o `node:test`) se difiere **juntos**, porque comparten la misma decisión. Se deja constancia aquí para que no parezca olvido.
+- **Portabilidad del instalador** — Hoy el instalador es Windows-first (PowerShell); `check.ps1` y `tools/test.ps1` ya son portables. Decidir plataforma (mantener `pwsh` 7 o portar a Node) se difiere hasta que haya un requisito real (p. ej. uso en macOS/Linux). Los **tests** ya no se difieren: `tools/test.ps1` los cubre (auto-contenidos, sin Pester). Se deja constancia aquí para que no parezca olvido.
 - **Hands** — conexiones/herramientas que se le dan al agente (servidores MCP o scripts con credenciales). Ejemplos posibles: Brevo (email transaccional), Cloudinary (documentos e imágenes).
 - **Hooks** — automatismos vía plugins de openCode. En gran parte cubiertos ya por `permission` (bloquear `.env`, pedir permiso para Git/instalaciones).
 - **Agentes** — subagentes de openCode (`.opencode/agents/`). Otra capa con su propio coste de contexto; se evaluará si aporta.

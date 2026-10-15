@@ -199,6 +199,8 @@ function Get-SchemaStatus {
     if ($v -gt $SchemaVersion) { return 'err' }
     return 'ok'
 }
+
+function Add-Detected {
     param([System.Collections.Generic.HashSet[string]]$Set, [string]$Name, [string]$Why)
     [void]$Set.Add($Name)
     if ($script:DetectEvidence.ContainsKey($Name)) {

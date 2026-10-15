@@ -12,9 +12,10 @@ Gracias por mejorar el Harness. Es un repo de **reglas + skills + herramientas**
 
 ```powershell
 .\tools\check.ps1 -Strict
+.\tools\test.ps1
 ```
 
-Si sale distinto de `0`, el PR no es aceptable. El CI ejecuta lo mismo (`.github/workflows/check.yml`).
+Si alguno sale distinto de `0`, el PR no es aceptable. El CI ejecuta lo mismo (`.github/workflows/check.yml`). `tools/test.ps1` son pruebas de integración de `install.ps1`/`check.ps1` (auto-contenidas, en un sandbox temporal).
 
 ## Añadir una skill
 
@@ -82,15 +83,16 @@ Cada marcador `verificado YYYY-MM-DD` cuenta. `check.ps1` **falla** si supera `-
 - Si cambias un dato del mundo real, actualiza su **fecha de frescura**.
 - Las skills instaladas son **artefactos**: no las edites en el proyecto, edítalas aquí.
 
-## Cambios en `install.ps1` o `tools/check.ps1`
+## Cambios en `install.ps1`, `tools/check.ps1` o `tools/test.ps1`
 
-- `.\tools\check.ps1 -Strict` en verde; además, `install.ps1 -Doctor` si toca el instalador.
+- `.\tools\check.ps1 -Strict` y `.\tools\test.ps1` en verde.
+- Si tocas `install.ps1` (o su comportamiento), añade o ajusta una prueba en `tools/test.ps1`.
 - Actualiza `CHANGELOG.md` (y `VERSION` según SemVer).
 - Si cambia el formato de `.harness.json` de forma incompatible, sube `schemaVersion` y documenta la migración.
 
 ## Checklist del PR
 
-- [ ] `.\tools\check.ps1 -Strict` en verde (0 fallos; los avisos, resueltos o justificados).
+- [ ] `.\tools\check.ps1 -Strict` y `.\tools\test.ps1` en verde (0 fallos; los avisos, resueltos o justificados).
 - [ ] `name` == carpeta y `description` con bloque `NO para ...`.
 - [ ] La `description` no solapa con otra skill (Jaccard ≤ 0,5).
 - [ ] Cuerpo ≤ 400 líneas; el detalle, en `references/`.

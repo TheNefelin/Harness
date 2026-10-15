@@ -19,3 +19,6 @@ jobs:
       - name: Verificar catalogo (estructura, triggers, evals, frescura)
         shell: powershell
         run: ./tools/check.ps1
+      - name: Pruebas de integracion (install.ps1 / check.ps1)
+        shell: powershell
+        run: ./tools/test.ps1

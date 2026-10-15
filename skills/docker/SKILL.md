@@ -16,7 +16,7 @@ description: Contenedorización con Docker y Docker Compose. Usar al crear, modi
 
 Docker **construye y corre** contenedores; Kubernetes los **orquesta** y Actions los **ejecuta** en el pipeline.
 
-> **Frescura:** usar **Docker Compose v2** (`docker compose`); el binario `docker-compose` v1 está descontinuado. Para .NET, **.NET 8 (LTS) termina soporte el 2026-11-10** y **.NET 9 (STS) el 2026-05-12**: en proyectos nuevos usa **.NET 10 (LTS)**.
+> **Frescura (verificado 2026-10-14):** usar **Docker Compose v2** (`docker compose`); el binario `docker-compose` v1 está descontinuado. Para .NET, **.NET 8 (LTS) termina soporte el 2026-11-10** y **.NET 9 (STS) el 2026-05-12**: en proyectos nuevos usa **.NET 10 (LTS)**.
 
 ## Decisiones y convenciones
 

@@ -18,7 +18,7 @@ description: Bases de datos NoSQL: MongoDB (documental), Azure Cosmos DB, Redis 
 
 Usa NoSQL solo cuando el modelo de datos o el patrón de acceso lo justifiquen; si dudas, el relacional (`sql`) suele ser la elección correcta.
 
-> **Alcance y frescura:** este skill cubre patrones de arquitectura y acceso (particionado, consistencia, idempotencia), no atados a versiones. Los detalles de API, límites y cuotas deben verificarse contra la documentación oficial vigente de cada motor.
+> **Alcance:** este skill cubre patrones de arquitectura y acceso (particionado, consistencia, idempotencia), no atados a versiones. Los detalles de API, límites y cuotas deben verificarse contra la documentación oficial vigente de cada motor.
 
 ---
 
