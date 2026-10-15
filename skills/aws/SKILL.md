@@ -28,7 +28,8 @@ description: Arquitectura, seguridad y costes en AWS (EC2, S3, Lambda, IAM, VPC)
 | Si te pasas | **No se factura**: la cuenta se cierra | Facturación on-demand | **Facturación on-demand automática** |
 | Al cerrar/terminar | 90 días para pasar a Paid y rescatar datos | — | — |
 
-- **Always Free**: 30+ servicios con límite mensual, mientras seas cliente, en ambos planes (Lambda, DynamoDB, S3, CloudFront, API Gateway, SQS/SNS, CloudWatch, Cognito).
+- **Always Free**: 30+ servicios con límite mensual, mientras seas cliente, en ambos planes (Lambda, DynamoDB, CloudFront, SQS/SNS, CloudWatch, Cognito).
+- **Ojo con la etiqueta "Free"**: `S3` (5 GB), `API Gateway` (1 M REST) y las instancias EC2/RDS **no** son Always Free — son ofertas de **12 meses** o consumen créditos del plan Free. Al vencer, facturan aunque el recurso siga creado.
 - **Límite de región**: el Free Tier **no aplica** en China (ZHY/BJS) ni, salvo excepciones (Lambda), en GovCloud. El uso se acumula **en todas las regiones**.
 - Verificar siempre el detalle en la fuente oficial antes de desplegar: los límites y las condiciones cambian con frecuencia.
 
@@ -68,12 +69,11 @@ description: Arquitectura, seguridad y costes en AWS (EC2, S3, Lambda, IAM, VPC)
 ### Stack Always Free (coste 0 indefinido)
 
 ```text
-API Gateway (1M llamadas REST/mes) ──► Lambda (1M req + 400K GB-s/mes)
-                                            │
-                                            ▼
-                                  DynamoDB (25 GB + 200M req/mes)
-Cognito (50.000 MAU/mes) · S3 (5 GB) · CloudFront (1 TB salida/mes)
+Lambda + Function URL (1M req + 400K GB-s/mes) ──► DynamoDB (25 GB + 200M req/mes)
+Cognito (50.000 MAU/mes) · CloudFront (1 TB salida/mes) · SQS/SNS (1M/mes)
 ```
+
+> **API Gateway y S3 no entran aquí**: sus 1 M llamadas y 5 GB son ofertas de **12 meses** (o consumen créditos). Para coste 0 perpetuo usa **Lambda Function URL** en vez de API Gateway, y CloudFront en vez de servir S3 directo.
 
 ### Budget mínimo por consola/CLI
 

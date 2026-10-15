@@ -4,17 +4,39 @@ Las reglas están en el `SKILL.md`; acá va el código.
 
 ## Contraseñas (PBKDF2)
 
+Formato **versionado** (`algoritmo:iteraciones:salt:hash`): permite subir el coste más adelante sin invalidar los hashes guardados. 600.000 iteraciones = recomendación OWASP para PBKDF2-HMAC-SHA256.
+
 ```csharp
+private const int Iterations = 600_000;
+private const int SaltSize = 16;
+private const int HashSize = 32;
+private static readonly HashAlgorithmName Algo = HashAlgorithmName.SHA256;
+
 public static string HashPassword(string password)
 {
-    byte[] salt = RandomNumberGenerator.GetBytes(16);
-    byte[] hash = Rfc2898DeriveBytes.Pbkdf2(
-        password, salt, 10000, HashAlgorithmName.SHA256, 32);
-    return Convert.ToBase64String(salt) + ":" + Convert.ToBase64String(hash);
+    byte[] salt = RandomNumberGenerator.GetBytes(SaltSize);
+    byte[] hash = Rfc2898DeriveBytes.Pbkdf2(password, salt, Iterations, Algo, HashSize);
+    return $"{Algo.Name.ToLowerInvariant()}:{Iterations}:" +
+           $"{Convert.ToBase64String(salt)}:{Convert.ToBase64String(hash)}";
+}
+
+// Valida la credencial y señaliza si conviene re-hashear con el coste vigente.
+public static bool VerifyPassword(string password, string stored, out bool needsRehash)
+{
+    needsRehash = false;
+    var parts = stored.Split(':');
+    if (parts.Length != 4) return false;
+    var algo = new HashAlgorithmName(parts[0].ToUpperInvariant());
+    int iterations = int.Parse(parts[1]);
+    byte[] salt = Convert.FromBase64String(parts[2]);
+    byte[] expected = Convert.FromBase64String(parts[3]);
+    byte[] actual = Rfc2898DeriveBytes.Pbkdf2(password, salt, iterations, algo, expected.Length);
+    needsRehash = iterations < Iterations; // upgrade progresivo de hashes antiguos
+    return CryptographicOperations.FixedTimeEquals(actual, expected);
 }
 ```
 
-**Nunca**: texto plano, MD5, SHA1, o el mismo hash para todos los usuarios (sin salt).
+**Nunca**: texto plano, MD5, SHA1, o el mismo hash para todos los usuarios (sin salt). Al iniciar sesión, si `VerifyPassword` marca `needsRehash`, re-hashear con el coste vigente y guardar.
 
 ## JWT
 

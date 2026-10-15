@@ -40,7 +40,7 @@ Porque resuelve los problemas que matan a las apps Angular cuando crecen, con de
 | **`CrudPage<TModel>` (clase base abstracta)** | Todo listado paginado comparte señales (`totalPages`/`currentPage`/`limit`/`search`) y métodos (`nextPage`/`prevPage`/`onFilterChange`/`onRefreshClick`); la subclase solo implementa `reload()` |
 | **Paginación unificada** | `PaginationRequestModel` (`page`, `limit`, `search`, `filter?`) para todos los GET paginados; `limit` acotado (máx. 100) acorde a la API; `filter` tipado por feature |
 | **`linkedSignal` + `clearTrigger` en formularios** | El form data reacciona al payload (edit mode) y se resetea a valores por defecto incrementando un trigger — sin `patchValue` manual ni estado zombie |
-| **Auth por namespace** | Sesión en `sessionStorage` con prefijo `auth.{namespace}.access_token/refresh_token/user`; el interceptor añade el Bearer según el namespace, hace refresh+retry en 401 y fuerza logout si el refresh falla |
+| **Auth por namespace** | Sesión en `sessionStorage` con prefijo `auth.{namespace}.access_token/refresh_token/user`; el interceptor añade el Bearer según el namespace, hace refresh+retry en 401 y fuerza logout si el refresh falla. ⚠️ Almacenar tokens en el navegador no los protege de XSS: ver nota de seguridad en §5 |
 | **Auth con `sessionSignal(ns)` reactivo** | El estado de login es una signal por namespace: al forzar logout la UI se re-sincroniza sola, sin recargar |
 | **`ErrorService` (modal) + `SuccessService` (toast) + `ConfirmService` (promise-based)** | Feedback de usuario centralizado: errores HTTP en modal vía interceptor (única fuente), éxitos en cola de toasts con auto-cierre, confirmaciones con `await confirm()` que resuelve `boolean` |
 | **ESLint con `angular-eslint`** | Lint de TS + templates (accesibilidad incluida) en `pnpm lint`, 0 errores — el refactor deja de ser a ciegas |
@@ -294,6 +294,7 @@ GET/POST/DELETE /ssr-api/{namespace}/{resource}  → CRUD con Bearer del namespa
 ```
 
 - **Sesión**: `sessionStorage` con prefijo `auth.{namespace}.access_token/refresh_token/user` — sobrevive a F5, muere al cerrar la pestaña.
+- **⚠️ Seguridad (XSS)**: `sessionStorage`/`localStorage` **no** aíslan los tokens de JavaScript del propio origen: un XSS puede robarlos. Para producción, preferir un **BFF con cookie `HttpOnly` + `Secure` + `SameSite`** para el refresh token (esta app ya tiene BFF `/ssr-api`). Si se mantiene el token en storage, asumir el riesgo y reforzar CSP + sanitización; nunca presentar `sessionStorage` como frontera de seguridad.
 - **`sessionSignal(ns)`** reactivo por namespace: `login()`/`logout()` lo actualizan → el UI se desloguea solo cuando el interceptor fuerza logout.
 - **authInterceptor**: extrae ns de la URL, añade `Authorization: Bearer`, hace refresh+retry en 401. Si el refresh falla → `logout(ns)` (limpia sesión + signal).
 - **Client ID por app**: el BFF expone el mapa y el AuthService lo cachea; lanza error claro si no está configurado.
@@ -342,7 +343,7 @@ Antes de dar una app Angular por terminada:
 - [ ] `linkedSignal` con `computation` en forms (reset por source change); `clearTrigger` solo en selects; form emite `{ id, data: SaveModel }`; submit con `(ngSubmit)` + `FormsModule`, o botón `(clicked)` sin evento de form
 - [ ] Select emite `Model | null` (`selectedItem`); consumidor agrega el modelo directo a su lista; selected-list emite `delete`
 - [ ] Labels asociados a controles; elementos interactivos focusables con keydown
-- [ ] Auth consistente: **[CSR]** Bearer de `localStorage`/`sessionStorage`; **[SSR]** por namespace (sessionStorage + sessionSignal reactivo + interceptor con refresh/retry/logout)
+- [ ] Auth consistente: **[CSR]** Bearer de `localStorage`/`sessionStorage`; **[SSR]** por namespace (sessionStorage + sessionSignal reactivo + interceptor con refresh/retry/logout); riesgo XSS asumido y documentado (preferir cookie `HttpOnly` en BFF)
 - [ ] Feedback: `ErrorService` (modal, vía interceptor) + `SuccessService` (toast) + `ConfirmService` (promise-based)
 - [ ] Badge/estado real-time: `NotificationBadgeState` con WebSocket primario (observador server 5s) + polling 30s solo como fallback; `disconnect()` en logout (efecto `isAuthenticated`)
 - [ ] Búsquedas con `encodeURIComponent()`; `limit` de paginación acotado
@@ -364,6 +365,7 @@ Antes de dar una app Angular por terminada:
 | Outputs `onXxx` (`onClick`, `onSubmit`, `onClose`) | Confunde con listeners DOM; la regla `no-output-on-prefix` lo prohíbe |
 | Outputs con nombre de evento nativo (`close`, `click`, `submit`) | La regla `no-output-native` lo prohíbe; usar `closed`/`clicked`/`submitted` |
 | `isLoading()` solo para el spinner | Desmonta la lista en cada refetch; usar `isLoading() && !hasValue()` |
+| `refresh_token` en `localStorage`/`sessionStorage` como si fuera seguro | Un XSS lo roba en el mismo origen; para web preferir cookie `HttpOnly`+`Secure`+`SameSite` (BFF) y no presentar el storage como frontera de seguridad |
 | **[SSR]** `JSON.parse(text)` directo en el servidor | Una respuesta no-JSON del backend explota con 502 genérico; usar un helper seguro que devuelva `{ detail }` |
 | **[SSR]** Escribir signals en el constructor | NG0950 en SSR; usar `effect()` |
 | Labels sin control asociado | Rompe accesibilidad (`label-has-associated-control`); usar `span`/`div` para decorativos |

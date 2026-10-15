@@ -3,6 +3,7 @@
 Principios:
 - **BD real PostgreSQL** (`TEST_DATABASE_URL`), no SQLite: los tests prueban lo mismo que prod (tipos, FKs, asyncpg).
 - **Nunca dropear toda la BD compartida**: el fixture dropea **solo las tablas de este proyecto** (por prefijo de tabla) al inicio y al teardown.
+- **Guard de destino**: `conftest.py` aborta antes de tocar nada si `TEST_DATABASE_URL` no es una BD dedicada (nombre `*_test`) o coincide con la de desarrollo/producción.
 - `conftest.py` centraliza: engine, sesión, override de `get_db` y `verify_api_key`, y siembra los datos mínimos (roles y un usuario admin).
 - Un test = 1 caso (éxito + cada error). Fórmula por recurso: create ✓, duplicate ✗, list empty, list, filter, get_by_id, get_by_id 404, update, update 404, update duplicate, delete, delete 404, pagination.
 - **Tests live aislados**: los que tocan servicios externos reales (enviar email a Brevo, cobrar, subir a Cloudinary) van en archivos `test_*_live.py` marcados `@pytest.mark.live` y **excluidos por defecto** (`addopts = -m "not live"` en `pytest.ini`). Solo corren a demanda con `pytest -m live`. Esto evita que la suite común dispare llamadas pagadas/irreversibles. Condicional extra si requieren credencial: `@pytest.mark.skipif(not settings.TEST_BREVO_EMAIL)`.
@@ -52,6 +53,16 @@ from src.main import app
 
 ADMIN_USER_ID = UUID("00000000-0000-0000-0000-000000000001")
 ADMIN_TOKEN = create_access_token(ADMIN_USER_ID, "admin")
+
+# Guard de destino: nunca ejecutar DDL destructivo contra una BD no aislada.
+_db_name = settings.TEST_DATABASE_URL.rsplit("/", 1)[-1].split("?")[0]
+_dev_name = (settings.DATABASE_URL.rsplit("/", 1)[-1].split("?")[0]
+             if hasattr(settings, "DATABASE_URL") else None)
+if not _db_name.endswith("_test") or _db_name == "postgres" or _db_name == _dev_name:
+    raise RuntimeError(
+        "TEST_DATABASE_URL debe apuntar a una BD de pruebas dedicada "
+        "(nombre terminado en '_test'); destino rechazado para no borrar datos."
+    )
 
 engine = create_async_engine(settings.TEST_DATABASE_URL, poolclass=NullPool)
 TestingSessionLocal = async_sessionmaker(autocommit=False, autoflush=False, bind=engine, class_=AsyncSession)
@@ -138,4 +149,4 @@ async def test_create_product_duplicate_name(client, db):
   assert "already exists" in response.json()["detail"]
 ```
 
-**Flujo de trabajo**: correr `pytest`, luego repoblar la BD de desarrollo con un script de seed (`repopulate_db.py --force`) porque los tests dropean las tablas. El seed debe ser idempotente (FKs por natural keys, no IDs en duro).
+**Flujo de trabajo**: `pytest` corre contra `TEST_DATABASE_URL` (BD dedicada `*_test`); **nunca** toca la BD de desarrollo/producción. Para repoblar la BD de desarrollo (p. ej. tras un seed manual) usa `repopulate_db.py --force`; el seed debe ser idempotente (FKs por natural keys, no IDs en duro).

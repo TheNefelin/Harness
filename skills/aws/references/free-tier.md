@@ -8,15 +8,22 @@
 |----------|----------------|
 | **Lambda** | 1 M de peticiones + 400.000 GB-segundos (≈3,2 M de segundos) de compute |
 | **DynamoDB** | 25 GB de almacenamiento + 200 M de solicitudes |
-| **S3** | 5 GB Standard + 20.000 GET + 2.000 PUT (la **salida/egress no es gratis**) |
 | **CloudFront** | 1 TB de salida + 10 M de peticiones HTTP/S |
-| **API Gateway** | 1 M de llamadas **REST**/mes (HTTP APIs tienen oferta aparte) |
 | **SNS** | 1 M de publicaciones + 1.000 notificaciones por correo |
 | **SQS** | 1 M de solicitudes |
 | **CloudWatch** | 10 métricas propias + 10 alarmas + monitorización básica |
 | **Cognito** | 50.000 MAU/mes |
 
 > Los límites **se reinician el día 1 de cada mes**: no se acumulan ni se arrastran.
+
+## Ofertas de 12 meses (solo cuentas nuevas) — NO son Always Free
+
+| Servicio | Límite mensual (12 meses desde el alta) |
+|----------|-----------------------------------------|
+| **S3** | 5 GB Standard + 20.000 GET + 2.000 PUT (la **salida/egress no es gratis**) |
+| **API Gateway** | 1 M de llamadas **REST**/mes (HTTP APIs tienen oferta aparte) |
+
+> Al terminar los 12 meses, o al agotar créditos, **empieza la facturación** aunque el recurso siga creado. Las instancias EC2/EBS/RDS elegibles (sección siguiente) también son ofertas temporales.
 
 ## Plan Free (créditos) y legacy de 12 meses
 

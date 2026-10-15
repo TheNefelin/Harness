@@ -8,28 +8,39 @@ Las reglas están en el `SKILL.md`; acá va el código.
 builder.Services.AddRateLimiter(opts =>
 {
     opts.RejectionStatusCode = 429;
-    opts.AddFixedWindowLimiter("fixed", lim =>
-    {
-        lim.PermitLimit = 10;
-        lim.Window = TimeSpan.FromMinutes(1);
-        lim.QueueLimit = 0;
-        lim.PartitionKey = PartitionKey.Get<HttpContext>(ctx =>
-        {
-            // detrás de proxy/load balancer
-            var fwd = ctx.Request.Headers["X-Forwarded-For"].FirstOrDefault();
-            return string.IsNullOrWhiteSpace(fwd)
-                ? ctx.Connection.RemoteIpAddress?.ToString() ?? "unknown"
-                : fwd;
-        });
-    });
+    // Política particionada por cliente: PartitionedRateLimiter + RateLimitPartition.
+    opts.AddPolicy("per-client", ctx =>
+        RateLimitPartition.GetFixedWindowLimiter(
+            partitionKey: ClientKey(ctx),
+            factory: _ => new FixedWindowRateLimiterOptions
+            {
+                PermitLimit = 10,
+                Window = TimeSpan.FromMinutes(1),
+                QueueLimit = 0,
+            }));
 });
+
+// Clave de partición por IP. Detrás de proxy NO leer X-Forwarded-For crudo:
+// es falsificable. Habilitar ForwardedHeaders con proxies conocidos (abajo).
+static string ClientKey(HttpContext ctx) =>
+    ctx.Connection.RemoteIpAddress?.ToString() ?? "unknown";
+
 // ...
 app.UseRateLimiter();
 // en controladores sensibles:
-[EnableRateLimiting("fixed")]
+[EnableRateLimiting("per-client")]
 ```
 
-**Anti-patrón**: rate limit global sin partición por IP → un solo usuario abusivo bloquea a todos, o la regla no aplica tras un proxy porque todos llegan con la IP del balanceador.
+```csharp
+// Program.cs, ANTES de UseRateLimiter: confiar solo en proxies conocidos.
+app.UseForwardedHeaders(new ForwardedHeadersOptions
+{
+    ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto,
+    KnownProxies = { IPAddress.Parse("10.0.0.10") }, // IP real del balanceador
+});
+```
+
+**Anti-patrón**: rate limit global sin partición por cliente → un abusivo bloquea a todos; o particionar por el primer valor de `X-Forwarded-For` → un atacante lo falsifica y evita el límite.
 
 ## CORS (allow-list explícita)
 

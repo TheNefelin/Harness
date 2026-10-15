@@ -78,16 +78,19 @@ FROM python:3.12-slim AS deps
 WORKDIR /app
 RUN pip install --no-cache-dir poetry
 COPY pyproject.toml poetry.lock ./
-RUN poetry config virtualenvs.create false && poetry install --no-dev --no-interaction
+RUN poetry config virtualenvs.create false && poetry install --only main --no-interaction
 
 FROM python:3.12-slim AS runner
 WORKDIR /app
 RUN groupadd -r appuser && useradd -r -g appuser appuser
+# Copiar site-packages Y los ejecutables (si no, uvicorn falta en la imagen final).
 COPY --from=deps /usr/local/lib/python3.12/site-packages /usr/local/lib/python3.12/site-packages
+COPY --from=deps /usr/local/bin /usr/local/bin
 COPY . .
 USER appuser
 EXPOSE 8000
-CMD ["uvicorn", "src.main:app", "--host", "0.0.0.0", "--port", "8000"]
+# python -m uvicorn no depende del entrypoint de /usr/local/bin.
+CMD ["python", "-m", "uvicorn", "src.main:app", "--host", "0.0.0.0", "--port", "8000"]
 ```
 
 ### Multi-stage (.NET)
