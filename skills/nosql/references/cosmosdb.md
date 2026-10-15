@@ -12,25 +12,25 @@
 ## Unidades de rendimiento (RU/s)
 
 - Todas las operaciones se miden en **Request Units**: un punto de lectura = 1 RU (aprox.), una escritura y una consulta cuesta más.
-- Modalidades: **provisioned** (RU/s fijas), **autoscale** (mín–máx) o **serverless** (pago por uso, sin picos garantizados). Elegí según el tráfico.
-- **Optimizá consultas**: filtrá siempre por la partition key para evitar consultas **cross-partition** (recorren todas las particiones → caro). Limitá el resultado (`TOP`), evitá `SELECT *`.
+- Modalidades: **provisioned** (RU/s fijas), **autoscale** (mín–máx) o **serverless** (pago por uso, sin picos garantizados). Elige según el tráfico.
+- **Optimiza consultas**: filtra siempre por la partition key para evitar consultas **cross-partition** (recorren todas las particiones → caro). Limita el resultado (`TOP`), evita `SELECT *`.
 
 ## Consistencia
 
 Cinco niveles, de más fuerte a más débil: **Strong, Bounded Staleness, Session, Consistent Prefix, Eventual**.
 
 - **Session** (el más usado): consistente dentro de una sesión del cliente; buena combinación de rendimiento y frescura.
-- Strong no está disponible con multi-región de escritura a escala. Elegí el nivel más débil que el negocio tolere, no el más fuerte "por las dudas".
+- Strong no está disponible con multi-región de escritura a escala. Elige el nivel más débil que el negocio tolere, no el más fuerte "por las dudas".
 
 ## Índices
 
-- Por defecto **se indexa todo automáticamente** (a diferencia de Mongo). Si no lo necesitás, ajustá la **indexing policy** para excluir rutas y ahorrar RU en escritura.
+- Por defecto **se indexa todo automáticamente** (a diferencia de Mongo). Si no lo necesitas, ajusta la **indexing policy** para excluir rutas y ahorrar RU en escritura.
 - **Índices compuestos** son necesarios para `ORDER BY` por más de un campo y para varios filtros.
 - No hay índices creados "a mano" por consulta: se gobierna la política del container.
 
 ## Escritura y concurrencia
 
-- **Concurrencia optimista** con **ETag**: enviá `If-Match` con el `_etag` que leíste; si el ítem cambió, la escritura falla (409) y la resolvés.
+- **Concurrencia optimista** con **ETag**: envía `If-Match` con el `_etag` que leíste; si el ítem cambió, la escritura falla (409) y la resuelves.
 - **TTL** a nivel container o ítem (`ttl` en segundos) para expiración automática.
 - **Change feed** para reaccionar a cambios (procesos, sincronización, event sourcing).
 

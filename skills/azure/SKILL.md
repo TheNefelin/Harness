@@ -30,7 +30,7 @@ description: Arquitectura, costes y despliegues en Microsoft Azure (VMs, App Ser
 - **Una sola cuenta free por cliente**.
 - Las **cantidades mensuales gratis no se arrastran**: si usas 2 GB de 5 GB, los 3 restantes se pierden.
 - **Límite de gasto (spending limit)**: mantenerlo activo mientras sea free account; es el cortafuegos.
-- **Azure for Students**: USD 100 sin tarjeta; alternativa si no querés tarjeta.
+- **Azure for Students**: USD 100 sin tarjeta; alternativa si no quieres tarjeta.
 
 ## Decisiones y convenciones
 
@@ -63,8 +63,10 @@ description: Arquitectura, costes y despliegues en Microsoft Azure (VMs, App Ser
 App Service (hasta 10 apps, always free) ──► Azure SQL / Cosmos (12 meses gratis)
         │
         ▼
-   Entra ID B2C (50.000 MAU always free) · Blob (5 GB / 12 meses) · API Mgmt (1M llamadas always)
+   Entra External ID (reemplaza a B2C; verificar tramo de MAU gratis) · Blob (5 GB / 12 meses) · API Mgmt (1M llamadas always)
 ```
+
+> **Identidad (verificado 2026-10-14)**: Azure AD B2C **ya no se vende a clientes nuevos** (fin de venta 2025-05-01); los nuevos proyectos usan **Microsoft Entra External ID**. Verificar el tramo de MAU gratis antes de diseñar sobre B2C. Fuente: `learn.microsoft.com/entra/external-id/external-identities-overview`.
 
 ### OIDC desde GitHub Actions (sin secretos)
 
@@ -97,3 +99,4 @@ steps:
 - **Cuenta free / crédito**: `https://azure.microsoft.com/en-us/pricing/purchase-options/azure-account`
 - **Evitar cargos en free account**: `https://learn.microsoft.com/azure/cost-management-billing/manage/avoid-charges-free-account`
 - **FAQ de la cuenta free**: `https://learn.microsoft.com/azure/cost-management-billing/manage/create-free-services`
+- **Identidad externa (B2C → External ID)**: `https://learn.microsoft.com/entra/external-id/external-identities-overview`

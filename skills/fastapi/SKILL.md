@@ -38,7 +38,7 @@ Porque resuelve los problemas que matan a las APIs FastAPI cuando crecen, con de
 | **Feature-based** (`api/{feature}/routes|service|repository`) | El código crece por dominio, no por capa. Agregar una feature = crear 1 carpeta, sin tocar archivos ajenos |
 | **Route→Service→Repository** (separación estricta) | Cada capa tiene una única responsabilidad; los errores se disparan donde se descubre el dato, no donde se usa |
 | **Cross-feature solo service→service** (nunca repository de otra feature) | Las features se acoplan por su API pública (lógica), no por su implementación (datos): cambiar una tabla no rompe a las demás |
-| **DTOs en `schemas/dtos.py`** + `model_validate` | El contrato HTTP se desacopla del modelo ORM: cambiás la DB sin romper el frontend |
+| **DTOs en `schemas/dtos.py`** + `model_validate` | El contrato HTTP se desacopla del modelo ORM: cambias la DB sin romper el frontend |
 | **Paginación unificada por DTO** (`PaginationRequest`/`PaginationResponse`) | Todos los listados responden igual: `{page, limit, total, items}`. El frontend tiene 1 solo patrón de consumo |
 | **`AppError`/subclases → RFC 9457 (ProblemDetails)** | Errores consistentes (`{type,title,status,detail}`), sin depender de cómo cada ruta arma el `JSONResponse` |
 | **JWT identifica usuario + rol REAL leído de la BD en cada request** | El token solo prueba QUÉN es; el permiso se consulta en la BD (ver `get_current_user`) — un cambio de rol o baja de usuario se refleja al instante, sin esperar la expiración del token |

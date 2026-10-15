@@ -9,8 +9,8 @@
   - **1-a-1** y **1-a-pocos con tope** → embeber (una lectura trae todo).
   - **1-a-muchos sin tope** (historial, filas crecientes) → referenciar por `_id`.
   - **muchos-a-muchos** → referencias (o arrays de `_id` acotados).
-- No existe JOIN barato como en SQL: si necesitás muchos `$lookup`, probablemente el modelo o el motor no corresponden.
-- Validá la forma con **`$jsonSchema`** (`collMod` con `validator`) en vez de confiar en la disciplina del código.
+- No existe JOIN barato como en SQL: si necesitas muchos `$lookup`, probablemente el modelo o el motor no corresponden.
+- Valida la forma con **`$jsonSchema`** (`collMod` con `validator`) en vez de confiar en la disciplina del código.
 
 ## Índices
 
@@ -18,7 +18,7 @@
 - **Compuestos**: importan el orden y la dirección. Regla **ESR**: primero **E**quality, luego **S**ort, después **R**ange.
 - Un índice multikey (sobre array) indexa cada elemento del array.
 - **TTL** (`expireAfterSeconds`) para documentos efímeros; **parciales** (`partialFilterExpression`) para subconjuntos.
-- Diagnossticá con `explain("executionStats")`: buscá `IXSCAN` (usa índice), no `COLLSCAN`.
+- Diagnostica con `explain("executionStats")`: busca `IXSCAN` (usa índice), no `COLLSCAN`.
 
 ```javascript
 db.orders.createIndex({ customerId: 1, status: 1, createdAt: -1 });
@@ -33,9 +33,9 @@ db.sessions.createIndex({ expiresAt: 1 }, { expireAfterSeconds: 0 });
 
 ## Escritura y concurrencia
 
-- `updateOne`/`findOneAndUpdate` son **atómicos por documento**. Usá `findOneAndUpdate` con filtro + `$set` para updates atómicos sin leer-y-escribir.
-- **Transacciones multimodocumento** (requieren replica set/sharded): usalas cuando realmente necesitás atomicidad entre documentos; no son gratis (rendimiento, retries). Preferí diseño que evite la necesidad.
-- **Concurrencia optimista**: campo `version` en el filtro del update (`{ _id, version: v }`) e incrementarlo; si no coincide, reintentá.
+- `updateOne`/`findOneAndUpdate` son **atómicos por documento**. Usa `findOneAndUpdate` con filtro + `$set` para updates atómicos sin leer-y-escribir.
+- **Transacciones multimodocumento** (requieren replica set/sharded): úsalas cuando realmente necesitas atomicidad entre documentos; no son gratis (rendimiento, retries). Prefiere diseño que evite la necesidad.
+- **Concurrencia optimista**: campo `version` en el filtro del update (`{ _id, version: v }`) e incrementarlo; si no coincide, reintenta.
 
 ## Drivers
 

@@ -139,7 +139,8 @@ async def auth_service(db: AsyncSession, google_token: str) -> schemas.AuthGoogl
   token = security.create_access_token(user.id, user.role.name)
   refresh_token = secrets.token_urlsafe(32)
   expires_at = datetime.now(tz=timezone.utc) + timedelta(days=REFRESH_TOKEN_DAYS)
-  await session_repository.create(db, user.id, refresh_token, expires_at)
+  # Guardar SOLO el hash: si la BD se filtra, los refresh tokens no son usables.
+  await session_repository.create(db, user.id, hash_token(refresh_token), expires_at)
 
   return schemas.AuthGoogleResponse(token=token, refresh_token=refresh_token, user=...)
 ```
@@ -162,15 +163,24 @@ async def get_or_create_user(db: AsyncSession, email: str, google_id: str) -> dt
 ```python
 # refresh rotation: el refresh viejo se revoca y se emite uno nuevo
 async def refresh_session(db, refresh_token):
-  session = await session_repository.get_by_token(db, refresh_token)
-  if not session or session.is_revoked or session.expires_at < datetime.now(tz=timezone.utc):
+  # Buscar por hash (nunca se guarda el token en claro).
+  session = await session_repository.get_by_token_hash(db, hash_token(refresh_token))
+  if not session or session.expires_at < datetime.now(tz=timezone.utc):
     raise UnauthorizedError("Invalid or expired refresh token")
   user_id, role_name = session.user_id, session.user.role.name
-  await session_repository.revoke(db, session)
+  # Rotación ATÓMICA: revocar de forma condicional (UPDATE ... SET revoked=true WHERE id=:id AND revoked=false).
+  # Si no afecta filas, el token ya se usó → dos refresh concurrentes no emiten dos pares válidos.
+  if not await session_repository.revoke_if_active(db, session.id):
+    raise UnauthorizedError("Invalid or expired refresh token")
   new_refresh = secrets.token_urlsafe(32)
-  await session_repository.create(db, user_id, new_refresh, datetime.now(tz=timezone.utc) + timedelta(days=REFRESH_TOKEN_DAYS))
+  await session_repository.create(db, user_id, hash_token(new_refresh), datetime.now(tz=timezone.utc) + timedelta(days=REFRESH_TOKEN_DAYS))
   return schemas.AuthRefreshResponse(token=security.create_access_token(user_id, role_name), refresh_token=new_refresh)
 ```
+
+> **Refresh token — decisión explícita de seguridad y concurrencia**:
+> - **Almacenar el hash** (`sha256(token)`), nunca el token en claro; declarar `UNIQUE` sobre esa columna.
+> - **Rotación de un solo uso y atómica**: la revocación debe ser condicional (`UPDATE … WHERE revoked = false`); si afecta 0 filas, rechazar.
+> - **Detección de reuso**: si llega un token ya revocado, revocar toda la familia de sesiones del usuario (posible robo).
 
 ### 8.4 Endpoints de usuario autenticado
 

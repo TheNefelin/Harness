@@ -4,27 +4,27 @@
 
 ## Tipos
 
-- **Texto de usuario**: `NVARCHAR(n)` (Unicode). Usá `VARCHAR(n)` solo con justificación (ASCII y volumen). `NVARCHAR(MAX)` para texto largo.
-- **Fecha/hora**: `datetime2` (precisión y rango) o `datetimeoffset` si guardás la zona. Evitá `datetime` (precisión ~3 ms, redondeos) y `smalldatetime`.
+- **Texto de usuario**: `NVARCHAR(n)` (Unicode). Usa `VARCHAR(n)` solo con justificación (ASCII y volumen). `NVARCHAR(MAX)` para texto largo.
+- **Fecha/hora**: `datetime2` (precisión y rango) o `datetimeoffset` si guardas la zona. Evita `datetime` (precisión ~3 ms, redondeos) y `smalldatetime`.
 - **Booleano**: `BIT`.
 - **Dinero**: `DECIMAL(p,s)` (p. ej. `DECIMAL(18,2)`) o entero en centavos. Nunca `float`/`real`.
-- **UUID**: `UNIQUEIDENTIFIER`. Para PK clustered usá `NEWSEQUENTIALID()` (evita fragmentación) o un entero; el GUID aleatorio como clustered fragmenta.
+- **UUID**: `UNIQUEIDENTIFIER`. Para PK clustered usa `NEWSEQUENTIALID()` (evita fragmentación) o un entero; el GUID aleatorio como clustered fragmenta.
 
 ## Identidad y claves
 
-- `IDENTITY(1,1)` para surrogate; `SEQUENCE` si necesitás el valor antes del insert o compartido entre tablas.
+- `IDENTITY(1,1)` para surrogate; `SEQUENCE` si necesitas el valor antes del insert o compartido entre tablas.
 - PK clustered por defecto sobre el surrogate; claves naturales como `UNIQUE` nonclustered.
 
 ## Índices
 
 - **Clustered**: define el orden físico de la tabla; uno por tabla. El `INCLUDE` permite un índice cubriente sin tocar la tabla base.
 - **Filtered indexes** (`WHERE deleted_at IS NULL`) para subconjuntos muy consultados (p. ej. filas activas).
-- Revisá índices faltantes y no usados con las DMV (`sys.dm_db_index_usage_stats`), no por intuición.
+- Revisa índices faltantes y no usados con las DMV (`sys.dm_db_index_usage_stats`), no por intuición.
 
 ## Transacciones y concurrencia
 
-- Nivel por defecto `READ COMMITTED`; los lectores bloquean escritores. En apps web activá **RCSI** (`ALTER DATABASE … SET READ_COMMITTED_SNAPSHOT ON`) para lectura no bloqueante por versionado.
-- **Evitá `WITH (NOLOCK)`**: permite lecturas sucias e inconsistentes. RCSI da el mismo beneficio sin el riesgo.
+- Nivel por defecto `READ COMMITTED`; los lectores bloquean escritores. En apps web activa **RCSI** (`ALTER DATABASE … SET READ_COMMITTED_SNAPSHOT ON`) para lectura no bloqueante por versionado.
+- **Evita `WITH (NOLOCK)`**: permite lecturas sucias e inconsistentes. RCSI da el mismo beneficio sin el riesgo.
 - Transacciones cortas; el lock optimista se hace con una columna `rowversion`.
 
 ## Escritura y upsert
@@ -39,7 +39,7 @@ WHEN NOT MATCHED THEN INSERT (slug, name) VALUES (src.slug, src.name)
 OUTPUT $action, inserted.id;
 ```
 
-`MERGE` tiene aristas de concurrencia conocidas; en escenarios delicados, preferí `UPDATE` + `INSERT … WHERE NOT EXISTS` dentro de una transacción. Usá `OUTPUT` para recuperar valores generados en el mismo statement.
+`MERGE` tiene aristas de concurrencia conocidas; en escenarios delicados, prefiere `UPDATE` + `INSERT … WHERE NOT EXISTS` dentro de una transacción. Usa `OUTPUT` para recuperar valores generados en el mismo statement.
 
 ## Paginación
 
@@ -74,14 +74,14 @@ END
 ## Diagnóstico y rendimiento
 
 - `SET STATISTICS IO, TIME ON` para ver lecturas y tiempos por statement.
-- **Execution plans** (en SSMS/Azure Data Studio): buscá scans donde esperás seeks, key lookups y sorts costosos.
+- **Execution plans** (en SSMS/Azure Data Studio): busca scans donde esperas seeks, key lookups y sorts costosos.
 - **Query Store** para capturar regresiones por plan y *parameter sniffing*.
-- Revisá **conversiones implícitas** en el plan: comparar `NVARCHAR` con `VARCHAR` fuerza un scan.
+- Revisa **conversiones implícitas** en el plan: comparar `NVARCHAR` con `VARCHAR` fuerza un scan.
 
 ## Conexión y pooling
 
 - Driver recomendado: **`Microsoft.Data.SqlClient`** (no `System.Data.SqlClient`, en desuso).
-- El *connection pooling* está activo por defecto; ajustá `Max Pool Size` solo si hay contención medida.
+- El *connection pooling* está activo por defecto; ajusta `Max Pool Size` solo si hay contención medida.
 - TLS: no desactives la validación del certificado en producción. `Encrypt=True` con `TrustServerCertificate=True` solo en desarrollo local.
 
 ## Gotchas

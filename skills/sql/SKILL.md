@@ -26,7 +26,7 @@ El **diseño del esquema y la consulta SQL** (motor-agnóstico) vive aquí; el *
 ## 1. Modelado y esquema
 
 - **Normaliza por defecto (3FN)**: cada hecho en un solo lugar. Desnormaliza solo con una razón medida (rendimiento demostrado con datos, no supuesta).
-- **Clave primaria**: surrogate (entero/identity) como PK; expón una **clave natural** como `UNIQUE` cuando exista (email, slug, código). Usá **UUID v7** (ordenable por tiempo) si necesitás IDs distribuidos o no exponer secuencias; evitá UUID v4 como PK agrupada (fragmenta los índices).
+- **Clave primaria**: surrogate (entero/identity) como PK; expón una **clave natural** como `UNIQUE` cuando exista (email, slug, código). Usa **UUID v7** (ordenable por tiempo) si necesitas IDs distribuidos o no exponer secuencias; evita UUID v4 como PK agrupada (fragmenta los índices).
 - **Claves foráneas**: siempre declaradas, con **índice** sobre la FK. Nombra los constraints (`fk_orders_customer`) para que las migraciones y los errores sean legibles.
 - **Acciones de borrado explícitas**: `ON DELETE CASCADE` solo cuando la relación sea de composición real (el hijo no existe sin el padre). En general, borrado explícito en la capa de servicio (no cascadas ocultas).
 - **Tipos**: dinero en **entero (centavos)** o `DECIMAL`, nunca `float`; fechas en **UTC** (`timestamptz` en Postgres, `datetimeoffset` en SQL Server); strings con longitud acotada; boolean real; enums como **tabla catálogo** con FK, no como strings mágicos.
@@ -40,13 +40,13 @@ El **diseño del esquema y la consulta SQL** (motor-agnóstico) vive aquí; el *
 - **Índices guiados por el acceso real**: indexa por las columnas de `WHERE`/`JOIN`/`ORDER BY` frecuentes; el índice de la FK no es opcional. Más índices = escrituras más lentas: no indexar "por si acaso".
 - **Índices compuestos**: el orden de columnas importa (el filtro más selectivo y las columnas de igualdad antes que las de rango). Un índice `(a, b)` sirve para `WHERE a = …` y `a = … AND b = …`, no para `WHERE b = …`.
 - **Índices cubrientes**: incluir las columnas del `SELECT` evita ir a la tabla (clave para listados).
-- **Evita N+1**: carga por lotes (`WHERE id IN (...)`) o `JOIN`, no una consulta por fila. En ORM, revisá las consultas que emite (eager loading / `Include`).
+- **Evita N+1**: carga por lotes (`WHERE id IN (...)`) o `JOIN`, no una consulta por fila. En ORM, revisa las consultas que emite (eager loading / `Include`).
 - **Paginación**: **keyset/seek** (`WHERE (sort, id) > (último)`) para listas grandes y scroll; `OFFSET/FETCH`/`LIMIT OFFSET` solo para volúmenes bajos o saltos a página (se degrada al crecer el offset).
 
 ## 3. Transacciones y concurrencia
 
-- **Transacciones cortas**: abrí, ejecutá lo mínimo, confirmá. Una transacción larga bloquea y escala peor que cualquier índice faltante.
-- **Nivel de aislamiento explícito** según la necesidad: por defecto `READ COMMITTED`. Si leés y luego escribís sobre lo mismo, cuidá las **condiciones de carrera** (row versioning / `SELECT … FOR UPDATE` / lock optimista con `rowversion`/`xmin`).
+- **Transacciones cortas**: abre, ejecuta lo mínimo, confirma. Una transacción larga bloquea y escala peor que cualquier índice faltante.
+- **Nivel de aislamiento explícito** según la necesidad: por defecto `READ COMMITTED`. Si lees y luego escribes sobre lo mismo, cuida las **condiciones de carrera** (row versioning / `SELECT … FOR UPDATE` / lock optimista con `rowversion`/`xmin`).
 - **Idempotencia**: para operaciones repetibles (webhooks, reintentos), constraints `UNIQUE` + upsert (`MERGE` en SQL Server, `INSERT … ON CONFLICT` en Postgres) en vez de "leer y decidir" en la aplicación.
 - **Reintentos transitorios**: ante deadlocks/errores de conexión, reintentar con backoff (los deadlock son normales bajo concurrencia alta).
 
@@ -55,7 +55,7 @@ El **diseño del esquema y la consulta SQL** (motor-agnóstico) vive aquí; el *
 - **Migraciones versionadas** (EF Core Migrations, Flyway, Liquibase, Alembic, o scripts numerados): nunca cambios manuales a producción. Cada migración debe ser **reversible** o tener un plan de rollback explícito.
 - **Cambios compatibles primero**: agregar columnas nulas o con default, desplegar el código que las usa, y recién después quitar las viejas (patrón expandir/contraer) para no romper versión anterior durante el despliegue.
 - **Datos vs. esquema**: separa migraciones de esquema y de datos; los seed deben ser **idempotentes** (por clave natural, no por IDs en duro).
-- **Réplica de la BD real en tests**: un esquema de prueba distinto al de producción (otro motor, otro tipo de dato) invalida los tests. Usá el mismo motor.
+- **Réplica de la BD real en tests**: un esquema de prueba distinto al de producción (otro motor, otro tipo de dato) invalida los tests. Usa el mismo motor.
 
 ## 5. Diferencias clave entre motores
 
@@ -66,7 +66,7 @@ El **diseño del esquema y la consulta SQL** (motor-agnóstico) vive aquí; el *
 | Booleano | `BIT` | `boolean` |
 | Auto-ID | `IDENTITY` | `GENERATED … AS IDENTITY` (`serial` legacy) |
 | Devolver filas tras escribir | `OUTPUT` | `RETURNING` |
-| Upsert | `MERGE` | `INSERT … ON CONFLICT` |
+| Upsert | `MERGE` (con cuidado) o `UPDATE`+`INSERT` | `INSERT … ON CONFLICT` |
 | UUID | `UNIQUEIDENTIFIER` | `uuid` |
 | Paginación | `OFFSET … FETCH NEXT` | `LIMIT … OFFSET` |
 | Semántica de identificadores | `[corchetes]` | `"comillas dobles"` (no citar fuerza minúsculas) |
@@ -122,7 +122,16 @@ WHEN MATCHED THEN UPDATE SET name = s.name
 WHEN NOT MATCHED THEN INSERT (email, name) VALUES (s.email, s.name);
 ```
 
-**Nota (SQL Server):** Microsoft documenta que `MERGE` tiene comportamiento sorprendente bajo concurrencia; si podés, preferí `INSERT`/`UPDATE` separados dentro de una transacción, o `ON CONFLICT` en PostgreSQL.
+**Nota (SQL Server):** Microsoft documenta que `MERGE` tiene comportamiento sorprendente bajo concurrencia; por eso el **patrón principal** es la alternativa transaccional, y `MERGE` queda como opción contextual:
+
+```sql
+-- ✅ Preferido en SQL Server: UPDATE + INSERT dentro de una transacción
+BEGIN TRAN;
+UPDATE app_users SET name = 'A' WHERE email = 'a@x.com';
+IF @@ROWCOUNT = 0
+    INSERT INTO app_users (email, name) VALUES ('a@x.com', 'A');
+COMMIT;
+```
 
 **Dinero** (nunca `float`):
 ```sql

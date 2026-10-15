@@ -51,14 +51,14 @@ dotnet ef migrations add InitialCreate
 dotnet ef database update
 ```
 
-- Versionadas en el repo; revisá el SQL generado (`dotnet ef migrations script`) antes de aplicar en producción.
-- Evitá cambios manuales a la BD: el modelo y la BD se mantienen sincronizados por migraciones.
+- Versionadas en el repo; revisa el SQL generado (`dotnet ef migrations script`) antes de aplicar en producción.
+- Evita cambios manuales a la BD: el modelo y la BD se mantienen sincronizados por migraciones.
 - Patrón **expandir/contraer** para cambios incompatibles (ver skill `sql` §4).
 
 ## Consultas
 
 - **`AsNoTracking()`** en lecturas (sin cambio de estado): más rápido y menos memoria.
-- **Proyecciones** con `Select` al DTO: traé solo lo que necesitás.
+- **Proyecciones** con `Select` al DTO: trae solo lo que necesitas.
 
 ```csharp
 var list = await db.Products.AsNoTracking()
@@ -70,7 +70,7 @@ var list = await db.Products.AsNoTracking()
 ```
 
 - **Relaciones**: `Include`/`ThenInclude` para cargar, o proyección explícita. Para colecciones grandes, `AsSplitQuery()` y evitar la "explosión cartesiana".
-- Traducí a SQL lo que puedas en LINQ; revisá el SQL generado (logging) si algo parece lento.
+- Traduce a SQL lo que puedas en LINQ; revisa el SQL generado (logging) si algo parece lento.
 
 ## Concurrencia optimista
 
@@ -79,7 +79,7 @@ Un token de versión en el filtro del `UPDATE` (EF lanza `DbUpdateConcurrencyExc
 - **SQL Server**: columna `rowversion` con `.IsRowVersion()`.
 - **PostgreSQL**: columna `xmin` con `.IsRowVersion()` o un `uint` versionado con `.IsConcurrencyToken()`.
 
-En la capa de servicio, capturá `DbUpdateConcurrencyException` y devolvé conflicto (409).
+En la capa de servicio, captura `DbUpdateConcurrencyException` y devuelve conflicto (409).
 
 ## SQL crudo y stored procedures
 
@@ -101,7 +101,7 @@ try { await db.SaveChangesAsync(ct); await tx.CommitAsync(ct); }
 catch { await tx.RollbackAsync(ct); throw; }
 ```
 
-Transacciones **cortas**. Un solo `SaveChangesAsync` ya es atómico; usá transacción explícita solo al agrupar varias operaciones.
+Transacciones **cortas**. Un solo `SaveChangesAsync` ya es atómico; usa transacción explícita solo al agrupar varias operaciones.
 
 ## Gotchas
 

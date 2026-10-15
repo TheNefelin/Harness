@@ -16,12 +16,12 @@ description: Contenedorización con Docker y Docker Compose. Usar al crear, modi
 
 Docker **construye y corre** contenedores; Kubernetes los **orquesta** y Actions los **ejecuta** en el pipeline.
 
-> **Frescura:** usar **Docker Compose v2** (`docker compose`); el binario `docker-compose` v1 está descontinuado.
+> **Frescura:** usar **Docker Compose v2** (`docker compose`); el binario `docker-compose` v1 está descontinuado. Para .NET, **.NET 8 (LTS) termina soporte el 2026-11-10** y **.NET 9 (STS) el 2026-05-12**: en proyectos nuevos usa **.NET 10 (LTS)**.
 
 ## Decisiones y convenciones
 
 - **Multi-stage siempre**: una etapa de build y una etapa final mínima (runtime). Reduce tamaño de imagen y superficie de ataque.
-- **Imagen base con tag fijo**: `alpine`/`slim`/`distroless` y versión explícita (p. ej. `python:3.12-slim`, `node:20-alpine`, `mcr.microsoft.com/dotnet/aspnet:8.0`). Nunca `latest` ni tags móviles.
+- **Imagen base con tag fijo**: `alpine`/`slim`/`distroless` y versión explícita (p. ej. `python:3.12-slim`, `node:20-alpine`, `mcr.microsoft.com/dotnet/aspnet:10.0`). Nunca `latest` ni tags móviles.
 - **Usuario no-root**: crear usuario del sistema y `USER` antes de `CMD`.
 - **Cache de capas**: copiar primero el manifiesto de dependencias (`package*.json`, `pyproject.toml` + lock, `*.csproj`) e instalar; recién después `COPY . .`.
 - **`.dockerignore` obligatorio**: `node_modules`, `.git`, `bin/`, `obj/`, `__pycache__`, `.env`, tests, coverage.
@@ -41,7 +41,7 @@ Docker **construye y corre** contenedores; Kubernetes los **orquesta** y Actions
 | Correr como root | Escalada de privilegios | Crear usuario del sistema y `USER` |
 | Sin `.dockerignore` | Contexto enorme; puede filtrar secretos | Excluir `node_modules`, `.git`, `.env` |
 | `depends_on` sin condición | El servicio arranca antes de que la BD esté lista | `condition: service_healthy` + healthcheck |
-| `docker system prune -af` a ciegas | Borra volúmenes/imágenes en uso | Prune selectivo por recurso |
+| `docker system prune -af` a ciegas | **No** borra volúmenes (falta `--volumes`) ni imágenes en uso; sí elimina contenedores parados, redes e imágenes sin usar | Podar de forma selectiva (`--volumes` solo si sabes qué se borra) |
 
 ## Patrones
 
@@ -96,20 +96,24 @@ CMD ["python", "-m", "uvicorn", "src.main:app", "--host", "0.0.0.0", "--port", "
 ### Multi-stage (.NET)
 
 ```dockerfile
-FROM mcr.microsoft.com/dotnet/sdk:8.0 AS build
+FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build
 WORKDIR /src
 COPY ["MyApp.csproj", "./"]
 RUN dotnet restore MyApp.csproj
 COPY . .
 RUN dotnet publish MyApp.csproj -c Release -o /app/publish
 
-FROM mcr.microsoft.com/dotnet/aspnet:8.0 AS final
+FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS final
 WORKDIR /app
 COPY --from=build /app/publish .
+# Las imágenes .NET 8+ traen un usuario no-root integrado ("app").
+USER app
 ENTRYPOINT ["dotnet", "MyApp.dll"]
 ```
 
 ### Compose (esencial)
+
+> **Solo para desarrollo local.** Este ejemplo lleva `user:pass` en `environment` a propósito para levantar rápido; **no** lo copies a producción: usa secretos del orquestador y variables fuera del repo.
 
 ```yaml
 services:

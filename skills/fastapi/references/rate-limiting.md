@@ -26,6 +26,8 @@ def rate_limit_key(request: Request) -> str:
 limiter = Limiter(key_func=rate_limit_key, default_limits=["100/minute"])
 ```
 
+> **Detrás de proxy**: `get_remote_address` usa la IP de la conexión, no la del cliente final. Hay que configurar proxies confiables (`--forwarded-allow-ips` en uvicorn o `ProxyHeadersMiddleware`); sin eso todos comparten la IP del proxy (o el header es falsificable).
+
 ```python
 # main.py
 app.state.limiter = limiter

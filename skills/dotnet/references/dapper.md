@@ -10,7 +10,7 @@ Dapper es un micro-ORM: extiende `IDbConnection` con métodos `Query*/Execute*`.
 using var connection = new SqlConnection(_factory.ConnectionString); // o NpgsqlConnection
 ```
 
-**Regla**: Dapper no valida tu SQL; parametrizá siempre (nunca concatenes) y probá las consultas contra la BD real.
+**Regla**: Dapper no valida tu SQL; parametriza siempre (nunca concatenes) y prueba las consultas contra la BD real.
 
 ## Consultas
 
@@ -42,7 +42,7 @@ const string sql = "SELECT id, name FROM app_products WHERE category_id IN @Ids"
 var rows = await connection.QueryAsync<Product>(sql, new { Ids = categoryIds });
 ```
 
-- Usá **`DbType` explícito** cuando el valor puede ser `null` o el motor necesita precisión de tipo.
+- Usa **`DbType` explícito** cuando el valor puede ser `null` o el motor necesita precisión de tipo.
 
 ## Stored procedures con contrato de respuesta
 
@@ -97,7 +97,7 @@ try
 catch { await tx.RollbackAsync(); throw; }
 ```
 
-Transacciones **cortas**. Para lotes grandes usá `SqlBulkCopy` / `COPY` (ver skill `sql`).
+Transacciones **cortas**. Para lotes grandes usa `SqlBulkCopy` / `COPY` (ver skill `sql`).
 
 ## Gotchas
 

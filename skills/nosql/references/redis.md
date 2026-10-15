@@ -19,21 +19,21 @@
 
 ## Expiración y memoria
 
-- **`TTL` por clave** (`EXPIRE`/`SETEX`): siempre poné expiración en caché, salvo dato que realmente es permanente.
-- Configurá una **eviction policy** (p. ej. `allkeys-lru`) para que bajo presión libere memoria en vez de empezar a rechazar escrituras.
-- No guardés valores gigantes ni colecciones sin límite: es memoria RAM, cara.
+- **`TTL` por clave** (`EXPIRE`/`SETEX`): siempre pon expiración en caché, salvo dato que realmente es permanente.
+- Configura una **eviction policy** (p. ej. `allkeys-lru`) para que bajo presión libere memoria en vez de empezar a rechazar escrituras.
+- No guardes valores gigantes ni colecciones sin límite: es memoria RAM, cara.
 
 ## Patrones
 
-- **Cache-aside**: leer caché → si falla, leer la fuente → escribir en caché con TTL. Definí **invalidación** (borrar la clave al actualizar el dato).
-- **Write-through** cuando necesitás que la caché se actualice junto con la escritura.
-- **Atomicidad**: operaciones multi-clave con **Lua** (`EVAL`); `SET key value NX EX n` para locks simples (`SETNX` + expiración, nunca `SETNX` sin TTL). Evitá locks distribuidos complejos salvo necesidad real.
+- **Cache-aside**: leer caché → si falla, leer la fuente → escribir en caché con TTL. Define **invalidación** (borrar la clave al actualizar el dato).
+- **Write-through** cuando necesitas que la caché se actualice junto con la escritura.
+- **Atomicidad**: operaciones multi-clave con **Lua** (`EVAL`); `SET key value NX EX n` para locks simples (`SETNX` + expiración, nunca `SETNX` sin TTL). Evita locks distribuidos complejos salvo necesidad real.
 - **Rate limiting**: contador con `INCR` + `EXPIRE`, o ZSET por ventana deslizante.
 - **Idempotencia**: token con `SET token 1 NX EX <ttl>` para procesar una operación una sola vez.
 
 ## Persistencia
 
-- **RDB** (snapshots) y **AOF** (log de operaciones). Ajustá según cuánto podés perder; aun así, tratá Redis como caché y no como base de datos duradera salvo configuración deliberada.
+- **RDB** (snapshots) y **AOF** (log de operaciones). Ajusta según cuánto puedes perder; aun así, trata Redis como caché y no como base de datos duradera salvo configuración deliberada.
 
 ## Gotchas
 
@@ -48,4 +48,4 @@
 
 ## Driver (.NET)
 
-`StackExchange.Redis` (`IConnectionMultiplexer` compartido, singleton). Usá operaciones async y `IDatabase` reutilizable.
+`StackExchange.Redis` (`IConnectionMultiplexer` compartido, singleton). Usa operaciones async y `IDatabase` reutilizable.

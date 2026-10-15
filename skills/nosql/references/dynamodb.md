@@ -12,7 +12,7 @@
 
 - **`Query`** (por clave) es lo esperado y eficiente. **`Scan`** recorre toda la tabla → caro y lento; evitalo en producción.
 - **GSI/LSI**: índices secundarios para consultar por otros atributos. Un GSI tiene su propia PK/SK y capacidad (costo aparte).
-- **Hot partitions**: una PK de baja cardinalidad o acceso concentrado limita el throughput por partición. Diseñá la clave con buena cardinalidad; si no existe, **clave sintética** (p. ej. `tenant#shard`).
+- **Hot partitions**: una PK de baja cardinalidad o acceso concentrado limita el throughput por partición. Diseña la clave con buena cardinalidad; si no existe, **clave sintética** (p. ej. `tenant#shard`).
 
 ## Capacidad y coste
 
@@ -42,11 +42,11 @@
 ## Límites
 
 - Ítem máximo ~**400 KB** (contando nombres y tipos). Lo grande va a S3 con la referencia en DynamoDB.
-- Sin joins; sin agregaciones ricas (usá GSI, contadores atómicos o un servicio aparte).
+- Sin joins; sin agregaciones ricas (usa GSI, contadores atómicos o un servicio aparte).
 
 ## Driver (.NET)
 
-`AWSSDK.DynamoDBv2` (`AmazonDynamoDBClient`) o el **`DynamoDBContext`** del `AWSSDK.DynamoDBv2.DataModel` para mapeo de POCOs. Configurá credenciales/región por el SDK (IAM, no en código).
+`AWSSDK.DynamoDBv2` (`AmazonDynamoDBClient`) o el **`DynamoDBContext`** del `AWSSDK.DynamoDBv2.DataModel` para mapeo de POCOs. Configura credenciales/región por el SDK (IAM, no en código).
 
 ## Gotchas
 

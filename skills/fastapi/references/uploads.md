@@ -66,17 +66,22 @@ async def upload_product_image(id: int = Form(), file: UploadFile = File(...), d
 ```
 
 ```python
-# service.py — borra la anterior ANTES de subir la nueva (evita desperdiciar storage)
+from starlette.concurrency import run_in_threadpool
+
+# service.py — sube la nueva PRIMERO y borra la anterior después (si la subida falla, la vieja sigue disponible)
 async def upload_image(db, id, file_bytes):
   entity = await repository.get_by_id(db, id)
   if not entity:
     raise NotFoundError("Product")
-  image_url, _ = cloudinary_upload(file_bytes, folder="products")
+  # El SDK de Cloudinary es BLOQUEANTE: offload a un thread para no bloquear el event loop.
+  image_url, _ = await run_in_threadpool(cloudinary_upload, file_bytes, folder="products")
   if entity.image_url:
     public_id = extract_public_id(entity.image_url)
     if public_id:
-      cloudinary_delete(public_id)
+      await run_in_threadpool(cloudinary_delete, public_id)
   return dtos.ProductResponse.model_validate(await repository.set_image_url(db, id, image_url))
 ```
+
+> **Nota**: `cloudinary.uploader.upload/destroy` son sincrónicas; llamarlas directo dentro de `async def` bloquea el event loop bajo carga (mismo patrón en `delete()`).
 
 **Eliminación con imagen**: el `delete()` del service borra la imagen del storage antes de borrar el registro.
