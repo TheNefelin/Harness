@@ -37,9 +37,16 @@
     Simula la operacion: muestra que se instalaria, refrescaria, respaldaria, omitiria
     o podaria, sin modificar nada.
 
+.PARAMETER Doctor
+    Diagnostica la instalacion en el scope (manifiesto .harness.json, rutas, marcadores,
+    reglas y config de openCode) sin modificar nada.
+
 .PARAMETER Source
     Origen del catalogo: ruta local a un clon del Harness o URL git (https/ssh). Permite
     actualizar un proyecto sin tener el repositorio Harness abierto a mano.
+
+.PARAMETER Global
+    Atajo de -Scope Global: instala en ~/.config/opencode\ en vez de en un proyecto.
 
 .PARAMETER Force
     Reemplaza skills/reglas ajenas (haciendo respaldo) en vez de omitirlas.
@@ -56,6 +63,8 @@
     .\install.ps1 -Project "D:\Repo\App" -Update -Source "D:\Repo\Harness"
     .\install.ps1 -Project "D:\Repo\App" -Update -Source "https://github.com/TheNefelin/Harness.git"
     .\install.ps1 -Project "D:\Repo\App" -Update
+    .\install.ps1 -Project "D:\Repo\App" -Doctor
+    .\install.ps1 -Global -Doctor
 #>
 param(
     [ValidateSet('Auto', 'Global', 'Local')]
@@ -73,7 +82,11 @@ param(
 
     [switch]$WhatIf,
 
+    [switch]$Doctor,
+
     [string]$Source,
+
+    [switch]$Global,
 
     [switch]$Force,
 
@@ -304,6 +317,7 @@ if ($List) {
     Write-Host 'Local :  .\install.ps1 -Project <ruta> -Skills <a,b,c>'
     Write-Host 'Global:  .\install.ps1 -Global -Skills <a,b>'
     Write-Host 'Update:  .\install.ps1 [-Project <ruta>|-Global] -Update'
+    Write-Host 'Doctor:  .\install.ps1 [-Project <ruta>|-Global] -Doctor'
     exit 0
 }
 
@@ -317,6 +331,9 @@ if ($Detect) {
     Write-ProjectTech -Root $Project -Available $catalog
     exit 0
 }
+
+# Atajo -Global (= -Scope Global)
+if ($Global) { $Scope = 'Global' }
 
 # Resolver scope
 if ($Project) {
@@ -367,6 +384,98 @@ if (Test-Path -LiteralPath $DeclFile) {
     if ($existingDeclObj.PSObject.Properties.Name -contains 'skills') { $declared = @($existingDeclObj.skills) }
 }
 
+if ($Doctor) {
+    $errCount = 0
+    $warnCount = 0
+    function Write-Check {
+        param([string]$Level, [string]$Message)
+        if ($Level -eq 'ERR') { Write-Host ('  [FAIL]  ' + $Message) -ForegroundColor Red; $script:errCount++ }
+        elseif ($Level -eq 'WARN') { Write-Host ('  [WARN]  ' + $Message) -ForegroundColor Yellow; $script:warnCount++ }
+        else { Write-Host ('  [ OK ]  ' + $Message) -ForegroundColor Green }
+    }
+
+    Write-Host ("Doctor - scope {0} - raiz: {1}" -f $Scope, $ScopeRoot) -ForegroundColor Cyan
+    Write-Host ("  catalogo: {0} (Harness {1})" -f $CatalogDir, $Version) -ForegroundColor DarkGray
+
+    $catalogNames = @(Get-Catalog | ForEach-Object { $_.Name })
+    if ((Test-Path -LiteralPath $CatalogDir) -and $catalogNames.Count -gt 0) { Write-Check OK 'catalogo accesible' }
+    else { Write-Check ERR "catalogo no accesible: $CatalogDir" }
+
+    if (-not (Test-Path -LiteralPath $DeclFile)) {
+        Write-Check WARN 'sin manifiesto (.harness.json): no instalado en este scope'
+    }
+    else {
+        Write-Check OK "manifiesto presente: $DeclFile"
+        try {
+            $decl = Get-Content -LiteralPath $DeclFile -Raw | ConvertFrom-Json
+            if ([string]$decl.scope -eq $Scope.ToLower()) { Write-Check OK "scope declarado: $($decl.scope)" }
+            else { Write-Check WARN "scope declarado '$($decl.scope)' != esperado '$($Scope.ToLower())'" }
+
+            if ($decl.PSObject.Properties.Name -contains 'skills') {
+                $dsk = @($decl.skills)
+                $unk = @($dsk | Where-Object { $_ -notin $catalogNames })
+                if ($unk.Count -gt 0) { Write-Check WARN "skills declaradas fuera del catalogo: $($unk -join ', ')" }
+
+                foreach ($s in $dsk) {
+                    $sd = Join-Path $SkillsDir $s
+                    if (-not (Test-Path -LiteralPath $sd)) { Write-Check ERR "skill '$s': no instalada"; continue }
+                    if (-not (Test-Path -LiteralPath (Join-Path $sd $MarkerName))) { Write-Check WARN "skill '$s': sin marcador (ajena?)"; continue }
+                    if ($s -notin $catalogNames) { continue }
+                    $ih = Get-TreeHash -Path $sd
+                    $sh = Get-TreeHash -Path (Join-Path $CatalogDir $s)
+                    if ($ih -eq $sh) { Write-Check OK "skill '$s': al dia" }
+                    else {
+                        $m = Get-Marker -Path $sd
+                        if ($m -and $m.hash -and $ih -ne $m.hash) { Write-Check WARN "skill '$s': editada localmente (divergente)" }
+                        else { Write-Check WARN "skill '$s': desactualizada respecto al catalogo" }
+                    }
+                }
+
+                $extra = @(Get-ChildItem -LiteralPath $SkillsDir -Directory -Force -ErrorAction SilentlyContinue |
+                    Where-Object { $_.Name -ne '.harness-backup' -and (Test-Path -LiteralPath (Join-Path $_.FullName $MarkerName)) -and ($_.Name -notin $dsk) })
+                if ($extra.Count -gt 0) { Write-Check WARN "instaladas pero no declaradas (se podaran con -Update): $((@($extra | ForEach-Object { $_.Name })) -join ', ')" }
+            }
+            else { Write-Check WARN "manifiesto sin 'skills'" }
+        }
+        catch { Write-Check ERR ".harness.json ilegible: $($_.Exception.Message)" }
+    }
+
+    if (Test-Path -LiteralPath $RulesFile) { Write-Check OK "reglas presentes: $RulesFile" }
+    else { Write-Check WARN "reglas ausentes: $RulesFile" }
+
+    if (Test-Path -LiteralPath $ConfigFile) {
+        try {
+            $cfg = Get-Content -LiteralPath $ConfigFile -Raw | ConvertFrom-Json
+            if ($Scope -eq 'Local') {
+                $paths = @(); if ($cfg.skills -and $cfg.skills.paths) { $paths = @($cfg.skills.paths) }
+                if ($paths -contains 'harness/skills') { Write-Check OK 'opencode.json: skills.paths -> harness/skills' }
+                else { Write-Check ERR 'opencode.json: falta skills.paths = [harness/skills]' }
+                $instr = @(); if ($cfg.instructions) { $instr = @($cfg.instructions) }
+                if ($instr -contains 'harness/AGENTS.md') { Write-Check OK 'opencode.json: instructions -> harness/AGENTS.md' }
+                else { Write-Check WARN 'opencode.json: falta instructions = [harness/AGENTS.md]' }
+            }
+            else {
+                if ($cfg.permission) { Write-Check OK 'opencode.json global: bloque permission presente' }
+                else { Write-Check WARN 'opencode.json global: sin bloque permission' }
+            }
+        }
+        catch { Write-Check ERR "opencode.json ilegible: $($_.Exception.Message)" }
+    }
+    elseif ($Scope -eq 'Local') { Write-Check ERR "opencode.json ausente: $ConfigFile" }
+    else { Write-Check WARN "opencode.json ausente: $ConfigFile" }
+
+    $bk = Join-Path $ScopeRoot '.harness-backup'
+    if (Test-Path -LiteralPath $bk) { Write-Check OK ("respaldos: {0} en .harness-backup" -f @(Get-ChildItem -LiteralPath $bk -Force).Count) }
+
+    Write-Host ''
+    if ($errCount -gt 0) {
+        Write-Host ("Doctor: {0} error(es), {1} aviso(s)." -f $errCount, $warnCount) -ForegroundColor Red
+        exit 1
+    }
+    Write-Host ("Doctor: OK ({0} aviso(s))." -f $warnCount) -ForegroundColor Green
+    exit 0
+}
+
 if ($Update) {
     if ($Skills) { $desired = $Skills }
     elseif ($declared.Count -gt 0) { $desired = $declared }
@@ -391,7 +500,11 @@ if ($Scope -eq 'Local') {
 }
 
 # Instalar skills
-if (-not $WhatIf) { New-Item -ItemType Directory -Path $SkillsDir -Force | Out-Null }
+if (-not $WhatIf) {
+    New-Item -ItemType Directory -Path $SkillsDir -Force | Out-Null
+    Get-ChildItem -LiteralPath $SkillsDir -Directory -Force -Filter '.staging-*' -ErrorAction SilentlyContinue |
+        Remove-Item -Recurse -Force -ErrorAction SilentlyContinue
+}
 $BackupDir = Join-Path $ScopeRoot '.harness-backup'
 
 function Backup-Path {
@@ -400,22 +513,63 @@ function Backup-Path {
     $dest = Join-Path $BackupDir ("{0}-{1}" -f $Name, $stamp)
     if ($WhatIf) {
         Write-Host "WOULD  respaldar $Name -> .harness-backup\$([System.IO.Path]::GetFileName($dest))" -ForegroundColor DarkCyan
-        return
+        return $null
     }
     New-Item -ItemType Directory -Path $BackupDir -Force | Out-Null
     Move-Item -LiteralPath $Path -Destination $dest
     Write-Host "BACKUP $Name -> $dest" -ForegroundColor Yellow
+    return $dest
+}
+
+function Deploy-Skill {
+    param(
+        [string]$Name,
+        [string]$Src,
+        [string]$Dst,
+        [string]$SrcHash,
+        [switch]$ReplaceExisting
+    )
+    # 1) Preparar en temporal (no se toca el destino hasta validar)
+    $tmp = Join-Path $SkillsDir ('.staging-{0}-{1}' -f $Name, [System.Guid]::NewGuid().ToString('N').Substring(0, 8))
+    Copy-Item -LiteralPath $Src -Destination $tmp -Recurse -Force
+    if (-not (Test-Path -LiteralPath (Join-Path $tmp 'SKILL.md'))) {
+        Remove-Item -LiteralPath $tmp -Recurse -Force -ErrorAction SilentlyContinue
+        throw "Copia invalida de '$Name': el origen no tiene SKILL.md."
+    }
+
+    # 2) Apartar el destino (respaldo si reemplaza) y colocar el nuevo
+    $backup = $null
+    try {
+        if (Test-Path -LiteralPath $Dst) {
+            if ($ReplaceExisting) { $backup = Backup-Path -Path $Dst -Name $Name }
+            else { Remove-Item -LiteralPath $Dst -Recurse -Force }
+        }
+        Move-Item -LiteralPath $tmp -Destination $Dst
+        Set-Content -LiteralPath (Join-Path $Dst $MarkerName) -Value (New-MarkerValue -Hash $SrcHash)
+    }
+    catch {
+        # 3) Recuperacion: limpiar staging y restaurar el respaldo
+        Remove-Item -LiteralPath $tmp -Recurse -Force -ErrorAction SilentlyContinue
+        if (Test-Path -LiteralPath $Dst) { Remove-Item -LiteralPath $Dst -Recurse -Force -ErrorAction SilentlyContinue }
+        if ($backup -and (Test-Path -LiteralPath $backup)) {
+            Move-Item -LiteralPath $backup -Destination $Dst
+            Write-Host "ROLLBACK $Name restaurado desde respaldo" -ForegroundColor Yellow
+        }
+        throw
+    }
 }
 
 foreach ($name in $desired) {
     $src = Join-Path $CatalogDir $name
     $dst = Join-Path $SkillsDir $name
     $srcHash = Get-TreeHash -Path $src
+    $replace = $false
+    $conflict = $false
 
     if (Test-Path -LiteralPath $dst) {
         $marker = Get-Marker -Path $dst
         if (-not $marker) {
-            if ($Force) { Backup-Path -Path $dst -Name $name }
+            if ($Force) { $replace = $true }
             else {
                 Write-Host "SKIP   $name (ajena; usa -Force para reemplazar)" -ForegroundColor Yellow
                 continue
@@ -431,30 +585,21 @@ foreach ($name in $desired) {
                 }
                 continue
             }
-
-            $modified = $true
-            if ($marker.hash) { $modified = ($dstHash -ne $marker.hash) }
-
-            if ($WhatIf) {
-                if ($modified) { Write-Host "WOULD  actualizar $name (DIVERGENCIA: respaldo)" -ForegroundColor DarkCyan }
-                else { Write-Host "WOULD  actualizar skill $name" -ForegroundColor DarkCyan }
-                continue
-            }
-
-            if ($modified) {
-                Backup-Path -Path $dst -Name $name
-                Write-Host "CONFLICT $name editada localmente; se respaldo antes de actualizar" -ForegroundColor Yellow
-            }
-            else {
-                Remove-Item -LiteralPath $dst -Recurse -Force
-            }
+            $replace = $true
+            if ($marker.hash) { $conflict = ($dstHash -ne $marker.hash) }
+            else { $conflict = $true }
         }
     }
 
-    if ($WhatIf) { Write-Host "WOULD  instalar skill $name" -ForegroundColor DarkCyan; continue }
+    if ($WhatIf) {
+        if ($conflict) { Write-Host "WOULD  actualizar $name (DIVERGENCIA: respaldo)" -ForegroundColor DarkCyan }
+        elseif ($replace) { Write-Host "WOULD  actualizar skill $name" -ForegroundColor DarkCyan }
+        else { Write-Host "WOULD  instalar skill $name" -ForegroundColor DarkCyan }
+        continue
+    }
 
-    Copy-Item -LiteralPath $src -Destination $dst -Recurse -Force
-    Set-Content -LiteralPath (Join-Path $dst $MarkerName) -Value (New-MarkerValue -Hash $srcHash)
+    Deploy-Skill -Name $name -Src $src -Dst $dst -SrcHash $srcHash -ReplaceExisting:$replace
+    if ($conflict) { Write-Host "CONFLICT $name editada localmente; se respaldo antes de actualizar" -ForegroundColor Yellow }
     Write-Host "OK     skill $name" -ForegroundColor Green
 }
 

@@ -42,6 +42,10 @@ Es **agnóstico**: no hay set por defecto. Siempre indicas **qué** skills y **d
 # Detectar tecnologías del proyecto y skills faltantes (solo lectura)
 .\install.ps1 -Project "D:\ruta\al\proyecto" -Detect
 
+# Diagnosticar la instalación del scope (manifiesto, rutas, reglas, config) sin tocar nada
+.\install.ps1 -Project "D:\ruta\al\proyecto" -Doctor
+.\install.ps1 -Global -Doctor
+
 # Por proyecto (local): vive en <proyecto>\harness\
 .\install.ps1 -Project "D:\ruta\al\proyecto" -Skills dotnet,sql
 
@@ -70,6 +74,8 @@ Qué hace:
 `-Detect` no instala: escanea el proyecto (marcadores de archivos y dependencias) y compara con el catálogo, listando las tecnologías **sin skill** (candidatas a crear). En una instalación Local, ese reporte se muestra además de forma informativa.
 
 `-WhatIf` previsualiza la operación completa (instalar, refrescar, respaldar, omitir, podar) **sin escribir nada**: úsalo para ver qué pasaría antes de aplicar.
+
+`-Doctor` audita la instalación del scope (manifiesto `.harness.json`, marcadores y hashes de cada skill, reglas y `opencode.json`) y sale con código **0** (ok, con avisos) o **1** (fallo): útil para saber si algo quedó a medias o para CI.
 
 ## Qué queda en cada scope
 
@@ -148,6 +154,8 @@ Tres capas separadas, para poder mejorar el Harness sin perder tus cambios:
 - Si la **editaste a mano** (la copia difiere de la que se instaló) → **la respalda** en `.harness-backup\` y avisa `CONFLICT` antes de refrescar.
 - Si es **ajena** (sin marcador) → la omite, salvo `-Force` (que la respalda y reemplaza).
 - `-WhatIf` muestra todo esto **antes** de tocar nada.
+
+Las actualizaciones son **seguras**: primero preparan la copia en un directorio temporal y la validan; recién entonces reemplazan. Si algo falla, restauran el respaldo automáticamente (**rollback**). Nunca queda una skill a medias.
 
 ## Hoja de ruta (diferido)
 

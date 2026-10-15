@@ -28,6 +28,7 @@ Repositorio: `https://github.com/TheNefelin/Harness.git`
 |-----------|-------------|
 | `-List` | Muestra el catálogo (nombre + descripción) y sale |
 | `-Detect` | Escanea el proyecto (`-Project`) y lista las tecnologías sin skill en el catálogo. Solo lectura |
+| `-Doctor` | Audita la instalación del scope (manifiesto, marcadores/hashes, reglas, `opencode.json`). Solo lectura; sale 0/1 |
 | `-Project <ruta>` | Scope **Local**: vive en `<ruta>\harness\` |
 | `-Global` | Scope **Global**: vive en `~/.config/opencode\` |
 | `-Skills a,b,c` | Skills a instalar. **Obligatorio** salvo con `-Update`/`-List`: no hay set por defecto |
@@ -55,7 +56,7 @@ Repositorio: `https://github.com/TheNefelin/Harness.git`
    ```
 
    En Linux/macOS, invocar con `pwsh -File <ruta>/install.ps1 ...`.
-4. **Verificar**: existe `<scope root>\skills\<name>\SKILL.md` por cada skill pedida y quedo escrito el `.harness.json`.
+4. **Verificar**: existe `<scope root>\skills\<name>\SKILL.md` por cada skill pedida y quedo escrito el `.harness.json`. Opcional: `-Doctor` para auditar (manifiesto, rutas, reglas, config).
 5. **Eliminar el clon temporal.**
 6. **Reportar** e indicar al usuario **reiniciar openCode** para que cargue reglas y skills. No ejecutar Git (§9).
 
