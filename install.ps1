@@ -162,12 +162,15 @@ function Get-Catalog {
 
 function Get-TreeHash {
     param([string]$Path)
+    # Canonicalizar la raiz: una ruta corta 8.3 (p. ej. RUNNER~1) hace que los hijos
+    # devuelvan FullName largo, y Substring($Path.Length) recortaria mal la ruta relativa.
+    $root = (Get-Item -LiteralPath $Path -Force).FullName
     $sha = [System.Security.Cryptography.SHA256]::Create()
     try {
         $lines = @()
         foreach ($f in (Get-ChildItem -LiteralPath $Path -Recurse -File -Force)) {
             if ($f.Name -eq $MarkerName) { continue }
-            $rel = $f.FullName.Substring($Path.Length).TrimStart('\', '/').Replace('\', '/')
+            $rel = $f.FullName.Substring($root.Length).TrimStart('\', '/').Replace('\', '/')
             $hex = [System.BitConverter]::ToString($sha.ComputeHash([System.IO.File]::ReadAllBytes($f.FullName))).Replace('-', '')
             $lines += ($rel + '|' + $hex)
         }
