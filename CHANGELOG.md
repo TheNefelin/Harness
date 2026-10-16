@@ -48,6 +48,7 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es/1.1.0/); vers
 - `evals/triggers.json`: un negativo usa `expect: "none"` para ejercitar la forma alternativa documentada (el resto usa `null`); `CONTRIBUTING.md` aclara que el matcher normaliza tildes/ñ antes de comparar.
 - `tools/check.ps1`: portabilidad de separadores de ruta (LF/cross-platform).
 - README (`Actualizar`): nota de **portabilidad de la instalación** — no guarda la ruta del repo (solo `version`+`hash` por skill), así que mover o clonar el repo **no requiere reinstalar**; `-Update` corre desde la nueva ubicación. Ejemplos con placeholders neutros (`D:\ruta\al\...`) en README e `install.ps1`; anti-patrón equivalente en `skills/harness-install`.
+- `skills/harness-install`: sección **"Actualizar: agregar o quitar skills"** (re-ejecutar con `-Skills` del **set completo**; `-Update` sin `-Skills` solo refresca) y anti-patrón de pasar solo la skill nueva (podaría el resto).
 
 ## [0.1.0] - 2026-10-13
 

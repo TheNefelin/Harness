@@ -62,6 +62,17 @@ Repositorio: `https://github.com/TheNefelin/Harness.git`
 5. **Eliminar el clon temporal.**
 6. **Reportar** e indicar al usuario **recargar openCode** con `/reload` para que cargue reglas y skills (no cierra la TUI; si no toma los cambios, reiniciar). No ejecutar Git (§9).
 
+## Actualizar: agregar o quitar skills
+
+El set vive en `.harness.json`. Para **cambiarlo**, re-ejecuta con `-Skills` indicando el set **completo** (lo declarado + la nueva); `-Update` alinea (agrega y poda):
+
+```powershell
+# De {dotnet,sql} a {dotnet,sql,nosql}
+& "<temp>\Harness\install.ps1" -Update -Project "<ruta>" -Skills dotnet,sql,nosql
+```
+
+`-Update` **sin** `-Skills` solo refresca el set actual (no agrega ni quita). Una skill gestionada que sale del set se **poda** y se respalda en `.harness-backup\`.
+
 ## Qué instala y dónde
 
 | Scope | Destino | Contenido |
@@ -84,6 +95,7 @@ Repositorio: `https://github.com/TheNefelin/Harness.git`
 | Copiar `harness/skills` a mano | Se desincroniza de `-Update` | Usar el instalador |
 | Correr `-Global` sin confirmar | Agrega reglas a **todas** las sesiones | Confirmar el scope con el usuario |
 | Mover o clonar el repo y reinstalar | La instalación no guarda la ruta del repo; no hay nada roto | Seguir usándola; refrescar con `-Update` desde la nueva ubicación |
+| Al agregar, pasar a `-Skills` solo la skill nueva | El set se **poda**: pierdes las demás | Pasar el **set completo** (actual + nueva) |
 
 ## Checklist
 
