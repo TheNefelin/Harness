@@ -182,9 +182,11 @@ En ambos casos el agente lee primero `AGENTS.md` + `DEVELOPMENT.md`: cuanto mejo
 Por defecto usa el catálogo **junto al script**. Para actualizar **desde otra ubicación** (un clon propio o el repo remoto) sin abrir el Harness, indica el origen con `-Source` (ruta local o URL git):
 
 ```powershell
-.\install.ps1 -Update -Project "D:\ruta\al\proyecto" -Source "D:\Repo\Harness"
+.\install.ps1 -Update -Project "D:\ruta\al\proyecto" -Source "D:\ruta\al\Harness"
 .\install.ps1 -Update -Global -Source "https://github.com/TheNefelin/Harness"
 ```
+
+La instalación **no guarda la ruta del repo**: el marcador de cada skill solo tiene `version` y `hash`, y ni `.harness.json` ni `opencode.json` contienen rutas absolutas. Por eso **mover o clonar el repo no rompe nada**: la instalación sigue válida y `-Update` corre desde la **nueva** ubicación del script (o con `-Source "<ruta nueva>"`). **No hay que reinstalar.**
 
 Para cambiar el set, pasa `-Skills` de nuevo:
 

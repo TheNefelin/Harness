@@ -83,6 +83,7 @@ Repositorio: `https://github.com/TheNefelin/Harness.git`
 | Abrir openCode fuera de la raíz (Local) | `skills.paths` es relativo al CWD | Abrir openCode en la raíz del proyecto |
 | Copiar `harness/skills` a mano | Se desincroniza de `-Update` | Usar el instalador |
 | Correr `-Global` sin confirmar | Agrega reglas a **todas** las sesiones | Confirmar el scope con el usuario |
+| Mover o clonar el repo y reinstalar | La instalación no guarda la ruta del repo; no hay nada roto | Seguir usándola; refrescar con `-Update` desde la nueva ubicación |
 
 ## Checklist
 

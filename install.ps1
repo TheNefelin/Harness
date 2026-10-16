@@ -56,14 +56,14 @@
 
 .EXAMPLE
     .\install.ps1 -List
-    .\install.ps1 -Project "D:\Repo\App" -Detect
-    .\install.ps1 -Project "D:\Repo\App" -Skills dotnet,postgres
+    .\install.ps1 -Project "D:\ruta\al\proyecto" -Detect
+    .\install.ps1 -Project "D:\ruta\al\proyecto" -Skills dotnet,postgres
     .\install.ps1 -Global -Skills docker,kubernetes
-    .\install.ps1 -Project "D:\Repo\App" -Skills dotnet,postgres -WhatIf
-    .\install.ps1 -Project "D:\Repo\App" -Update -Source "D:\Repo\Harness"
-    .\install.ps1 -Project "D:\Repo\App" -Update -Source "https://github.com/TheNefelin/Harness.git"
-    .\install.ps1 -Project "D:\Repo\App" -Update
-    .\install.ps1 -Project "D:\Repo\App" -Doctor
+    .\install.ps1 -Project "D:\ruta\al\proyecto" -Skills dotnet,postgres -WhatIf
+    .\install.ps1 -Project "D:\ruta\al\proyecto" -Update -Source "D:\ruta\al\Harness"
+    .\install.ps1 -Project "D:\ruta\al\proyecto" -Update -Source "https://github.com/TheNefelin/Harness.git"
+    .\install.ps1 -Project "D:\ruta\al\proyecto" -Update
+    .\install.ps1 -Project "D:\ruta\al\proyecto" -Doctor
     .\install.ps1 -Global -Doctor
 
 .NOTES
