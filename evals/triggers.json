@@ -17,6 +17,7 @@
   { "id": "harness-install-pos-01", "tipo": "positivo", "prompt": "instalar el harness en el proyecto", "expect": "harness-install" },
   { "id": "docker-pos-02", "tipo": "positivo", "prompt": "revisar el dockerfile de una imagen y sus volumenes", "expect": "docker" },
   { "id": "github-actions-pos-02", "tipo": "positivo", "prompt": "configurar un pipeline con cache y artifacts", "expect": "github-actions" },
+  { "id": "github-actions-pos-03", "tipo": "positivo", "prompt": "publicar un sitio estatico en github pages con un workflow que construye y despliega", "expect": "github-actions" },
   { "id": "dotnet-pos-02", "tipo": "positivo", "prompt": "escribir un repositorio con dapper y clean architecture", "expect": "dotnet" },
   { "id": "sql-pos-02", "tipo": "positivo", "prompt": "disenar indices y constraints en un esquema postgres", "expect": "sql" },
   { "id": "nosql-pos-02", "tipo": "positivo", "prompt": "cachear con redis y disenar claves de particion en dynamodb", "expect": "nosql" },

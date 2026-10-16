@@ -23,6 +23,7 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es/1.1.0/); vers
 - `skills/sql`: `description` ampliada (postgres, consulta lenta, explain, índice) — un eval de frontera destapó que un prompt SQL realista no la activaba.
 - `install.ps1`: lectura robusta de `.harness.json` (JSON corrupto da un error claro en vez de reventar); el marcador `.harness-source` se escribe **sin BOM**; `Get-Catalog` lee el **frontmatter completo** (no solo 30 líneas) para extraer la `description`; al **podar** una skill gestionada, la **respalda** en `.harness-backup` (antes la borraba).
 - `skills/github-actions`: `uses` al día (`checkout@v7`, `setup-node@v7`, `upload-artifact@v7`, `download-artifact@v8`, CodeQL `@v4`), matrix de Node solo sobre versiones soportadas (18/20 ya EOL → 22/24) y marcador de frescura; `description` normalizada al bloque `NO para`. La rúbrica destapó que el ejemplo estaba desactualizado.
+- `skills/github-actions`: deploy de **sitios estáticos a GitHub Pages** — patrón con las actions oficiales (`configure-pages@v6` → `upload-pages-artifact@v5` → `deploy-pages@v5`) vía **OIDC** (`pages: write` + `id-token: write`, ambiente `github-pages`), más decisión, anti-patrón (rama `gh-pages`/PAT), ítem de checklist, un eval positivo y marcador de frescura actualizado.
 
 ### Corregido
 
