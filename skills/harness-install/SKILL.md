@@ -60,7 +60,7 @@ Repositorio: `https://github.com/TheNefelin/Harness.git`
    En Linux/macOS, invocar con `pwsh -File <ruta>/install.ps1 ...`.
 4. **Verificar**: existe `<scope root>\skills\<name>\SKILL.md` por cada skill pedida y quedo escrito el `.harness.json`. Opcional: `-Doctor` para auditar (manifiesto, rutas, reglas, config).
 5. **Eliminar el clon temporal.**
-6. **Reportar** e indicar al usuario **reiniciar openCode** para que cargue reglas y skills. No ejecutar Git (§9).
+6. **Reportar** e indicar al usuario **recargar openCode** con `/reload` para que cargue reglas y skills (no cierra la TUI; si no toma los cambios, reiniciar). No ejecutar Git (§9).
 
 ## Qué instala y dónde
 
@@ -93,4 +93,4 @@ Repositorio: `https://github.com/TheNefelin/Harness.git`
 - [ ] `<scope root>\skills\<name>\SKILL.md` verificado por skill
 - [ ] `.harness.json` escrito
 - [ ] Clon temporal eliminado
-- [ ] Sin commit/push; usuario avisado de reiniciar openCode
+- [ ] Sin commit/push; usuario avisado de recargar (`/reload`) o reiniciar openCode

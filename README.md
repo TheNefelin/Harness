@@ -56,8 +56,8 @@ Si le pides a un agente de openCode "instala este harness" y le das la URL del r
    & "<temp>\install.ps1" -Project "<ruta>" -Skills <a,b,c>   # Local
    & "<temp>\install.ps1" -Global -Skills <a,b>               # Global
    ```
-3. **Verificar** con `install.ps1 -Doctor` y **reportar** (skills instaladas, `.harness.json`, avisos).
-4. Indicar al usuario **reiniciar openCode** y **eliminar** el clon temporal. Sin commit/push.
+4. **Verificar** con `install.ps1 -Doctor` y **reportar** (skills instaladas, `.harness.json`, avisos).
+5. Decir al usuario que **recargue openCode** con `/reload` (no cierra la TUI; si no toma los cambios, reiniciar) y **eliminar** el clon temporal. Sin commit/push.
 
 El set de skills es **obligatorio** (no hay default): **nunca** instales sin confirmar el scope y las skills con el usuario. El procedimiento completo está en la skill [`harness-install`](skills/harness-install/SKILL.md).
 
@@ -147,7 +147,7 @@ proyecto/
 
 ## Uso
 
-- Abre openCode **dentro del proyecto** y reinícialo tras instalar.
+- Abre openCode **dentro del proyecto** y, tras instalar, **recárgalo con `/reload`** (no cierra la TUI; si no toma los cambios, reinícialo).
 - Las **reglas** se cargan automáticamente.
 - Las **skills** se activan solas según su `description` (no hay que invocarlas).
 - Mantén `DEVELOPMENT.md` al día: es la memoria que evita reexplicar todo.
