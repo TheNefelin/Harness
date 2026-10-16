@@ -9,6 +9,8 @@ description: Instalar, actualizar o diagnosticar el Harness (reglas + skills de 
 
 Repositorio: `https://github.com/TheNefelin/Harness.git`
 
+> **Arranque desde el repo (aún sin instalar):** el procedimiento de abajo asume el repo ya clonado. Para el caso "tengo la URL y quiero instalar", el punto de entrada es `README → Instalación por un agente`.
+
 ## Cuándo NO usar
 
 | Situación | Dónde corresponde |

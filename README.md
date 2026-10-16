@@ -42,6 +42,25 @@ Harness/
 - **PowerShell**: Windows PowerShell 5.1 (viene con Windows) o **PowerShell 7+ (`pwsh`)**, que corre también en Linux/macOS.
 - `install.ps1` está orientado a **Windows**; el verificador `tools/check.ps1` es **portable** (usa separadores nativos, sin dependencias).
 
+## Instalación por un agente
+
+Si le pides a un agente de openCode "instala este harness" y le das la URL del repositorio, el agente debe:
+
+1. **Clonar** el repo en un directorio **temporal** (fuera del proyecto): `git clone <url> <temp>`.
+2. **Preguntar** al usuario, en una sola tanda:
+   - **Scope**: ¿**Local** (solo este proyecto) o **Global** (toda la máquina)?
+   - **Skills**: mostrar el catálogo (`install.ps1 -List`) y pedir cuáles quiere.
+3. **Ejecutar** el instalador con ese scope y `-Skills`:
+
+   ```powershell
+   & "<temp>\install.ps1" -Project "<ruta>" -Skills <a,b,c>   # Local
+   & "<temp>\install.ps1" -Global -Skills <a,b>               # Global
+   ```
+3. **Verificar** con `install.ps1 -Doctor` y **reportar** (skills instaladas, `.harness.json`, avisos).
+4. Indicar al usuario **reiniciar openCode** y **eliminar** el clon temporal. Sin commit/push.
+
+El set de skills es **obligatorio** (no hay default): **nunca** instales sin confirmar el scope y las skills con el usuario. El procedimiento completo está en la skill [`harness-install`](skills/harness-install/SKILL.md).
+
 ## Instalación
 
 Es **agnóstico**: no hay set por defecto. Siempre indicas **qué** skills y **dónde**.
