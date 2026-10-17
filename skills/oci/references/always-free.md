@@ -28,7 +28,7 @@ Oracle puede **reclamar** instancias Always Free ociosas si, durante **7 días s
 - Red < **20 %**
 - Memoria < **20 %** (solo formas A1)
 
-**Mitigación**: mantener actividad mínima continua (un sitio con visitas o un cron ligero). La doc oficial no garantiza que una instancia reclamada pueda recuperarse; no conviene depender de una VM apagada la mayor parte del tiempo.
+**Mitigación**: mantener actividad mínima continua (un sitio con visitas o un cron ligero) **reduce el riesgo**, pero no lo garantiza: la doc oficial no asegura que se evite el reclamo ni que una instancia reclamada pueda recuperarse. No conviene depender de una VM apagada la mayor parte del tiempo.
 
 > **Fuente oficial:** `docs.oracle.com/en-us/iaas/Content/FreeTier/freetier_topic-Always_Free_Resources.htm`
 > → apartado **"Idle Compute Instances"** (reclamo tras **7 días** con p95 CPU < 20 %, red < 20 % y memoria < 20 % en A1).

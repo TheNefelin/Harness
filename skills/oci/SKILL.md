@@ -37,7 +37,7 @@ description: "Arquitectura, costes y despliegues en Oracle Cloud Infrastructure 
 1. **Etiqueta "Always Free Eligible"**: si no aparece al crear el recurso, **no lo crees**.
 2. **Home region**: los volúmenes gratuitos solo valen en la home region; crear recursos en otra región genera cargo.
 3. **Budget el día 1**: `Billing & Cost Management → Budgets` (p. ej. USD 1/mes) con alertas al **50 % y 100 %**.
-4. **Reclamo por inactividad**: Oracle puede **reclamar** instancias Always Free si en **7 días seguidos** se cumplen **las tres**: CPU p95 < 20 %, red < 20 % y memoria < 20 % (A1). Se evita con actividad mínima (un cron o un sitio con visitas); la doc no garantiza que una instancia reclamada se recupere.
+4. **Reclamo por inactividad**: Oracle puede **reclamar** instancias Always Free si en **7 días seguidos** se cumplen **las tres**: CPU p95 < 20 %, red < 20 % y memoria < 20 % (A1). La actividad mínima (un cron o un sitio con visitas) solo **reduce el riesgo**: no hay garantía de evitar el reclamo ni de recuperar una instancia reclamada.
 5. **Exceder los límites de Always Free**: si tienes más recursos Ampere A1 de los que permite la cuenta, Oracle **deshabilita y luego elimina** las instancias tras **30 días** salvo que pases a Pay As You Go.
 6. **IPs reservadas sin adjuntar cobran**: solo son gratis mientras estén asignadas a una instancia en uso.
 7. **Discos, snapshots y backups**: todo lo que exceda los 200 GB / 5 backups es cargo.
@@ -61,7 +61,7 @@ description: "Arquitectura, costes y despliegues en Oracle Cloud Infrastructure 
 | Crear LB adicionales al gratuito | Cobro por hora y GB | 1 LB flexible gratis; después, proxy inverso en la misma VM |
 | IPs reservadas sin adjuntar | Cobro continuo | Adjuntar o eliminar |
 | Exponer la BD al mundo | Fuga de datos | El compose no debe publicar el puerto de la BD |
-| Depender de una VM apagada | Oracle la reclama por inactividad | Actividad mínima continua |
+| Depender de una VM apagada | Oracle la reclama por inactividad | Actividad mínima continua (reduce el riesgo, no lo elimina) |
 | Regiones no home | Volúmenes gratis no aplican | Desplegar en la home region |
 
 ## Patrones
@@ -92,7 +92,7 @@ Bucket Object Storage (respaldos, ~20 GB) · Budget USD 1/mes con alertas
 - [ ] Security List: solo 22 + puerto web; BD sin puerto público
 - [ ] IP reservada solo si está adjunta a una instancia en uso
 - [ ] Respaldos descargados **fuera** de la VM (probada su restauración)
-- [ ] Actividad mínima programada para evitar el reclamo por inactividad
+- [ ] Actividad mínima programada para reducir el riesgo de reclamo por inactividad
 
 ## Fuentes
 

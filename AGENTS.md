@@ -84,7 +84,7 @@ Prohibido modificar, crear o eliminar código del proyecto —y su documentació
 
 **Variantes del flujo.** Estos pasos aplican, con adaptaciones:
 
-- *Lista de issues o hallazgos*: analizar uno, explicar problema e impacto, proponer solución, esperar confirmación, aplicar solo esa corrección, revisarla, recién entonces seguir con el siguiente. No corregir varios en paralelo sin autorización individual. Si un hallazgo resulta falso positivo o diseño intencional, detenerse y consultar.
+- *Lista de issues o hallazgos*: aplicar la **regla de precedencia (§5)** a cada uno. Si el pedido es **solo analizar/revisar**, se explica problema e impacto y se propone solución, esperando confirmación. Si la instrucción es **explícita** ("corrige este hallazgo"), se implementa esa corrección dentro del alcance. En ambos casos: una corrección a la vez, revisarla antes de seguir; los cambios adicionales siguen requiriendo autorización; no corregir varios en paralelo sin autorización individual. Si un hallazgo resulta falso positivo o diseño intencional, detenerse y consultar.
 - *Feature, página, componente o módulo nuevo*: entender el requisito, preguntar, analizar la arquitectura y el `SKILL.md` del proyecto, proponer plan y estructura, esperar aprobación, implementar lo aprobado, revisar el diff, verificar e informar.
 
 ---
