@@ -2,6 +2,8 @@
 
 > Documental. Complementa `nosql/SKILL.md`.
 
+> **Frescura (verificado 2026-10-17):** drivers Python para MongoDB: `PyMongo` (sync) y la API async **`AsyncMongoClient`** (GA en `pymongo`). **`Motor` está obsoleto**: deprecado el 2025-05-14, EOL el 2026-05-14, soporte final el 2027-05-14. Fuente: `mongodb.com/docs/drivers/motor/` y la guía de migración `mongodb.com/docs/languages/python/pymongo-driver/current/reference/migration/`.
+
 ## Modelo
 
 - **Base de datos → colecciones → documentos** (BSON). Cada documento tiene `_id` (por defecto `ObjectId`, único e indexado).
@@ -40,7 +42,7 @@ db.sessions.createIndex({ expiresAt: 1 }, { expireAfterSeconds: 0 });
 ## Drivers
 
 - **.NET**: `MongoDB.Driver` (async: `IMongoCollection<T>`), mapeo con atributos o `BsonClassMap`; proyecciones tipadas con `Builders<T>.Projection`.
-- **Python**: `PyMongo` (sync) o `Motor` (async, el que usa FastAPI).
+- **Python**: `PyMongo` (sync) o **`AsyncMongoClient`** (API async de `pymongo`; la que debe usar FastAPI). **`Motor` está obsoleto** (deprecado 2025-05-14, EOL 2026-05-14): solo como tecnología heredada a migrar. La API async usa `asyncio` nativo (no thread pool) y **no es thread-safe**: no compartas el cliente entre hilos ni event loops.
 
 ## Gotchas
 

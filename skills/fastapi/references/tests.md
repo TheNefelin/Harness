@@ -1,9 +1,9 @@
 ## 13. Tests (con BD real, aislada y segura)
 
 Principios:
-- **BD real PostgreSQL** (`TEST_DATABASE_URL`), no SQLite: los tests prueban lo mismo que prod (tipos, FKs, asyncpg).
-- **Nunca dropear toda la BD compartida**: el fixture dropea **solo las tablas de este proyecto** (por prefijo de tabla) al inicio y al teardown.
-- **Guard de destino**: `conftest.py` aborta antes de tocar nada si `TEST_DATABASE_URL` no es una BD dedicada (nombre `*_test`) **o** si su **destino completo** (host/puerto/nombre) coincide con la de desarrollo/producción. El sufijo `_test` es una comprobación **adicional**, no la única barrera: usa credenciales sin permisos sobre producción.
+- **BD real PostgreSQL dedicada** (`TEST_DATABASE_URL`), no SQLite: los tests prueban lo mismo que prod (tipos, FKs, asyncpg). **Una BD de tests por proyecto, aislada; nunca la compartida.**
+- **Aislamiento, no detección**: el fixture **resetea el esquema** de esa BD dedicada (`DROP SCHEMA public CASCADE; CREATE SCHEMA public`) al inicio. Al vivir en una BD propia, el DDL destructivo no puede alcanzar datos ni constraints de otros proyectos. No corras los tests contra un conjunto de tablas dentro de una base compartida: `CASCADE` arrastra los constraints de las tablas ajenas que dependan de las tuyas.
+- **Guard de destino (barrera temprana, no la garantía)**: `conftest.py` aborta antes de tocar nada si `TEST_DATABASE_URL` no termina en `_test`, es `postgres`, o su **destino** (host resuelto a IP, puerto, nombre) coincide con `DATABASE_URL`. Es *best-effort* (alias/DNS/proxies pueden eludirlo): la **garantía real** son credenciales **sin permisos de DDL/DROP sobre producción** + la BD dedicada.
 - `conftest.py` centraliza: engine, sesión, override de `get_db` y `verify_api_key`, y siembra los datos mínimos (roles y un usuario admin).
 - Un test = 1 caso (éxito + cada error). Fórmula por recurso: create ✓, duplicate ✗, list empty, list, filter, get_by_id, get_by_id 404, update, update 404, update duplicate, delete, delete 404, pagination.
 - **Tests live aislados**: los que tocan servicios externos reales (enviar email a Brevo, cobrar, subir a Cloudinary) van en archivos `test_*_live.py` marcados `@pytest.mark.live` y **excluidos por defecto** (`addopts = -m "not live"` en `pytest.ini`). Solo corren a demanda con `pytest -m live`. Esto evita que la suite común dispare llamadas pagadas/irreversibles. Condicional extra si requieren credencial: `@pytest.mark.skipif(not settings.TEST_BREVO_EMAIL)`.
@@ -38,6 +38,7 @@ async def test_send_contact_email_live():
 
 ```python
 from uuid import uuid4, UUID
+import socket
 import pytest
 from httpx import AsyncClient, ASGITransport
 from sqlalchemy import text
@@ -55,8 +56,15 @@ from src.main import app
 ADMIN_USER_ID = UUID("00000000-0000-0000-0000-000000000001")
 ADMIN_TOKEN = create_access_token(ADMIN_USER_ID, "admin")
 
-# Guard de destino: nunca ejecutar DDL destructivo contra una BD no aislada.
-# Comprueba el DESTINO completo (host/puerto/nombre), no solo el nombre.
+# Guard de destino: barrera temprana contra una BD no aislada. Comprueba el
+# DESTINO completo (host resuelto a IP, puerto, nombre), no solo el nombre.
+def _resolve_host(host: str) -> set:
+  try:
+    return {info[4][0] for info in socket.getaddrinfo(host, None)}
+  except OSError:
+    return {host}
+
+
 _test = make_url(settings.TEST_DATABASE_URL)
 _dev = make_url(settings.DATABASE_URL) if getattr(settings, "DATABASE_URL", None) else None
 if not _test.database or not _test.database.endswith("_test") or _test.database == "postgres":
@@ -64,7 +72,8 @@ if not _test.database or not _test.database.endswith("_test") or _test.database 
         "TEST_DATABASE_URL debe apuntar a una BD de pruebas dedicada "
         f"(nombre terminado en '_test'), no '{_test.database}'."
     )
-if _dev and (_test.host, _test.port, _test.database) == (_dev.host, _dev.port, _dev.database):
+if _dev and _resolve_host(_test.host or "") & _resolve_host(_dev.host or "") \
+        and (_test.port, _test.database) == (_dev.port, _dev.database):
     raise RuntimeError(
         "TEST_DATABASE_URL apunta al MISMO destino que DATABASE_URL (dev/producción); "
         "rechazado para no borrar datos."
@@ -74,33 +83,30 @@ engine = create_async_engine(settings.TEST_DATABASE_URL, poolclass=NullPool)
 TestingSessionLocal = async_sessionmaker(autocommit=False, autoflush=False, bind=engine, class_=AsyncSession)
 
 
-async def _clean_tables(session: AsyncSession):
-  """Delete all data from test-relevant tables in FK-safe order."""  # enlistar tablas del proyecto
-  ...
-
-
-# Solo las tablas de ESTE proyecto (mismo prefijo que prod). NUNCA dropear
-# todas las de la BD compartida.
+# Solo las tablas de ESTE proyecto (mismo prefijo que prod), para limpiar entre
+# tests. El aislamiento entre proyectos lo da la BD dedicada, no esta lista.
 TEST_TABLES = ["app_wishlist_items", "app_reviews", "app_products",
                "app_categories", "app_user_sessions", "app_users", "app_roles"]
 
 
-async def _drop_test_tables(conn):
-  for table in TEST_TABLES:
-    await conn.execute(text(f"DROP TABLE IF EXISTS {table} CASCADE"))
+async def _clean_tables(session: AsyncSession):
+  """Vacía las tablas del proyecto entre tests (reset de identidades)."""
+  await session.execute(
+    text(f"TRUNCATE {', '.join(TEST_TABLES)} RESTART IDENTITY CASCADE")
+  )
+  await session.commit()
 
 
 @pytest.fixture(scope="module")
 async def setup_db():
+  # Reset del esquema: seguro SOLO porque la BD es dedicada y el rol no tiene
+  # permisos sobre producción. No usar este patrón sobre una BD compartida.
   async with engine.begin() as conn:
-    await _drop_test_tables(conn)
+    await conn.execute(text("DROP SCHEMA IF EXISTS public CASCADE"))
+    await conn.execute(text("CREATE SCHEMA public"))
     await conn.run_sync(Base.metadata.create_all)
   yield
-  # Solo dropear las tablas de este proyecto (no tocar las de otros que
-  # comparten la BD de testing).
-  async with engine.begin() as conn:
-    await _drop_test_tables(conn)
-  # OPCIONAL: por defecto NO usar drop_all sobre una BD compartida.
+  # Sin teardown destructivo: la BD de tests es desechable y se resetea al inicio.
 
 
 @pytest.fixture
@@ -155,4 +161,4 @@ async def test_create_product_duplicate_name(client, db):
   assert "already exists" in response.json()["detail"]
 ```
 
-**Flujo de trabajo**: `pytest` corre contra `TEST_DATABASE_URL` (BD dedicada `*_test`); **nunca** toca la BD de desarrollo/producción. Para repoblar la BD de desarrollo (p. ej. tras un seed manual) usa `repopulate_db.py --force`; el seed debe ser idempotente (FKs por natural keys, no IDs en duro).
+**Flujo de trabajo**: `pytest` corre contra `TEST_DATABASE_URL` (BD dedicada `*_test`, esquema reseteado al inicio); **nunca** toca la BD de desarrollo/producción, y el rol de tests **no debe tener permisos de DDL/DROP** sobre ella. Para repoblar la BD de desarrollo (p. ej. tras un seed manual) usa `repopulate_db.py --force`; el seed debe ser idempotente (FKs por natural keys, no IDs en duro).

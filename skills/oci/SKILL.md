@@ -16,7 +16,7 @@ description: "Arquitectura, costes y despliegues en Oracle Cloud Infrastructure 
 | Solo contenerizar / orquestar | `docker` / `kubernetes` |
 | Solo publicar un sitio (no infraestructura) | `github-actions` |
 
-> **Frescura (verificado 2026-10-14):** el **Always Free** de OCI quedó en **2 OCPU + 12 GB RAM** (Ampere A1) y **200 GB de Block Volume**, reducido desde 4 OCPU / 24 GB; las cuentas Always Free debieron ajustarse **antes del 2026-08-18**. Fuente oficial: `docs.oracle.com/.../Always_Free_Resources.htm`.
+> **Frescura (verificado 2026-10-17):** el **Always Free** de OCI quedó en **2 OCPU + 12 GB RAM** (Ampere A1) y **200 GB de Block Volume**, reducido desde 4 OCPU / 24 GB (cambio efectivo ~2026-06-15; los incumplimientos empezaron a deshabilitarse ~2026-08-18, según reportes de la comunidad/InfoQ, no un aviso oficial). Fuente oficial: `docs.oracle.com/en-us/iaas/Content/FreeTier/freetier_topic-Always_Free_Resources.htm`.
 
 ## Always Free (límites duros)
 
@@ -37,9 +37,10 @@ description: "Arquitectura, costes y despliegues en Oracle Cloud Infrastructure 
 1. **Etiqueta "Always Free Eligible"**: si no aparece al crear el recurso, **no lo crees**.
 2. **Home region**: los volúmenes gratuitos solo valen en la home region; crear recursos en otra región genera cargo.
 3. **Budget el día 1**: `Billing & Cost Management → Budgets` (p. ej. USD 1/mes) con alertas al **50 % y 100 %**.
-4. **Reclamo por inactividad**: Oracle **borra** instancias Always Free si 7 días seguidos tienen CPU p95 < 20 %, red < 20 % o memoria < 20 % (A1). Mantener actividad mínima (un cron o un sitio con visitas).
-5. **IPs reservadas sin adjuntar cobran**: solo son gratis mientras estén asignadas a una instancia en uso.
-6. **Discos, snapshots y backups**: todo lo que exceda los 200 GB / 5 backups es cargo.
+4. **Reclamo por inactividad**: Oracle **detiene/recupera** instancias Always Free si en **7 días seguidos** se cumplen **las tres**: CPU p95 < 20 %, red < 20 % y memoria < 20 % (A1). Es reiniciable mientras el shape esté disponible; se evita con actividad mínima (un cron o un sitio con visitas).
+5. **Exceder los límites de Always Free**: si tienes más recursos Ampere A1 de los que permite la cuenta, Oracle **deshabilita y luego elimina** las instancias tras **30 días** salvo que pases a Pay As You Go.
+6. **IPs reservadas sin adjuntar cobran**: solo son gratis mientras estén asignadas a una instancia en uso.
+7. **Discos, snapshots y backups**: todo lo que exceda los 200 GB / 5 backups es cargo.
 
 ## Decisiones y convenciones
 

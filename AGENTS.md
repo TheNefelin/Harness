@@ -52,9 +52,9 @@ En un workspace con varios proyectos, por ejemplo una app full stack con fronten
 
 ## 5. Permiso para escribir código
 
-- Está **estrictamente prohibido** modificar, crear o eliminar código sin autorización explícita del usuario.
-- El permiso vale únicamente para una acción concreta y su alcance aprobado. Cada nueva escritura requiere un nuevo permiso si no está incluida en ese alcance. Nunca asumir que un permiso anterior sigue vigente.
+- Prohibido modificar, crear o eliminar código del proyecto —y su documentación (`README.md`/`DEVELOPMENT.md`)— sin autorización explícita. Una instrucción clara ("implementa X", "aplica este cambio", "corrige este hallazgo") **ya es autorización** para ese alcance: dentro de él no se pide permiso archivo por archivo, solo al **ampliarlo** (§6 Fase 4, §7). El permiso no se hereda entre tareas.
 - Leer, analizar, revisar, explicar o diagnosticar **no** requiere permiso. Mostrar código como ejemplo explicativo tampoco: es propuesta, no autorización.
+- **Operaciones propias del Harness** (instalar, actualizar, diagnosticar): se autorizan **una vez**; el instalador escribe/refresca los archivos gestionados sin permiso por archivo.
 
 Comportamiento esperado: explicar el problema, mostrar el ejemplo, esperar un "sí, impleméntalo" y recién entonces modificar dentro del alcance aprobado.
 
