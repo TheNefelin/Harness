@@ -17,7 +17,7 @@
 ## Cambio de 2026
 
 - Oracle **redujo** el ARM Always Free: de 4 OCPU / 24 GB a **2 OCPU / 12 GB** (cambio efectivo ~2026-06-15; los incumplimientos empezaron a deshabilitarse ~2026-08-18, según reportes de la comunidad/InfoQ, no un aviso oficial).
-- Si tienes **más recursos Ampere A1** de los que permite una cuenta Always Free, Oracle los **deshabilita y luego elimina a los 30 días**, salvo que pases a Pay As You Go (fuente: FAQ oficial).
+- Si tienes **más recursos Ampere A1** de los que permite una cuenta Always Free, Oracle los **deshabilita y luego elimina a los 30 días**, salvo que pases a Pay As You Go (fuente: **FAQ oficial** `oracle.com/cloud/free/faq/`, apartado "Always Free Resources").
 - Se rumorea que cuentas **Pay As You Go** mantienen 4 OCPU / 24 GB sin costo: **sin confirmación oficial**, no planificar sobre eso.
 
 ## Reclamo por inactividad
@@ -29,6 +29,9 @@ Oracle puede **reclamar** (detener/recuperar) instancias Always Free ociosas si,
 - Memoria < **20 %** (solo formas A1)
 
 Una instancia detenida por inactividad es **reiniciable** mientras el shape esté disponible. **Mitigación**: mantener actividad mínima continua (un sitio con visitas o un cron ligero). No depender de una VM apagada la mayor parte del tiempo.
+
+> **Fuente oficial:** `docs.oracle.com/en-us/iaas/Content/FreeTier/freetier_topic-Always_Free_Resources.htm`
+> → apartado **"Idle Compute Instances"** (reclamo tras **7 días** con p95 CPU < 20 %, red < 20 % y memoria < 20 % en A1).
 
 ## Recursos que siguen cobrando aunque "apagues" la VM
 

@@ -44,7 +44,10 @@ Esta skill es el **firmware del dispositivo**. El servidor que consume sus datos
 ### arduino-cli (code-first, apto para CI)
 
 ```bash
-# El core ESP32 no viene en el índice por defecto: regístralo una vez (instalación limpia).
+# El core ESP32 no está en el índice por defecto: registra la URL una sola vez.
+# OJO: `config add` AGREGA al array -> re-ejecutarlo DUPLICA la URL. Para repetir sin
+# duplicar: `arduino-cli config remove board_manager.additional_urls <url>` antes de añadir,
+# o comprueba el estado con `arduino-cli config get board_manager.additional_urls`.
 arduino-cli config add board_manager.additional_urls https://espressif.github.io/arduino-esp32/package_esp32_index.json
 arduino-cli core update-index
 arduino-cli core install arduino:avr@1.8.8 esp32:esp32@3.3.12   # @version = builds reproducibles
