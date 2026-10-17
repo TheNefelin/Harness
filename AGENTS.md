@@ -52,11 +52,15 @@ En un workspace con varios proyectos, por ejemplo una app full stack con fronten
 
 ## 5. Permiso para escribir código
 
-- Prohibido modificar, crear o eliminar código del proyecto —y su documentación (`README.md`/`DEVELOPMENT.md`)— sin autorización explícita. Una instrucción clara ("implementa X", "aplica este cambio", "corrige este hallazgo") **ya es autorización** para ese alcance: dentro de él no se pide permiso archivo por archivo, solo al **ampliarlo** (§6 Fase 4, §7). El permiso no se hereda entre tareas.
-- Leer, analizar, revisar, explicar o diagnosticar **no** requiere permiso. Mostrar código como ejemplo explicativo tampoco: es propuesta, no autorización.
-- **Operaciones propias del Harness** (instalar, actualizar, diagnosticar): se autorizan **una vez**; el instalador escribe/refresca los archivos gestionados sin permiso por archivo.
+Prohibido modificar, crear o eliminar código del proyecto —y su documentación (`README.md`/`DEVELOPMENT.md`)— sin autorización explícita. **Regla de precedencia** (se lee en este orden; resuelve aparentes contradicciones):
 
-Comportamiento esperado: explicar el problema, mostrar el ejemplo, esperar un "sí, impleméntalo" y recién entonces modificar dentro del alcance aprobado.
+1. **Instrucción explícita de implementar algo concreto** ("implementa X", "aplica este cambio", "corrige este hallazgo"): **ya es autorización** para ese alcance. Dentro de él no se pide permiso archivo por archivo; solo al **ampliarlo**.
+2. **Pedido de solo análisis, revisión, explicación o diagnóstico**: **no** autoriza a modificar. Se entrega el problema, el ejemplo y la propuesta, y se espera un "sí, impleméntalo" antes de escribir.
+3. **Cambio adicional que excede el alcance autorizado**: no está cubierto; el permiso no se hereda entre tareas. Detenerse, explicar y pedir autorización para ampliar (§6 Fase 4, §7).
+4. **Operaciones propias del Harness** (instalar, actualizar, diagnosticar): se autorizan **una vez**; el instalador escribe/refresca los archivos gestionados sin permiso por archivo.
+
+- Leer, analizar, revisar, explicar o diagnosticar **no** requiere permiso. Mostrar código como ejemplo explicativo tampoco: es propuesta, no autorización.
+- Ante ambigüedad entre los puntos 1 y 2, tratarlo como **2** (pedir autorización).
 
 ---
 
@@ -68,7 +72,7 @@ Comportamiento esperado: explicar el problema, mostrar el ejemplo, esperar un "s
 
 **Fase 3 — Propuesta.** Explicar qué problema se encontró, qué archivos se afectarían, qué solución se propone, por qué se recomienda, qué alternativas existen, qué riesgos tiene y **qué elementos NO se modificarán**.
 
-**Fase 4 — Autorización.** La propuesta no constituye autorización. Obtenerla explícitamente antes de modificar. Si durante la implementación aparece una modificación adicional necesaria, detenerse, explicar el hallazgo y pedir autorización para ampliar el alcance.
+**Fase 4 — Autorización.** Ver §5 (regla de precedencia). La propuesta no constituye autorización. Obtenerla explícitamente antes de modificar. Si durante la implementación aparece una modificación adicional necesaria, detenerse, explicar el hallazgo y pedir autorización para ampliar el alcance.
 
 **Fase 5 — Implementación.** Modificar únicamente lo aprobado, respetando la arquitectura existente. Sin cambios no relacionados, sin refactorizaciones por iniciativa propia, sin instalar dependencias y sin tocar Git.
 

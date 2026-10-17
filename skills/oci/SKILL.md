@@ -37,7 +37,7 @@ description: "Arquitectura, costes y despliegues en Oracle Cloud Infrastructure 
 1. **Etiqueta "Always Free Eligible"**: si no aparece al crear el recurso, **no lo crees**.
 2. **Home region**: los volúmenes gratuitos solo valen en la home region; crear recursos en otra región genera cargo.
 3. **Budget el día 1**: `Billing & Cost Management → Budgets` (p. ej. USD 1/mes) con alertas al **50 % y 100 %**.
-4. **Reclamo por inactividad**: Oracle **detiene/recupera** instancias Always Free si en **7 días seguidos** se cumplen **las tres**: CPU p95 < 20 %, red < 20 % y memoria < 20 % (A1). Es reiniciable mientras el shape esté disponible; se evita con actividad mínima (un cron o un sitio con visitas).
+4. **Reclamo por inactividad**: Oracle puede **reclamar** instancias Always Free si en **7 días seguidos** se cumplen **las tres**: CPU p95 < 20 %, red < 20 % y memoria < 20 % (A1). Se evita con actividad mínima (un cron o un sitio con visitas); la doc no garantiza que una instancia reclamada se recupere.
 5. **Exceder los límites de Always Free**: si tienes más recursos Ampere A1 de los que permite la cuenta, Oracle **deshabilita y luego elimina** las instancias tras **30 días** salvo que pases a Pay As You Go.
 6. **IPs reservadas sin adjuntar cobran**: solo son gratis mientras estén asignadas a una instancia en uso.
 7. **Discos, snapshots y backups**: todo lo que exceda los 200 GB / 5 backups es cargo.

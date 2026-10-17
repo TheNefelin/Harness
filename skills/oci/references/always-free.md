@@ -8,7 +8,7 @@
 |---------|--------|-------|
 | Compute ARM (`VM.Standard.A1.Flex`) | **2 OCPU + 12 GB RAM** totales | ≈1.500 OCPU-h y 9.000 GB-h/mes; es **por cuenta** |
 | Compute x86 (`VM.Standard.E2.1.Micro`) | 2 instancias | 1/8 OCPU, 1 GB cada una |
-| Block Volume | 200 GB (boot + datos) | Boot volume mínimo ~47 GB por instancia A1 |
+| Block Volume | 200 GB (boot + datos) | Boot volume predeterminado y mínimo: 50 GB |
 | Backups de volúmenes | 5 | Más = cargo |
 | Object Storage | ~20 GB | Con ciclo de vida a Archive conviene |
 | Egress (salida) | 10 TB/mes | Generoso comparado con otros |
@@ -22,13 +22,13 @@
 
 ## Reclamo por inactividad
 
-Oracle puede **reclamar** (detener/recuperar) instancias Always Free ociosas si, durante **7 días seguidos**, se cumplen **las tres** condiciones:
+Oracle puede **reclamar** instancias Always Free ociosas si, durante **7 días seguidos**, se cumplen **las tres** condiciones:
 
 - CPU percentil 95 < **20 %**
 - Red < **20 %**
 - Memoria < **20 %** (solo formas A1)
 
-Una instancia detenida por inactividad es **reiniciable** mientras el shape esté disponible. **Mitigación**: mantener actividad mínima continua (un sitio con visitas o un cron ligero). No depender de una VM apagada la mayor parte del tiempo.
+**Mitigación**: mantener actividad mínima continua (un sitio con visitas o un cron ligero). La doc oficial no garantiza que una instancia reclamada pueda recuperarse; no conviene depender de una VM apagada la mayor parte del tiempo.
 
 > **Fuente oficial:** `docs.oracle.com/en-us/iaas/Content/FreeTier/freetier_topic-Always_Free_Resources.htm`
 > → apartado **"Idle Compute Instances"** (reclamo tras **7 días** con p95 CPU < 20 %, red < 20 % y memoria < 20 % en A1).
