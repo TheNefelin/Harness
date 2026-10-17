@@ -7,7 +7,7 @@ description: Firmware de Arduino para placas AVR (Uno/Nano/Mega) y ESP32/ESP8266
 
 > Firmware para microcontroladores (AVR y ESP32/ESP8266): decisiones, patrones y anti-patrones; no es un tutorial de electrónica.
 
-> **Frescura (verificado 2026-10-15):** toolchain citado: `arduino-cli` 1.5.1, Arduino IDE 2.3.10 y PlatformIO Core 6.2.0 (requiere Python ≥ 3.9). Cores: AVR 1.8.8 y ESP32 3.3.x (la 4.0 sigue en RC). Fuentes: `github.com/arduino/arduino-cli/releases`, `github.com/arduino/arduino-ide/releases`, `github.com/platformio/platformio-core/releases`, `github.com/espressif/arduino-esp32/releases`.
+> **Frescura (verificado 2026-10-16):** toolchain citado: `arduino-cli` 1.5.1, Arduino IDE 2.3.10 y PlatformIO Core 6.2.0 (requiere Python ≥ 3.9). Cores: AVR **1.8.8** y ESP32 **3.3.12** (la 4.0 sigue en RC). Plataformas de PlatformIO: `atmelavr@5.3.0`, `espressif32@7.1.3`. Fuentes: `github.com/arduino/arduino-cli/releases`, `github.com/arduino/arduino-ide/releases`, `github.com/platformio/platformio-core/releases`, `github.com/espressif/arduino-esp32/releases`.
 
 ## Cuándo NO usar
 
@@ -31,7 +31,7 @@ Esta skill es el **firmware del dispositivo**. El servidor que consume sus datos
 - **Tipos de ancho fijo**: `uint8_t`/`uint16_t`/`uint32_t`; `unsigned long` para tiempo. `int` es **16 bits** en AVR (desborda a 32767).
 - **Memoria (crítico en AVR)**: evita `String` (fragmenta el heap); usa `char[]` + `snprintf`. Literales a Flash con `F("...")`; constantes en `PROGMEM`.
 - **Entradas**: `INPUT_PULLUP` para botones (activos a LOW) y **debounce** por `millis()`.
-- **Interrupciones**: ISR **corta** (leer y marcar); variables compartidas `volatile`; en ESP32 marca la ISR `IRAM_ATTR` y no llames funciones no-IRAM. Dentro de una ISR `millis()` no avanza.
+- **Interrupciones**: ISR **corta** (leer y marcar); variables compartidas `volatile`; en ESP32 marca la ISR `IRAM_ATTR` y no llames funciones no-IRAM. **En AVR `millis()` no avanza dentro de la ISR** (interrupciones deshabilitadas): no dependas de él para medir tiempo ahí (usa el contador del periférico).
 - **ADC**: 10 bits en AVR (0–1023), 12 bits en ESP32 (0–4095). Nunca superes `Vref` (5 V AVR / 3,3 V ESP); ajusta con divisor o atenuación.
 - **PWM**: `analogWrite` en AVR. En ESP32 usa `ledc` (`ledcAttach`/`ledcWrite` en core 3.x; `ledcSetup`+`ledcAttachPin` en 2.x).
 - **Buses**: `Wire` para I2C (pull-ups de 4,7 k), `SPI` con `CS` explícito. No compartas un bus sin arbitrar.
@@ -44,8 +44,10 @@ Esta skill es el **firmware del dispositivo**. El servidor que consume sus datos
 ### arduino-cli (code-first, apto para CI)
 
 ```bash
+# El core ESP32 no viene en el índice por defecto: regístralo una vez (instalación limpia).
+arduino-cli config add board_manager.additional_urls https://espressif.github.io/arduino-esp32/package_esp32_index.json
 arduino-cli core update-index
-arduino-cli core install arduino:avr esp32:esp32        # AVR + ESP32
+arduino-cli core install arduino:avr@1.8.8 esp32:esp32@3.3.12   # @version = builds reproducibles
 arduino-cli lib install "Adafruit BME280 Library"
 arduino-cli compile --fqbn arduino:avr:uno ./mi_sketch
 arduino-cli upload  --fqbn arduino:avr:uno -p COM3 ./mi_sketch
@@ -57,19 +59,21 @@ FQBN típicos: `arduino:avr:uno`, `arduino:avr:nano`, `esp32:esp32:esp32`, `esp8
 ### PlatformIO (proyecto con dependencias fijadas)
 
 ```ini
-; platformio.ini
+; platformio.ini — fija la versión de plataforma (@x.y.z) para builds reproducibles.
 [env:uno]
-platform = atmelavr
+platform = atmelavr@5.3.0
 board = uno
 framework = arduino
 monitor_speed = 115200
 
 [env:esp32]
-platform = espressif32
+platform = espressif32@7.1.3
 board = esp32dev
 framework = arduino
 monitor_speed = 115200
 ```
+
+Sin `@version`, PlatformIO usa la última plataforma (rompe la reproducibilidad que pide el checklist); fija la que uses.
 
 ```bash
 pio run                 # compila

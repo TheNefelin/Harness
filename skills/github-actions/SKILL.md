@@ -153,8 +153,8 @@ jobs:
       - uses: actions/setup-node@v7
         with: { node-version: '24', cache: 'npm' }
       - run: npm ci
+      - uses: actions/configure-pages@v6   # antes del build: puede configurar el generador
       - run: npm run build            # genera el directorio de salida, p. ej. dist/
-      - uses: actions/configure-pages@v6
       - uses: actions/upload-pages-artifact@v5
         with:
           path: dist

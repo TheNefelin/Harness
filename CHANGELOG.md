@@ -34,6 +34,9 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es/1.1.0/); vers
 - `install.ps1`: `Get-TreeHash` calculaba la ruta relativa con `Substring($Path.Length)`; con una ruta **corta 8.3** (p. ej. `RUNNER~1`, la de `%TEMP%` en el runner de CI) los hijos devuelven `FullName` largo y el hash salía mal → toda skill se veía divergente en `-Update` y creaba `.harness-backup` (falso conflicto, CI en rojo). Ahora canonicaliza la raíz con `Get-Item`.
 - `skills/harness-install`: la delimitación con `harness-freshness` era **unidireccional**; ahora su `description` también excluye el caso (`NO para ... 'harness-freshness'`).
 - `install.ps1`: `.DESCRIPTION` desactualizado — la forma de `.harness.json` ya lista `schemaVersion` (antes omitía la clave que el script escribe y que el README documenta); añadido un bloque `.NOTES` con el diagnóstico `-Verbose` y el puntero a `tools/test.ps1`.
+- `skills/github-actions`: en el patrón de GitHub Pages, `configure-pages` pasa **antes** de `npm run build` (la action configura generadores estáticos, así que el build no debe adelantársele).
+- `skills/arduino`: se registra el **índice de Espressif** (`board_manager.additional_urls`) antes de instalar `esp32:esp32`, necesario en instalación limpia; ejemplos con **versión fijada** (`arduino:avr@1.8.8`/`esp32:esp32@3.3.12`, `atmelavr@5.3.0`/`espressif32@7.1.3`); y el claim de `millis()` se acota a **AVR** (en AVR no avanza dentro de la ISR; no se generaliza a ESP32). Marcador de frescura a `2026-10-16`.
+- `skills/fastapi`: el guard de la BD de tests compara ahora el **destino completo** (host/puerto/nombre) con la de desarrollo/producción, no solo el nombre; el sufijo `_test` queda como comprobación **adicional**, no como única barrera.
 
 ### Documentación
 
@@ -49,6 +52,7 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es/1.1.0/); vers
 - `tools/check.ps1`: portabilidad de separadores de ruta (LF/cross-platform).
 - README (`Actualizar`): nota de **portabilidad de la instalación** — no guarda la ruta del repo (solo `version`+`hash` por skill), así que mover o clonar el repo **no requiere reinstalar**; `-Update` corre desde la nueva ubicación. Ejemplos con placeholders neutros (`D:\ruta\al\...`) en README e `install.ps1`; anti-patrón equivalente en `skills/harness-install`.
 - `skills/harness-install`: sección **"Actualizar: agregar o quitar skills"** (re-ejecutar con `-Skills` del **set completo**; `-Update` sin `-Skills` solo refresca) y anti-patrón de pasar solo la skill nueva (podaría el resto).
+- README y `CONTRIBUTING.md`: las **evals** se etiquetan como **heurísticas de routing** (proxy léxico sobre las `description`; no ejecutan openCode ni validan el routing real del agente), para no venderlas como validación del mecanismo de activación.
 
 ## [0.1.0] - 2026-10-13
 
