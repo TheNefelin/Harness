@@ -7,6 +7,8 @@ description: "Arquitectura, costes y despliegues en Oracle Cloud Infrastructure 
 
 > Despliegue en Oracle Cloud Infrastructure con la particularidad de que su **Always Free es generoso pero estricto**: si excedes los límites, los recursos se terminan. Anti-patrones y patrones.
 
+**Referencias** (se leen bajo demanda, rutas relativas a esta skill): `references/always-free.md` (límites, cambio de 2026, reclamo por inactividad y costes si sales de free), `references/consola.md` (mapa de la consola: dónde viven red, storage, IPs y costes, y el gotcha de firewall/Docker).
+
 ## Cuándo NO usar
 
 | Situación | Skill |

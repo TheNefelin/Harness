@@ -254,6 +254,30 @@ try {
     Assert ($r.Exit -ne 0) 'check.ps1 -Strict falla con umbral de solapamiento minimo'
     $r = Invoke-Script $Check @('-MaxAgeDays', '0')
     Assert ($r.Exit -ne 0) 'check.ps1 falla con MaxAgeDays 0 (frescura)'
+
+    # --- check.ps1: referencias citadas/alcanzables -------------------------
+    Section 'check.ps1 referencias (citadas y alcanzables)'
+    function Write-NoBom { param([string]$Path, [string]$Text) [System.IO.File]::WriteAllText($Path, $Text, (New-Object System.Text.UTF8Encoding($false))) }
+
+    $fa = New-Project 'chk-refs-ok'
+    New-Item -ItemType Directory -Force -Path (Join-Path $fa 'tools'), (Join-Path $fa 'evals'), (Join-Path $fa 'skills/demo/references/sub') | Out-Null
+    Copy-Item -LiteralPath $Check -Destination (Join-Path $fa 'tools/check.ps1')
+    Set-Content -LiteralPath (Join-Path $fa 'evals/triggers.json') -Value '[]'
+    Write-NoBom (Join-Path $fa 'skills/demo/SKILL.md') "---`nname: demo`ndescription: `"Demo para pruebas`"`n---`n`n# Demo`n`nVer references/a.md para el detalle.`n"
+    Write-NoBom (Join-Path $fa 'skills/demo/references/a.md') "# A`n`nVer references/sub/b.md.`n"
+    Write-NoBom (Join-Path $fa 'skills/demo/references/sub/b.md') "# B`n`nContenido.`n"
+    $r = Invoke-Script (Join-Path $fa 'tools/check.ps1') @()
+    Assert ($r.Exit -eq 0) 'check pasa con referencias citadas (incl. anidada)'
+
+    $fb = New-Project 'chk-refs-orphan'
+    New-Item -ItemType Directory -Force -Path (Join-Path $fb 'tools'), (Join-Path $fb 'evals'), (Join-Path $fb 'skills/demo/references') | Out-Null
+    Copy-Item -LiteralPath $Check -Destination (Join-Path $fb 'tools/check.ps1')
+    Set-Content -LiteralPath (Join-Path $fb 'evals/triggers.json') -Value '[]'
+    Write-NoBom (Join-Path $fb 'skills/demo/SKILL.md') "---`nname: demo`ndescription: `"Demo para pruebas`"`n---`n`n# Demo`n"
+    Write-NoBom (Join-Path $fb 'skills/demo/references/orphan.md') "# Huerfana`n"
+    $r = Invoke-Script (Join-Path $fb 'tools/check.ps1') @()
+    Assert ($r.Exit -ne 0) 'check falla con referencia no citada'
+    Assert ($r.Out -match 'orphan') 'check nombra la referencia huerfana'
 }
 catch {
     $script:Fail++

@@ -226,17 +226,18 @@ Las actualizaciones son **seguras**: primero preparan la copia en un directorio 
 El catálogo se autoverifica con un script **determinista**, sin depender de openCode: sirve en local y en CI.
 
 ```powershell
-.\tools\check.ps1            # estructura, triggers, evals y frescura
+.\tools\check.ps1            # estructura, referencias, triggers, evals y frescura
 .\tools\check.ps1 -Strict    # los avisos también cuentan como fallo
 .\tools\check.ps1 -MaxAgeDays 120 -OverlapThreshold 0.4
 ```
 
-Comprueba cuatro cosas sobre `skills/`:
+Comprueba cinco cosas sobre `skills/`:
 
 1. **Estructura** — cada `SKILL.md` tiene frontmatter, `name` igual a su carpeta, `description` presente y acotada, y cuerpo ≤ 400 líneas.
-2. **Solapamiento de triggers** — cuánto se pisan las `description` (vocabulario distintivo, ignorando el bloque `NO ...`). Avisa si dos skills superan el umbral de Jaccard (`-OverlapThreshold`, **0,5** por defecto; el catálogo actual no pasa de 0,25, así que hay margen ×2).
-3. **Evals de disparo (heurísticas de routing)** — casos curados en `evals/triggers.json` (`{id, tipo, prompt, expect}`: `expect` es el nombre de la skill esperada, `"none"` o `null` para negativos). Exige que **gane** la skill esperada, no solo que aparezca. Compara el vocabulario del prompt contra las `description`: **no ejecuta openCode** ni comprueba qué skill activa el agente de verdad, así que mide **regresiones léxicas**, no el routing real. El desglose por `tipo` (positivo/ambiguo/frontera/negativo) sale en el resumen.
-4. **Frescura** — antigüedad de los marcadores `verificado YYYY-MM-DD`; **falla** si superan `-MaxAgeDays` (180 por defecto).
+2. **Referencias** — cada `references/**.md` está **citado** y es **alcanzable** desde su `SKILL.md` (directamente o encadenando referencias; admite sub-referencias). Evita el *progressive disclosure roto*: referencias que nunca se leen porque ningún archivo las nombra.
+3. **Solapamiento de triggers** — cuánto se pisan las `description` (vocabulario distintivo, ignorando el bloque `NO ...`). Avisa si dos skills superan el umbral de Jaccard (`-OverlapThreshold`, **0,5** por defecto; el catálogo actual no pasa de 0,25, así que hay margen ×2).
+4. **Evals de disparo (heurísticas de routing)** — casos curados en `evals/triggers.json` (`{id, tipo, prompt, expect}`: `expect` es el nombre de la skill esperada, `"none"` o `null` para negativos). Exige que **gane** la skill esperada, no solo que aparezca. Compara el vocabulario del prompt contra las `description`: **no ejecuta openCode** ni comprueba qué skill activa el agente de verdad, así que mide **regresiones léxicas**, no el routing real. El desglose por `tipo` (positivo/ambiguo/frontera/negativo) sale en el resumen.
+5. **Frescura** — antigüedad de los marcadores `verificado YYYY-MM-DD`; **falla** si superan `-MaxAgeDays` (180 por defecto).
 
 Sale con código **0** (ok, con avisos) o **1** (fallo), igual que `install.ps1 -Doctor`. El workflow [`.github/workflows/check.yml`](.github/workflows/check.yml) lo ejecuta en cada push/PR y **una vez al mes** (para detectar drift de frescura aunque no haya commits).
 

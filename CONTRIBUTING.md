@@ -58,12 +58,12 @@ Toda skill del catálogo se evalúa con esta rúbrica. Distingue lo **universal*
 | Anti-patrones | Universal | Al menos una sección de errores comunes; específicos para IA (p. ej. "afirmar sin verificar"). |
 | Honestidad sobre límites | Universal | Lo que la skill no puede verificar se declara; nada de resultados inventados. |
 | Longitud | Universal | Cuerpo ≤ 400 líneas. Lo valida `check.ps1`. |
-| Progressive disclosure | Condicional | `references/*.md` cuando la skill es larga (roza 400) o ramificada. Una guía secuencial y corta va autocontenida. |
+| Progressive disclosure | Condicional | `references/*.md` cuando la skill es larga (roza 400) o ramificada. Una guía secuencial y corta va autocontenida. Cada reference se cita en el `SKILL.md` (o en otra referencia alcanzable) con **cuándo leerlo**: `check.ps1` falla si una referencia no es alcanzable. |
 | Marcador de frescura | Condicional | Solo si hay datos que cambian (versiones, límites, precios, fechas). Las de método/principios no lo llevan. |
 
 Los "universal" son obligatorios; los "condicional" se juzgan caso a caso, no se fuerzan. Si dos skills se solapan, la rúbrica no basta: se ajustan las `description` (ver abajo).
 
-**Por qué 400 y references/ (tokens).** Cada skill aporta su `description` al contexto **siempre** (es lo que permite elegirla), mientras que el cuerpo de `SKILL.md` se carga **solo al activarse**. De ahí dos presupuestos distintos: `description` corta y distintiva (≤1024 caracteres; lo vigila `check.ps1`) y cuerpo acotado (≤400 líneas). Cuando una skill roza el límite o se ramifica, mueve el detalle a `references/*.md` (se cargan bajo demanda) y deja el `SKILL.md` como índice. `check.ps1` falla por encima de 400 y, sin bloquear, lista las que superan el **80%** para actuar antes.
+**Por qué 400 y references/ (tokens).** Cada skill aporta su `description` al contexto **siempre** (es lo que permite elegirla), mientras que el cuerpo de `SKILL.md` se carga **solo al activarse**. De ahí dos presupuestos distintos: `description` corta y distintiva (≤1024 caracteres; lo vigila `check.ps1`) y cuerpo acotado (≤400 líneas). Cuando una skill roza el límite o se ramifica, mueve el detalle a `references/*.md` (se cargan bajo demanda) y deja el `SKILL.md` como índice. Cada reference debe **citarse** en el `SKILL.md` (o en otra referencia alcanzable) indicando **cuándo leerla**: sin cita, openCode no la carga y nunca se lee. `check.ps1` falla por encima de 400, si una referencia no es alcanzable, y (sin bloquear) lista las que superan el **80%** para actuar antes.
 
 ## Evals de disparo (heurísticas de routing)
 

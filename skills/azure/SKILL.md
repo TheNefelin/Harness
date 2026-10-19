@@ -7,6 +7,8 @@ description: "Arquitectura, costes y despliegues en Microsoft Azure (VMs, App Se
 
 > Arquitectura, identidad y control de costes en Microsoft Azure. Anti-patrones y patrones; no es un tutorial de portal.
 
+**Referencias** (se leen bajo demanda, rutas relativas a esta skill): `references/free-tier.md` (cantidades por servicio: 12 meses y always-free, y cómo seguir el consumo), `references/costos.md` (budgets, spending limit, diagnóstico y optimización del gasto).
+
 ## Cuándo NO usar
 
 | Situación | Skill |

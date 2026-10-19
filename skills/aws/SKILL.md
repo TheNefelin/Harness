@@ -7,6 +7,8 @@ description: "Arquitectura, seguridad y costes en AWS (EC2, S3, Lambda, IAM, VPC
 
 > Decisión de arquitectura, seguridad de identidad y control de costes en Amazon Web Services. Anti-patrones y patrones; no es un tutorial de consola.
 
+**Referencias** (se leen bajo demanda, rutas relativas a esta skill): `references/free-tier.md` (límites por servicio, planes Free/Paid/legacy y cómo seguir el consumo), `references/costos.md` (budgets, tags, diagnóstico y optimización del gasto).
+
 ## Cuándo NO usar
 
 | Situación | Skill |

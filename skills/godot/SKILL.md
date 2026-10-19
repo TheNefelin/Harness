@@ -7,6 +7,8 @@ description: "Patrón senior para videojuegos en Godot 4 (GDScript y C#): escena
 
 > Arquitectura de escenas, desacoplamiento por señales y rendimiento en Godot 4 (GDScript y C#). Criterios y anti-patrones; no es un tutorial de la interfaz.
 
+**Referencias** (se leen bajo demanda, rutas relativas a esta skill): `references/arquitectura.md` (composición de escenas, señales, autoloads y datos en `Resource`), `references/gdscript.md` (GDScript tipado, migración 3→4 y C#), `references/buenas-practicas.md` (rendimiento, input/física, guardado, testing y export), `references/state-machine.md` (FSM de actores y entrada centralizada).
+
 ## Cuándo NO usar
 
 | Situación | Skill |

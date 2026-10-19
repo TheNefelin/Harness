@@ -14,6 +14,8 @@
       - Evals    : casos de evals/triggers.json -> exige que gane la skill esperada,
                    o que NO se active ninguna cuando 'expect' es 'none'.
       - Frescura : marcadores 'verificado YYYY-MM-DD' y su antiguedad frente a MaxAgeDays.
+      - Referencias: cada references/**.md debe citarse y ser alcanzable desde SKILL.md
+                   (directamente o encadenando; permite sub-referencias).
 
 .PARAMETER MaxAgeDays
     Antiguedad maxima, en dias, de un marcador de frescura. Por defecto 180.
@@ -119,6 +121,15 @@ function Get-SkillMeta {
     return [pscustomobject]@{ Name = $name; Description = $desc; DescRaw = $descRaw; BodyLines = $body; HasFrontmatter = ($fmEnd -ge 0) }
 }
 
+function Test-ReferenceCitation {
+    # Cita = aparece la ruta relativa (references/x.md) o el nombre base (x.md) como token.
+    param([string]$Text, [string]$Rel)
+    if ([string]::IsNullOrEmpty($Text)) { return $false }
+    if ($Text.IndexOf($Rel, [System.StringComparison]::OrdinalIgnoreCase) -ge 0) { return $true }
+    $base = Split-Path $Rel -Leaf
+    return [regex]::IsMatch($Text, '(?<![\w.\-/])' + [regex]::Escape($base))
+}
+
 # --- Cargar catalogo ---------------------------------------------------------
 $catalog = @()
 foreach ($dir in (Get-ChildItem -LiteralPath $SkillsDir -Directory | Sort-Object Name)) {
@@ -152,7 +163,7 @@ Write-Host "Harness - verificacion del catalogo ($N skills, $Root)" -ForegroundC
 
 # --- 1. Lint de skills -------------------------------------------------------
 Write-Host ""
-Write-Host "[1/4] Estructura de skills" -ForegroundColor White
+Write-Host "[1/5] Estructura de skills" -ForegroundColor White
 foreach ($s in $catalog) {
     if (-not $s.Meta.HasFrontmatter) { Add-Fail "frontmatter ausente: $($s.Name)/SKILL.md"; continue }
     if ([string]::IsNullOrWhiteSpace($s.Meta.Name)) { Add-Fail "name ausente: $($s.Name)/SKILL.md" }
@@ -178,9 +189,54 @@ if ($near.Count -gt 0) {
     }
 }
 
-# --- 2. Solapamiento de triggers --------------------------------------------
+# --- 2. Referencias citadas y alcanzables -----------------------------------
 Write-Host ""
-Write-Host "[2/4] Solapamiento de triggers (Jaccard distintivo > $OverlapThreshold)" -ForegroundColor White
+Write-Host "[2/5] Referencias (cada references/**.md citada y alcanzable desde SKILL.md)" -ForegroundColor White
+$orphanRefs = [System.Collections.Generic.List[string]]::new()
+foreach ($s in $catalog) {
+    $skillDir = Split-Path -Parent $s.File
+    $refDir = Join-Path $skillDir 'references'
+    if (-not (Test-Path -LiteralPath $refDir)) { continue }
+    $refFiles = @(Get-ChildItem -LiteralPath $refDir -Recurse -File -Filter *.md)
+    if ($refFiles.Count -eq 0) { continue }
+
+    $texts = @{}
+    $texts['SKILL.md'] = [System.IO.File]::ReadAllText($s.File, [System.Text.Encoding]::UTF8)
+    $relOf = @{}
+    foreach ($rf in $refFiles) {
+        $rel = $rf.FullName.Substring($skillDir.Length).TrimStart('\', '/').Replace('\', '/')
+        $texts[$rel] = [System.IO.File]::ReadAllText($rf.FullName, [System.Text.Encoding]::UTF8)
+        $relOf[$rf.FullName] = $rel
+    }
+
+    $visited = [System.Collections.Generic.HashSet[string]]::new([System.StringComparer]::OrdinalIgnoreCase)
+    $queue = [System.Collections.Generic.Queue[string]]::new()
+    $queue.Enqueue('SKILL.md')
+    while ($queue.Count -gt 0) {
+        $cur = $queue.Dequeue()
+        if (-not $visited.Add($cur)) { continue }
+        $curText = $texts[$cur]
+        foreach ($rel in @($texts.Keys)) {
+            if ($rel -eq 'SKILL.md' -or $visited.Contains($rel)) { continue }
+            if (Test-ReferenceCitation -Text $curText -Rel $rel) { $queue.Enqueue($rel) }
+        }
+    }
+    foreach ($rf in $refFiles) {
+        if (-not $visited.Contains($relOf[$rf.FullName])) { [void]$orphanRefs.Add((Get-RelPath $rf.FullName)) }
+    }
+}
+if ($orphanRefs.Count -eq 0) { Write-Host "  OK: todas las referencias citadas y alcanzables desde SKILL.md." -ForegroundColor Green }
+else {
+    foreach ($o in $orphanRefs) {
+        Add-Fail "referencia no citada (inalcanzable desde SKILL.md): $o"
+        Write-Host "  FALLO  $o" -ForegroundColor Red
+    }
+    Write-Host "         accion: cita el archivo en 'SKILL.md' (o en otra referencia alcanzable) con cuando leerlo" -ForegroundColor DarkGray
+}
+
+# --- 3. Solapamiento de triggers --------------------------------------------
+Write-Host ""
+Write-Host "[3/5] Solapamiento de triggers (Jaccard distintivo > $OverlapThreshold)" -ForegroundColor White
 $distinctive = @{}
 foreach ($s in $catalog) {
     $ds = [System.Collections.Generic.HashSet[string]]::new([System.StringComparer]::OrdinalIgnoreCase)
@@ -222,9 +278,9 @@ if ($rankedPairs.Count -gt 0) {
     }
 }
 
-# --- 3. Evals de disparo -----------------------------------------------------
+# --- 4. Evals de disparo -----------------------------------------------------
 Write-Host ""
-Write-Host "[3/4] Evals de disparo (evals/triggers.json)" -ForegroundColor White
+Write-Host "[4/5] Evals de disparo (evals/triggers.json)" -ForegroundColor White
 if (-not (Test-Path -LiteralPath $EvalsFile)) {
     Add-Fail "no existe evals/triggers.json"
     Write-Host "  FALLO  falta evals/triggers.json" -ForegroundColor Red
@@ -278,9 +334,9 @@ else {
     Write-Host "  $pass/$total casos correctos  ($desglose)." -ForegroundColor $color
 }
 
-# --- 4. Frescura -------------------------------------------------------------
+# --- 5. Frescura -------------------------------------------------------------
 Write-Host ""
-Write-Host "[4/4] Frescura (marcadores 'verificado YYYY-MM-DD', max $MaxAgeDays dias)" -ForegroundColor White
+Write-Host "[5/5] Frescura (marcadores 'verificado YYYY-MM-DD', max $MaxAgeDays dias)" -ForegroundColor White
 $today = (Get-Date).Date
 $rx = [regex]'(?i)verificad[oa]s?:?\s+(\d{4})-(\d{2})-(\d{2})'
 $rxMarker = [regex]'(?i)frescura\s*:'
