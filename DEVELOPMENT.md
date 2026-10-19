@@ -32,8 +32,8 @@ Catálogo de **reglas** (`AGENTS.md`), **skills** (`skills/<nombre>/SKILL.md` + 
 
 ## Estado
 
-- [x] **0.2.0**: portabilidad multiplataforma, referencias alcanzables, `-Detect` en monorepo, `.env.example`, sintaxis V2 de las plantillas.
-- [x] **openCode V2**: requisito declarado en `README.md` y `skills/harness-install`; `install.ps1 -Doctor` avisa de la sintaxis V1 (`permission`/`bash`/`skills.paths`); plantillas endurecidas (deny de mutaciones de Git).
+- [x] **0.2.0**: verificador (`check.ps1`), evals de disparo, CI, instalador base (`-Detect`/`-Doctor`/`-Global`) y skills base (godot/aws/azure/oci/harness-install).
+- [x] **0.3.0**: openCode V2 obligatorio, portabilidad multiplataforma, referencias citadas/alcanzables, `-Detect` en monorepo, `-SkillsOnly`/`-IncludeRules`, checkpoint de sesión, `DEVELOPMENT.md` y plantillas endurecidas (deny de Git).
 - [x] **Progressive disclosure**: `angular`/`astro`/`dotnet`/`fastapi` mueven el detalle de subsistema a `references/`; ninguna skill supera el 80% de `MaxBodyLines` (400).
 - [x] Catálogo: **17 skills**, **49 casos** de eval, **123 pruebas** de integración; `check.ps1 -Strict` en 0.
 
