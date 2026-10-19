@@ -307,6 +307,9 @@ try {
 
     # --- Plantillas: permisos V2 (deniega secretos, permite plantillas) ------
     Section 'templates (permisos V2: deniega secretos, permite plantillas)'
+    # Nota: Get-ShellEffect SIMULA la segmentacion de comandos compuestos (no prueba
+    # openCode). Los asertos de .env son reales; los de shell validan la INTENCION de las
+    # reglas, no el runtime. Si openCode no segmenta, "git status && git push" no se bloquea.
     function Get-RuleEffect { param($Rules, [string]$Resource) $eff = $null; foreach ($r in $Rules) { if ($r.action -eq 'read' -and $Resource -like $r.resource) { $eff = $r.effect } }; return $eff }
     function Get-ShellEffect { param($Rules, [string]$Resource) $worst = 'allow'; foreach ($seg in ($Resource -split '\s*(?:&&|\|\||;|\|)\s*' | Where-Object { $_ -ne '' })) { $eff = $null; foreach ($r in $Rules) { if ($r.action -eq 'shell' -and $seg -like $r.resource) { $eff = $r.effect } }; if ($null -eq $eff) { $eff = 'ask' }; if ($eff -eq 'deny') { return 'deny' }; if ($eff -eq 'ask') { $worst = 'ask' } }; return $worst }
     foreach ($t in @('opencode.json', 'opencode.global.json', 'opencode.skills-only.json')) {
