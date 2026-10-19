@@ -5,7 +5,10 @@
     "read": {
       "*": "allow",
       "**/.env": "deny",
-      "**/.env.*": "deny"
+      "**/.env.*": "deny",
+      "**/.env.example": "allow",
+      "**/.env.sample": "allow",
+      "**/.env.template": "allow"
     },
     "bash": {
       "*": "ask",

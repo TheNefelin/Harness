@@ -144,7 +144,7 @@ suite N/N tests, build N/N
 ### Variables de entorno
 
 - `.env` está **fuera de los límites de acceso y operación**: no leer, abrir, inspeccionar, modificar, copiar, imprimir, mostrar ni procesar su contenido, ni obtener sus valores por comandos, scripts o herramientas del sistema.
-- `.env_demo` sí puede usarse como referencia.
+- Las **plantillas sin valores reales** (`.env_demo`, `.env.example`, `.env.sample`, `.env.template`) sí pueden usarse como referencia; el resto de `.env.*` (p. ej. `.env.local`, `.env.production`) queda igual de vedado que `.env`.
 - Nunca copiar valores reales, secretos, tokens, contraseñas, claves API o credenciales desde archivos de entorno.
 - Si la tarea requiere un dato que solo existe en `.env`, detenerse y pedir al usuario únicamente ese dato.
 - No crear, modificar ni sobrescribir `.env` sin autorización explícita.

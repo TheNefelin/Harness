@@ -20,7 +20,7 @@
 
 ## Configuración
 
-[Variables de entorno (referenciar `.env_demo`, nunca `.env`), puertos, etc.]
+[Variables de entorno (referenciar una plantilla sin valores reales —`.env_demo`, `.env.example`—, nunca `.env`), puertos, etc.]
 
 ## Estructura
 

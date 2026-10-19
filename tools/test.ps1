@@ -293,6 +293,24 @@ try {
     $r = Invoke-Script (Join-Path $fb 'tools/check.ps1') @()
     Assert ($r.Exit -ne 0) 'check falla con referencia no citada'
     Assert ($r.Out -match 'orphan') 'check nombra la referencia huerfana'
+
+    # --- Plantillas: lectura de .env ----------------------------------------
+    Section 'templates (lectura de .env: deniega secretos, permite plantillas)'
+    $envAllow = @('**/.env.example', '**/.env.sample', '**/.env.template')
+    foreach ($t in @('opencode.json', 'opencode.global.json', 'opencode.skills-only.json')) {
+        $cfg = Get-Content -LiteralPath (Join-Path $Repo ('templates/' + $t)) -Raw | ConvertFrom-Json
+        $reads = @($cfg.permission.read.PSObject.Properties)
+        $names = @($reads | ForEach-Object { $_.Name })
+        $d1 = $reads | Where-Object { $_.Name -eq '**/.env' }
+        $d2 = $reads | Where-Object { $_.Name -eq '**/.env.*' }
+        Assert (($d1 -and $d1.Value -eq 'deny') -and ($d2 -and $d2.Value -eq 'deny')) "$t deniega .env y .env.*"
+        $iDeny = [array]::IndexOf($names, '**/.env.*')
+        foreach ($a in $envAllow) {
+            $p = $reads | Where-Object { $_.Name -eq $a }
+            Assert ($p -and $p.Value -eq 'allow') "$t permite $a"
+            Assert (([array]::IndexOf($names, $a)) -gt $iDeny) "$t evalua $a despues del deny (last match wins)"
+        }
+    }
 }
 catch {
     $script:Fail++
