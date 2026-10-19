@@ -82,7 +82,7 @@ El set vive en `.harness.json`. Para **cambiarlo**, re-ejecuta con `-Skills` ind
 | Local | `<proyecto>\` | `harness\AGENTS.md`, `harness\skills\`, `opencode.json`, `.harness.json`, `.gitignore` (ignora `harness/skills/` y `.harness/`); con `-Context`, además `README.md`, `DEVELOPMENT.md`, `SKILL.md` y `.harness\session.md` |
 | Global | `~/.config/opencode\` | `AGENTS.md`, `skills\`, `opencode.json` (permisos), `.harness.json` |
 
-- En Local, `opencode.json` apunta a `harness/skills` por `skills.paths`; abrir openCode **en la raíz** del proyecto (las rutas son relativas al directorio de trabajo).
+- En Local, `opencode.json` apunta a `harness/skills` por la clave `skills` (array de directorios, formato V2); abrir openCode **en la raíz** del proyecto (las rutas son relativas al directorio de trabajo).
 - Las **reglas** (`AGENTS.md`) deben vivir en **un solo** scope. openCode combina global + proyecto, así que instalarlas en ambos carga **dos copias idénticas**: usa `-SkillsOnly` en el scope que solo aporta skills.
 - El instalador **nunca pisa** skills/reglas ajenas: las respalda en `.harness-backup\` y las omite, salvo `-Force`.
 - Tres capas: **catálogo** (repo Harness o `-Source`), **instalación** (copias gestionadas con marcador `.harness-source`; no editar a mano) y **personalizaciones** (sin marcador; nunca se podan).
@@ -95,7 +95,7 @@ El set vive en `.harness.json`. Para **cambiarlo**, re-ejecuta con `-Skills` ind
 |-------------|----------|----------|
 | Buscar una "instalación por URL" | El script lee las skills de la copia local | Clonar el repo y correr `install.ps1` |
 | Instalar sin `-Skills` | No hay set por defecto; el script falla | Definir el set con el usuario, tras `-List` |
-| Abrir openCode fuera de la raíz (Local) | `skills.paths` es relativo al CWD | Abrir openCode en la raíz del proyecto |
+| Abrir openCode fuera de la raíz (Local) | `skills` es relativo al CWD | Abrir openCode en la raíz del proyecto |
 | Copiar `harness/skills` a mano | Se desincroniza de `-Update` | Usar el instalador |
 | Correr `-Global` sin confirmar | Agrega reglas a **todas** las sesiones | Confirmar el scope con el usuario |
 | Instalar reglas en global **y** local | openCode combina ambos scopes: las reglas idénticas se cargan dos veces | Reglas en **un solo** scope; en el otro, `-SkillsOnly` |

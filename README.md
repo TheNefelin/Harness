@@ -22,7 +22,7 @@ Harness/
 ├─ AGENTS.md              # reglas        ┐
 ├─ skills/                # 17 skills     ├─ lo que se instala (global o por proyecto)
 ├─ templates/
-│  ├─ opencode.json       # config del proyecto (instructions + skills.paths + permisos)
+│  ├─ opencode.json       # config del proyecto (instructions + skills + permisos)
 │  ├─ README.md           # ┐
 │  ├─ DEVELOPMENT.md      # ├─ plantillas de memoria (contexto)
 │  └─ SKILL.md            # ┘

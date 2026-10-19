@@ -226,7 +226,7 @@ try {
     if (Test-Path -LiteralPath $cfgo) {
         $co = Get-Content -LiteralPath $cfgo -Raw | ConvertFrom-Json
         Assert (-not ($co.PSObject.Properties.Name -contains 'instructions')) 'opencode.json sin instructions'
-        Assert (@($co.skills.paths) -contains 'harness/skills') 'opencode.json conserva skills.paths'
+        Assert (@($co.skills) -contains 'harness/skills') 'opencode.json conserva skills'
     }
     else { Assert $false 'SkillsOnly crea opencode.json' }
     $r = Invoke-Script $Install @('-Project', $po, '-Doctor', '-Source', $Repo)
@@ -294,22 +294,20 @@ try {
     Assert ($r.Exit -ne 0) 'check falla con referencia no citada'
     Assert ($r.Out -match 'orphan') 'check nombra la referencia huerfana'
 
-    # --- Plantillas: lectura de .env ----------------------------------------
-    Section 'templates (lectura de .env: deniega secretos, permite plantillas)'
-    $envAllow = @('**/.env.example', '**/.env.sample', '**/.env.template')
+    # --- Plantillas: permisos V2 (deniega secretos, permite plantillas) ------
+    Section 'templates (permisos V2: deniega secretos, permite plantillas)'
+    function Get-RuleEffect { param($Rules, [string]$Resource) $eff = $null; foreach ($r in $Rules) { if ($r.action -eq 'read' -and $Resource -like $r.resource) { $eff = $r.effect } }; return $eff }
     foreach ($t in @('opencode.json', 'opencode.global.json', 'opencode.skills-only.json')) {
         $cfg = Get-Content -LiteralPath (Join-Path $Repo ('templates/' + $t)) -Raw | ConvertFrom-Json
-        $reads = @($cfg.permission.read.PSObject.Properties)
-        $names = @($reads | ForEach-Object { $_.Name })
-        $d1 = $reads | Where-Object { $_.Name -eq '**/.env' }
-        $d2 = $reads | Where-Object { $_.Name -eq '**/.env.*' }
-        Assert (($d1 -and $d1.Value -eq 'deny') -and ($d2 -and $d2.Value -eq 'deny')) "$t deniega .env y .env.*"
-        $iDeny = [array]::IndexOf($names, '**/.env.*')
-        foreach ($a in $envAllow) {
-            $p = $reads | Where-Object { $_.Name -eq $a }
-            Assert ($p -and $p.Value -eq 'allow') "$t permite $a"
-            Assert (([array]::IndexOf($names, $a)) -gt $iDeny) "$t evalua $a despues del deny (last match wins)"
-        }
+        Assert ($cfg.PSObject.Properties.Name -contains 'permissions') "$t usa 'permissions' (V2)"
+        $rules = @($cfg.permissions)
+        Assert ((Get-RuleEffect $rules '.env') -eq 'deny') "$t deniega .env (raiz)"
+        Assert ((Get-RuleEffect $rules 'sub/.env') -eq 'deny') "$t deniega sub/.env"
+        Assert ((Get-RuleEffect $rules '.env.local') -eq 'deny') "$t deniega .env.local"
+        Assert ((Get-RuleEffect $rules '.env.example') -eq 'allow') "$t permite .env.example"
+        Assert ((Get-RuleEffect $rules '.env.sample') -eq 'allow') "$t permite .env.sample"
+        Assert ((Get-RuleEffect $rules '.env.template') -eq 'allow') "$t permite .env.template"
+        if ($t -ne 'opencode.global.json') { Assert (@($cfg.skills) -contains 'harness/skills') "${t}: skills = [harness/skills]" }
     }
 }
 catch {

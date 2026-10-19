@@ -544,9 +544,13 @@ if ($Doctor) {
         try {
             $cfg = Get-Content -LiteralPath $ConfigFile -Raw | ConvertFrom-Json
             if ($Scope -eq 'Local') {
-                $paths = @(); if ($cfg.skills -and $cfg.skills.paths) { $paths = @($cfg.skills.paths) }
-                if ($paths -contains 'harness/skills') { Write-Check OK 'opencode.json: skills.paths -> harness/skills' }
-                else { Write-Check ERR 'opencode.json: falta skills.paths = [harness/skills]' }
+                $paths = @()
+                if ($cfg.PSObject.Properties.Name -contains 'skills') {
+                    if ($cfg.skills -is [System.Management.Automation.PSCustomObject] -and ($cfg.skills.PSObject.Properties.Name -contains 'paths')) { $paths = @($cfg.skills.paths) }
+                    else { $paths = @($cfg.skills) }
+                }
+                if ($paths -contains 'harness/skills') { Write-Check OK 'opencode.json: skills -> harness/skills' }
+                else { Write-Check ERR 'opencode.json: falta skills = [harness/skills]' }
                 $instr = @(); if ($cfg.PSObject.Properties.Name -contains 'instructions') { $instr = @($cfg.instructions) }
                 if ($declRules) {
                     if ($instr -contains 'harness/AGENTS.md') { Write-Check OK 'opencode.json: instructions -> harness/AGENTS.md' }
@@ -556,8 +560,9 @@ if ($Doctor) {
                 else { Write-Check OK 'opencode.json: sin instructions (reglas en otro scope)' }
             }
             else {
-                if ($cfg.permission) { Write-Check OK 'opencode.json global: bloque permission presente' }
-                else { Write-Check WARN 'opencode.json global: sin bloque permission' }
+                $hasPerms = ($cfg.PSObject.Properties.Name -contains 'permissions') -or ($cfg.PSObject.Properties.Name -contains 'permission')
+                if ($hasPerms) { Write-Check OK 'opencode.json global: bloque de permisos presente' }
+                else { Write-Check WARN 'opencode.json global: sin bloque de permisos' }
             }
         }
         catch { Write-Check ERR "opencode.json ilegible: $($_.Exception.Message)" }
@@ -794,7 +799,7 @@ if ($Scope -eq 'Local') {
             }
         }
         else {
-            Write-Host 'SKIP   opencode.json ya existe (verifica instructions/skills.paths)' -ForegroundColor Yellow
+            Write-Host 'SKIP   opencode.json ya existe (verifica instructions/skills)' -ForegroundColor Yellow
         }
     }
     elseif ($WhatIf) {
@@ -825,7 +830,7 @@ if ($Scope -eq 'Local') {
 }
 else {
     if (Test-Path -LiteralPath $ConfigFile) {
-        Write-Host 'SKIP   ~/.config/opencode/opencode.json ya existe (fusiona el bloque "permission" a mano)' -ForegroundColor Yellow
+        Write-Host 'SKIP   ~/.config/opencode/opencode.json ya existe (fusiona el bloque de permisos a mano)' -ForegroundColor Yellow
     }
     else {
         if ($WhatIf) { Write-Host 'WOULD  opencode.json global (permisos)' -ForegroundColor DarkCyan }
