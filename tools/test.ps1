@@ -182,6 +182,27 @@ try {
     $r = Invoke-Script $Install @('-Project', $po, '-Doctor', '-Source', $Repo)
     Assert ($r.Exit -eq 0) '-Doctor de SkillsOnly sale 0'
 
+    # --- IncludeRules (revierte SkillsOnly) ---------------------------------
+    Section 'install.ps1 -IncludeRules (revierte -SkillsOnly)'
+    $pr = New-Project 'proj-include-rules'
+    $r = Invoke-Script $Install @('-Project', $pr, '-Skills', 'dotnet', '-SkillsOnly', '-Source', $Repo)
+    Assert ($r.Exit -eq 0) 'base -SkillsOnly sale 0'
+    Assert (-not (Test-Path -LiteralPath (Join-Path $pr 'harness\AGENTS.md'))) 'base sin AGENTS.md'
+    $r = Invoke-Script $Install @('-Project', $pr, '-Update', '-Source', $Repo)
+    Assert ($r.Exit -eq 0) '-Update sin flags sale 0'
+    Assert (-not (Test-Path -LiteralPath (Join-Path $pr 'harness\AGENTS.md'))) '-Update conserva rules:false'
+    $r = Invoke-Script $Install @('-Project', $pr, '-Update', '-IncludeRules', '-Source', $Repo)
+    Assert ($r.Exit -eq 0) '-IncludeRules sale 0'
+    Assert (Test-Path -LiteralPath (Join-Path $pr 'harness\AGENTS.md')) '-IncludeRules reinstala AGENTS.md'
+    $declr = Get-Content -LiteralPath (Join-Path $pr '.harness.json') -Raw | ConvertFrom-Json
+    Assert ($declr.rules) 'manifest rules=true tras -IncludeRules'
+    $cfgr = Get-Content -LiteralPath (Join-Path $pr 'opencode.json') -Raw | ConvertFrom-Json
+    Assert (@($cfgr.instructions) -contains 'harness/AGENTS.md') 'opencode.json con instructions tras -IncludeRules'
+    $r = Invoke-Script $Install @('-Project', $pr, '-Doctor', '-Source', $Repo)
+    Assert ($r.Exit -eq 0) '-Doctor tras -IncludeRules sale 0'
+    $rc = Invoke-Script $Install @('-Project', $pr, '-SkillsOnly', '-IncludeRules', '-Source', $Repo)
+    Assert ($rc.Exit -ne 0) '-SkillsOnly + -IncludeRules falla'
+
     # --- Context (plantillas de memoria) ------------------------------------
     Section 'install.ps1 -Context (plantillas de memoria)'
     $pc = New-Project 'proj-context'

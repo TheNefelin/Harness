@@ -40,6 +40,7 @@ Repositorio: `https://github.com/TheNefelin/Harness.git`
 | `-Force` | Reemplaza skills/reglas ajenas (con respaldo) en vez de omitirlas |
 | `-Context` | Local: copia además las plantillas de memoria (`README.md`, `DEVELOPMENT.md`, `SKILL.md`) y el checkpoint `.harness/session.md` si no existen |
 | `-SkillsOnly` | Instala las skills y **omite las reglas** (`AGENTS.md`) en ese scope: úsalo si las reglas ya viven en el otro scope (p. ej. global), para no cargar dos copias idénticas |
+| `-IncludeRules` | **Revierte** un `rules:false` previo (de un `-SkillsOnly`): reinstala las reglas y, en Local, asegura `instructions` en `opencode.json`. Incompatible con `-SkillsOnly` |
 
 ## Procedimiento
 
@@ -98,6 +99,7 @@ El set vive en `.harness.json`. Para **cambiarlo**, re-ejecuta con `-Skills` ind
 | Copiar `harness/skills` a mano | Se desincroniza de `-Update` | Usar el instalador |
 | Correr `-Global` sin confirmar | Agrega reglas a **todas** las sesiones | Confirmar el scope con el usuario |
 | Instalar reglas en global **y** local | openCode combina ambos scopes: las reglas idénticas se cargan dos veces | Reglas en **un solo** scope; en el otro, `-SkillsOnly` |
+| Tras `-SkillsOnly`, correr `-Update` esperando recuperar las reglas | `-Update` respeta el `rules:false` del manifiesto | Usar `-Update -IncludeRules` |
 | Mover o clonar el repo y reinstalar | La instalación no guarda la ruta del repo; no hay nada roto | Seguir usándola; refrescar con `-Update` desde la nueva ubicación |
 | Al agregar, pasar a `-Skills` solo la skill nueva | El set se **poda**: pierdes las demás | Pasar el **set completo** (actual + nueva) |
 

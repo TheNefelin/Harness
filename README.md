@@ -85,6 +85,9 @@ Es **agnóstico**: no hay set por defecto. Siempre indicas **qué** skills y **d
 # Skills por proyecto sin duplicar las reglas (si ya las instalaste en global)
 .\install.ps1 -Project "D:\ruta\al\proyecto" -Skills angular,sql -SkillsOnly
 
+# Volver a instalar las reglas que un -SkillsOnly había desactivado
+.\install.ps1 -Project "D:\ruta\al\proyecto" -Update -IncludeRules
+
 # Actualizar lo ya declarado, en su scope (no necesitas recordar cuál)
 .\install.ps1 -Update -Project "D:\ruta\al\proyecto"
 .\install.ps1 -Update -Global
@@ -148,7 +151,7 @@ proyecto/
 **Global** (fuera del proyecto): `~/.config/opencode/` → `AGENTS.md`, `skills/`, `.harness.json`. No toca el proyecto.
 
 - **Commit**: reglas, declaración y memoria. **Ignorado**: las skills (copias gestionadas; se refrescan con `-Update`) y el checkpoint `.harness/` (estado local de sesión).
-- openCode combina **global + proyecto**: puedes mezclar **skills** de ambos scopes, pero las **reglas** (`AGENTS.md`) deben vivir en **un solo** scope. Si ya las tienes en global, instala las skills del proyecto con `-SkillsOnly` (no vuelve a copiar las reglas).
+- openCode combina **global + proyecto**: puedes mezclar **skills** de ambos scopes, pero las **reglas** (`AGENTS.md`) deben vivir en **un solo** scope. Si ya las tienes en global, instala las skills del proyecto con `-SkillsOnly` (no vuelve a copiar las reglas); para revertirlo, `-Update -IncludeRules` (en Local asegura también `instructions` en `opencode.json`).
 
 ## Uso
 

@@ -55,6 +55,11 @@
     Instala las skills y omite las reglas (AGENTS.md) en este scope. Util cuando las reglas
     ya viven en el otro scope (p. ej. global), para no cargar dos copias identicas.
 
+.PARAMETER IncludeRules
+    Fuerza las reglas (AGENTS.md) en este scope, revirtiendo un rules:false previo (de un
+    -SkillsOnly anterior). En Local asegura ademas instructions en opencode.json.
+    Incompatible con -SkillsOnly.
+
 .PARAMETER Context
     Copia ademas las plantillas de memoria (README.md, DEVELOPMENT.md, SKILL.md) y el
     checkpoint de sesion (.harness/session.md).
@@ -65,6 +70,7 @@
     .\install.ps1 -Project "D:\ruta\al\proyecto" -Skills dotnet,postgres
     .\install.ps1 -Global -Skills docker,kubernetes
     .\install.ps1 -Project "D:\ruta\al\proyecto" -Skills dotnet,postgres -SkillsOnly
+    .\install.ps1 -Project "D:\ruta\al\proyecto" -Update -IncludeRules
     .\install.ps1 -Project "D:\ruta\al\proyecto" -Skills dotnet,postgres -WhatIf
     .\install.ps1 -Project "D:\ruta\al\proyecto" -Update -Source "D:\ruta\al\Harness"
     .\install.ps1 -Project "D:\ruta\al\proyecto" -Update -Source "https://github.com/TheNefelin/Harness.git"
@@ -103,6 +109,8 @@ param(
 
     [switch]$SkillsOnly,
 
+    [switch]$IncludeRules,
+
     [switch]$Context
 )
 
@@ -113,6 +121,11 @@ try { [Console]::OutputEncoding = [System.Text.Encoding]::UTF8 } catch {}
 $ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
 $MarkerName = '.harness-source'
 $script:DetectEvidence = @{}
+
+if ($SkillsOnly -and $IncludeRules) {
+    Write-Host 'ERROR  -SkillsOnly y -IncludeRules son incompatibles.' -ForegroundColor Red
+    exit 1
+}
 
 # Capa 1 (catalogo): clon local o URL git, para actualizar sin abrir el repo
 $SourceRoot = $ScriptDir
@@ -696,13 +709,30 @@ if (Test-Path -LiteralPath $SkillsDir) {
     }
 }
 
+function Merge-Instruction {
+    param([string]$ConfigPath, [string]$Value)
+    try { $cfg = Get-Content -LiteralPath $ConfigPath -Raw | ConvertFrom-Json }
+    catch { return 'invalid' }
+    if ($cfg.PSObject.Properties.Name -contains 'instructions') {
+        $instr = @($cfg.instructions)
+        if ($instr -contains $Value) { return 'present' }
+        $cfg.instructions = @($instr + $Value)
+    }
+    else {
+        $cfg | Add-Member -NotePropertyName 'instructions' -NotePropertyValue @($Value) -Force
+    }
+    [System.IO.File]::WriteAllText($ConfigPath, ($cfg | ConvertTo-Json -Depth 12), (New-Object System.Text.UTF8Encoding($false)))
+    return 'added'
+}
+
 # Reglas (AGENTS.md)
 $rulesManaged = $false
 if ($Scope -eq 'Local') { $rulesManaged = $true }
 elseif ($existingDeclObj -and ($existingDeclObj.PSObject.Properties.Name -contains 'rules')) { $rulesManaged = [bool]$existingDeclObj.rules }
 
 $skipRules = $SkillsOnly
-if ($existingDeclObj -and ($existingDeclObj.PSObject.Properties.Name -contains 'rules') -and -not [bool]$existingDeclObj.rules) { $skipRules = $true }
+if ($IncludeRules) { $skipRules = $false }
+elseif ($existingDeclObj -and ($existingDeclObj.PSObject.Properties.Name -contains 'rules') -and -not [bool]$existingDeclObj.rules) { $skipRules = $true }
 
 $srcRules = Join-Path $SourceRoot 'AGENTS.md'
 if ($skipRules) {
@@ -738,7 +768,20 @@ else {
 # opencode.json
 if ($Scope -eq 'Local') {
     if (Test-Path -LiteralPath $ConfigFile) {
-        Write-Host 'SKIP   opencode.json ya existe (verifica instructions/skills.paths)' -ForegroundColor Yellow
+        if ($rulesManaged) {
+            if ($WhatIf) {
+                Write-Host 'WOULD  opencode.json (asegura instructions)' -ForegroundColor DarkCyan
+            }
+            else {
+                $res = Merge-Instruction -ConfigPath $ConfigFile -Value 'harness/AGENTS.md'
+                if ($res -eq 'added') { Write-Host 'OK     opencode.json (instructions -> harness/AGENTS.md)' -ForegroundColor Green }
+                elseif ($res -eq 'present') { Write-Host 'SKIP   opencode.json (instructions ya presente)' -ForegroundColor Yellow }
+                else { Write-Host 'SKIP   opencode.json (JSON invalido; no se toca)' -ForegroundColor Yellow }
+            }
+        }
+        else {
+            Write-Host 'SKIP   opencode.json ya existe (verifica instructions/skills.paths)' -ForegroundColor Yellow
+        }
     }
     elseif ($WhatIf) {
         Write-Host 'WOULD  opencode.json' -ForegroundColor DarkCyan
