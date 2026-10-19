@@ -9,8 +9,8 @@
     efectos en disco (manifiesto, skills, respaldos, guard de schemaVersion...).
 
 .EXAMPLE
-    .\tools\test.ps1
-    .\tools\test.ps1 -KeepSandbox
+    ./tools/test.ps1
+    ./tools/test.ps1 -KeepSandbox
 #>
 param(
     [switch]$KeepSandbox
@@ -54,7 +54,7 @@ function Invoke-Script {
 
 function New-Project { param([string]$Name) $p = Join-Path $script:Sandbox $Name; New-Item -ItemType Directory -Force -Path $p | Out-Null; return $p }
 
-$script:Sandbox = Join-Path $env:TEMP ('harness-test-' + [guid]::NewGuid().ToString('N').Substring(0, 8))
+$script:Sandbox = Join-Path ([System.IO.Path]::GetTempPath()) ('harness-test-' + [guid]::NewGuid().ToString('N').Substring(0, 8))
 New-Item -ItemType Directory -Force -Path $script:Sandbox | Out-Null
 
 Write-Host ("Harness - pruebas de integracion  (sandbox: {0})" -f $script:Sandbox) -ForegroundColor Cyan
@@ -81,9 +81,9 @@ try {
         Assert (@($m.skills) -contains 'dotnet') 'manifest declara dotnet'
         Assert (@($m.skills) -contains 'sql') 'manifest declara sql'
     }
-    Assert (Test-Path -LiteralPath (Join-Path $p1 'harness\AGENTS.md')) 'copia AGENTS.md'
-    Assert (Test-Path -LiteralPath (Join-Path $p1 'harness\skills\dotnet\SKILL.md')) 'copia skill dotnet'
-    Assert (Test-Path -LiteralPath (Join-Path $p1 'harness\skills\dotnet\.harness-source')) 'pone marcador .harness-source'
+    Assert (Test-Path -LiteralPath (Join-Path $p1 'harness/AGENTS.md')) 'copia AGENTS.md'
+    Assert (Test-Path -LiteralPath (Join-Path $p1 'harness/skills/dotnet/SKILL.md')) 'copia skill dotnet'
+    Assert (Test-Path -LiteralPath (Join-Path $p1 'harness/skills/dotnet/.harness-source')) 'pone marcador .harness-source'
     Assert (Test-Path -LiteralPath (Join-Path $p1 'opencode.json')) 'crea opencode.json'
     $gi = Join-Path $p1 '.gitignore'
     if (Test-Path -LiteralPath $gi) {
@@ -110,16 +110,16 @@ try {
     Section 'install.ps1 -Update (sin cambios)'
     $r = Invoke-Script $Install @('-Project', $p1, '-Update', '-Source', $Repo)
     Assert ($r.Exit -eq 0) '-Update sale 0'
-    Assert (-not (Test-Path -LiteralPath (Join-Path $p1 'harness\.harness-backup'))) '-Update sin cambios no respalda'
+    Assert (-not (Test-Path -LiteralPath (Join-Path $p1 'harness/.harness-backup'))) '-Update sin cambios no respalda'
 
     # --- Conflicto y respaldo ------------------------------------------------
     Section 'install.ps1 -Update (skill editada -> respaldo)'
-    $sk = Join-Path $p1 'harness\skills\dotnet\SKILL.md'
+    $sk = Join-Path $p1 'harness/skills/dotnet/SKILL.md'
     Add-Content -LiteralPath $sk -Value "`n<!-- editado a mano -->"
     $r = Invoke-Script $Install @('-Project', $p1, '-Update', '-Source', $Repo)
     Assert ($r.Exit -eq 0) '-Update con conflicto sale 0'
-    Assert (Test-Path -LiteralPath (Join-Path $p1 'harness\.harness-backup')) 'crea .harness-backup'
-    $refH = (Get-FileHash -LiteralPath (Join-Path $Repo 'skills\dotnet\SKILL.md')).Hash
+    Assert (Test-Path -LiteralPath (Join-Path $p1 'harness/.harness-backup')) 'crea .harness-backup'
+    $refH = (Get-FileHash -LiteralPath (Join-Path $Repo 'skills/dotnet/SKILL.md')).Hash
     $insH = (Get-FileHash -LiteralPath $sk).Hash
     Assert ($refH -eq $insH) 'refresca la skill al catalogo'
 
@@ -128,24 +128,24 @@ try {
     $pg = New-Project 'proj-rules'
     $r = Invoke-Script $Install @('-Project', $pg, '-Skills', 'dotnet', '-Source', $Repo)
     Assert ($r.Exit -eq 0) 'instala con reglas'
-    $rg = Join-Path $pg 'harness\AGENTS.md'
+    $rg = Join-Path $pg 'harness/AGENTS.md'
     Add-Content -LiteralPath $rg -Value "`n<!-- editado a mano -->"
     $r = Invoke-Script $Install @('-Project', $pg, '-Update', '-Source', $Repo)
     Assert ($r.Exit -eq 0) '-Update con AGENTS.md editado sale 0'
-    $bdir = Join-Path $pg 'harness\.harness-backup'
+    $bdir = Join-Path $pg 'harness/.harness-backup'
     Assert ((Test-Path -LiteralPath $bdir) -and (@(Get-ChildItem -LiteralPath $bdir -Filter 'AGENTS.md-*').Count -ge 1)) 'respalda el AGENTS.md editado'
     Assert ((Get-FileHash -LiteralPath $rg).Hash -eq (Get-FileHash -LiteralPath (Join-Path $Repo 'AGENTS.md')).Hash) 'refresca AGENTS.md al catalogo'
 
     # --- Deteccion -----------------------------------------------------------
     Section 'install.ps1 -Detect'
     $p3 = New-Project 'proj3'
-    New-Item -ItemType Directory -Force -Path (Join-Path $p3 '.github\workflows'), (Join-Path $p3 'infra') | Out-Null
+    New-Item -ItemType Directory -Force -Path (Join-Path $p3 '.github/workflows'), (Join-Path $p3 'infra') | Out-Null
     Set-Content -LiteralPath (Join-Path $p3 'App.csproj') '<Project><ItemGroup><PackageReference Include="Npgsql" /></ItemGroup></Project>'
     Set-Content -LiteralPath (Join-Path $p3 'package.json') '{ "dependencies": { "@angular/core": "^21.0.0" } }'
     Set-Content -LiteralPath (Join-Path $p3 'Dockerfile') 'FROM alpine'
     Set-Content -LiteralPath (Join-Path $p3 'requirements.txt') 'fastapi'
-    Set-Content -LiteralPath (Join-Path $p3 'infra\main.tf') 'provider "aws" {}'
-    Set-Content -LiteralPath (Join-Path $p3 '.github\workflows\ci.yml') 'name: ci'
+    Set-Content -LiteralPath (Join-Path $p3 'infra/main.tf') 'provider "aws" {}'
+    Set-Content -LiteralPath (Join-Path $p3 '.github/workflows/ci.yml') 'name: ci'
     $r = Invoke-Script $Install @('-Project', $p3, '-Detect', '-Source', $Repo)
     Assert ($r.Exit -eq 0) '-Detect sale 0'
     Assert ($r.Out -match 'angular') '-Detect detecta angular'
@@ -173,7 +173,7 @@ try {
     Section 'install.ps1 protege skills ajenas'
     $pj = New-Project 'proj5'
     [void](Invoke-Script $Install @('-Project', $pj, '-Skills', 'dotnet,sql', '-Source', $Repo))
-    $mine = Join-Path $pj 'harness\skills\mine'
+    $mine = Join-Path $pj 'harness/skills/mine'
     New-Item -ItemType Directory -Force -Path $mine | Out-Null
     Set-Content -LiteralPath (Join-Path $mine 'SKILL.md') 'propia'
     $r = Invoke-Script $Install @('-Project', $pj, '-Update', '-Source', $Repo)
@@ -185,11 +185,11 @@ try {
     $pp = New-Project 'proj-prune'
     $r = Invoke-Script $Install @('-Project', $pp, '-Skills', 'dotnet,sql', '-Source', $Repo)
     Assert ($r.Exit -eq 0) 'instala dotnet,sql'
-    Assert (Test-Path -LiteralPath (Join-Path $pp 'harness\skills\sql')) 'sql instalada'
+    Assert (Test-Path -LiteralPath (Join-Path $pp 'harness/skills/sql')) 'sql instalada'
     $r = Invoke-Script $Install @('-Project', $pp, '-Update', '-Skills', 'dotnet', '-Source', $Repo)
     Assert ($r.Exit -eq 0) '-Update -Skills dotnet sale 0'
-    Assert (-not (Test-Path -LiteralPath (Join-Path $pp 'harness\skills\sql'))) 'poda sql del set'
-    Assert (@(Get-ChildItem -LiteralPath (Join-Path $pp 'harness\.harness-backup') -Filter 'sql-*').Count -ge 1) 'respalda la skill podada'
+    Assert (-not (Test-Path -LiteralPath (Join-Path $pp 'harness/skills/sql'))) 'poda sql del set'
+    Assert (@(Get-ChildItem -LiteralPath (Join-Path $pp 'harness/.harness-backup') -Filter 'sql-*').Count -ge 1) 'respalda la skill podada'
     $declp = Get-Content -LiteralPath (Join-Path $pp '.harness.json') -Raw | ConvertFrom-Json
     Assert (-not (@($declp.skills) -contains 'sql')) 'manifest sin sql'
     Assert (@($declp.skills) -contains 'dotnet') 'manifest conserva dotnet'
@@ -199,8 +199,8 @@ try {
     $po = New-Project 'proj-skills-only'
     $r = Invoke-Script $Install @('-Project', $po, '-Skills', 'dotnet', '-SkillsOnly', '-Source', $Repo)
     Assert ($r.Exit -eq 0) '-SkillsOnly sale 0'
-    Assert (Test-Path -LiteralPath (Join-Path $po 'harness\skills\dotnet\SKILL.md')) '-SkillsOnly instala la skill'
-    Assert (-not (Test-Path -LiteralPath (Join-Path $po 'harness\AGENTS.md'))) '-SkillsOnly no copia AGENTS.md'
+    Assert (Test-Path -LiteralPath (Join-Path $po 'harness/skills/dotnet/SKILL.md')) '-SkillsOnly instala la skill'
+    Assert (-not (Test-Path -LiteralPath (Join-Path $po 'harness/AGENTS.md'))) '-SkillsOnly no copia AGENTS.md'
     $declo = Join-Path $po '.harness.json'
     if (Test-Path -LiteralPath $declo) {
         $mo = Get-Content -LiteralPath $declo -Raw | ConvertFrom-Json
@@ -222,13 +222,13 @@ try {
     $pr = New-Project 'proj-include-rules'
     $r = Invoke-Script $Install @('-Project', $pr, '-Skills', 'dotnet', '-SkillsOnly', '-Source', $Repo)
     Assert ($r.Exit -eq 0) 'base -SkillsOnly sale 0'
-    Assert (-not (Test-Path -LiteralPath (Join-Path $pr 'harness\AGENTS.md'))) 'base sin AGENTS.md'
+    Assert (-not (Test-Path -LiteralPath (Join-Path $pr 'harness/AGENTS.md'))) 'base sin AGENTS.md'
     $r = Invoke-Script $Install @('-Project', $pr, '-Update', '-Source', $Repo)
     Assert ($r.Exit -eq 0) '-Update sin flags sale 0'
-    Assert (-not (Test-Path -LiteralPath (Join-Path $pr 'harness\AGENTS.md'))) '-Update conserva rules:false'
+    Assert (-not (Test-Path -LiteralPath (Join-Path $pr 'harness/AGENTS.md'))) '-Update conserva rules:false'
     $r = Invoke-Script $Install @('-Project', $pr, '-Update', '-IncludeRules', '-Source', $Repo)
     Assert ($r.Exit -eq 0) '-IncludeRules sale 0'
-    Assert (Test-Path -LiteralPath (Join-Path $pr 'harness\AGENTS.md')) '-IncludeRules reinstala AGENTS.md'
+    Assert (Test-Path -LiteralPath (Join-Path $pr 'harness/AGENTS.md')) '-IncludeRules reinstala AGENTS.md'
     $declr = Get-Content -LiteralPath (Join-Path $pr '.harness.json') -Raw | ConvertFrom-Json
     Assert ($declr.rules) 'manifest rules=true tras -IncludeRules'
     $cfgr = Get-Content -LiteralPath (Join-Path $pr 'opencode.json') -Raw | ConvertFrom-Json
@@ -244,7 +244,7 @@ try {
     $r = Invoke-Script $Install @('-Project', $pc, '-Skills', 'dotnet', '-Context', '-Source', $Repo)
     Assert ($r.Exit -eq 0) '-Context sale 0'
     Assert (Test-Path -LiteralPath (Join-Path $pc 'DEVELOPMENT.md')) '-Context copia DEVELOPMENT.md'
-    Assert (Test-Path -LiteralPath (Join-Path $pc '.harness\session.md')) '-Context copia .harness/session.md'
+    Assert (Test-Path -LiteralPath (Join-Path $pc '.harness/session.md')) '-Context copia .harness/session.md'
 
     # --- check.ps1 -----------------------------------------------------------
     Section 'check.ps1'

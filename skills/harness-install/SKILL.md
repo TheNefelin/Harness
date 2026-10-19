@@ -22,7 +22,7 @@ Repositorio: `https://github.com/TheNefelin/Harness.git`
 ## Requisitos
 
 - `git`.
-- PowerShell: nativo en Windows; en Linux/macOS usar **PowerShell 7+ (`pwsh`)**. El instalador es PowerShell y no está probado fuera de Windows.
+- PowerShell: nativo en Windows; en Linux/macOS usar **PowerShell 7+ (`pwsh`)**. Los scripts son **multiplataforma** (Windows y Linux/macOS); el CI los prueba en ambos.
 
 ## Parámetros del instalador
 

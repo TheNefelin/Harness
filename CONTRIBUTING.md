@@ -130,7 +130,7 @@ Cada marcador `verificado YYYY-MM-DD` cuenta. `check.ps1` **falla** si supera `-
 
 ## Convenciones
 
-- **Sin dependencias de runtime**: los scripts son PowerShell sin módulos externos.
+- **Sin dependencias de runtime**: los scripts son PowerShell sin módulos externos. Son **multiplataforma**: corren en Windows (PowerShell 5.1/7) y en Linux/macOS con **PowerShell 7+**; el CI los prueba en `windows-latest` y `ubuntu-latest`.
 - **Encoding**: UTF-8 **sin BOM**, saltos **LF**. Los `.ps1` son **ASCII** (sin acentos, por compatibilidad con Windows PowerShell 5.1). `.gitattributes` fuerza `eol=lf`.
 - **Commits**: `tipo(scope): resumen en imperativo` + lista de archivos + verificación.
 

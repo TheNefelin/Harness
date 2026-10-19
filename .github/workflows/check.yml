@@ -13,12 +13,16 @@ permissions:
 
 jobs:
   catalogo:
-    runs-on: windows-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, ubuntu-latest]
+    runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v7
       - name: Verificar catalogo (estructura, triggers, evals, frescura)
-        shell: powershell
+        shell: pwsh
         run: ./tools/check.ps1
       - name: Pruebas de integracion (install.ps1 / check.ps1)
-        shell: powershell
+        shell: pwsh
         run: ./tools/test.ps1

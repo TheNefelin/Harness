@@ -33,6 +33,7 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es/1.1.0/); vers
 - `AGENTS.md` §6 (`Lista de issues o hallazgos`): la variante remite a la **regla de precedencia (§5)** — si el pedido es solo analizar, se propone y se espera confirmación; si la instrucción es explícita ("corrige este hallazgo"), se implementa ese alcance—, resolviendo la contradicción con §5.
 - `AGENTS.md` §13 (**Memoria, cierre de tarea**): registrar las decisiones aceptadas pasa a ser parte del cierre de una implementación autorizada (no un permiso aparte): se escriben en `DEVELOPMENT.md` al terminar, con **estado** (`Aceptado`/`Propuesto`/`Pendiente`), sin inventar datos y sin registrar una propuesta como decisión aceptada. Cierra el ciclo que antes quedaba solo en el chat ("las decisiones mueren con la sesión").
 - `install.ps1`: el mensaje final tras instalar recomienda **`/reload`** (o reiniciar) en vez de "Reinicia openCode", coherente con el README y `skills/harness-install`.
+- **Portabilidad multiplataforma**: `install.ps1`, `tools/check.ps1` y `tools/test.ps1` dejan de asumir Windows — usan `[System.IO.Path]::GetTempPath()` y separadores nativos (`Join-Path`, `/`) — y corren en Linux/macOS con **PowerShell 7+**. El CI pasa a **matrix `windows-latest` + `ubuntu-latest`** (`shell: pwsh`), de modo que la portabilidad queda **probada**, no supuesta. Resuelve el ítem diferido de portabilidad del README.
 
 ### Corregido
 

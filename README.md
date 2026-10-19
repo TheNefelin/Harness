@@ -40,7 +40,7 @@ Harness/
 
 - [openCode](https://opencode.ai) instalado.
 - **PowerShell**: Windows PowerShell 5.1 (viene con Windows) o **PowerShell 7+ (`pwsh`)**, que corre también en Linux/macOS.
-- `install.ps1` está orientado a **Windows**; el verificador `tools/check.ps1` es **portable** (usa separadores nativos, sin dependencias).
+- Los scripts (`install.ps1`, `tools/check.ps1`, `tools/test.ps1`) son **multiplataforma**: corren en Windows (PowerShell 5.1/7) y en Linux/macOS con **PowerShell 7+ (`pwsh`)**. El CI los ejecuta en `windows-latest` y `ubuntu-latest`.
 
 ## Instalación por un agente
 
@@ -267,7 +267,6 @@ Este Harness está **acoplado a openCode** a propósito, no por omisión: se apo
 
 Estos conceptos existen en harness avanzados, pero **no** se incluyen todavía porque no hay un requisito que los justifique (evitar sobreingeniería):
 
-- **Portabilidad del instalador** — Hoy el instalador es Windows-first (PowerShell); `check.ps1` y `tools/test.ps1` ya son portables. Decidir plataforma (mantener `pwsh` 7 o portar a Node) se difiere hasta que haya un requisito real (p. ej. uso en macOS/Linux). Los **tests** ya no se difieren: `tools/test.ps1` los cubre (auto-contenidos, sin Pester). Se deja constancia aquí para que no parezca olvido.
 - **Hands** — conexiones/herramientas que se le dan al agente (servidores MCP o scripts con credenciales). Ejemplos posibles: Brevo (email transaccional), Cloudinary (documentos e imágenes).
 - **Hooks** — automatismos vía plugins de openCode. En gran parte cubiertos ya por `permission` (bloquear `.env`, pedir permiso para Git/instalaciones).
 - **Agentes** — subagentes de openCode (`.opencode/agents/`). Otra capa con su propio coste de contexto; se evaluará si aporta.

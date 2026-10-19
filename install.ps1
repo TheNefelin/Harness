@@ -133,7 +133,7 @@ if ($Source) {
     if ($Source -match '^(https?://|ssh://|git://|git@|file://)') {
         if (-not (Get-Command git -ErrorAction SilentlyContinue)) { throw 'Se requiere git para usar -Source <url>.' }
         $key = [System.BitConverter]::ToString([System.Security.Cryptography.SHA256]::Create().ComputeHash([System.Text.Encoding]::UTF8.GetBytes($Source))).Replace('-', '').Substring(0, 12)
-        $cache = Join-Path $env:TEMP ("harness-src-$key")
+        $cache = Join-Path ([System.IO.Path]::GetTempPath()) ("harness-src-$key")
         if (Test-Path -LiteralPath (Join-Path $cache '.git')) {
             Write-Host "Source: refrescando $cache" -ForegroundColor DarkGray
             git -C $cache fetch --depth 1 --quiet
@@ -151,10 +151,11 @@ if ($Source) {
         if (-not $resolved) { throw "La ruta de -Source no existe: $Source" }
         $SourceRoot = $resolved.Path
     }
-    if (-not (Test-Path -LiteralPath (Join-Path $SourceRoot 'skills'))) { throw "-Source no parece un catalogo Harness (falta skills\): $SourceRoot" }
+    if (-not (Test-Path -LiteralPath (Join-Path $SourceRoot 'skills'))) { throw "-Source no parece un catalogo Harness (falta skills/): $SourceRoot" }
 }
 
 $CatalogDir = Join-Path $SourceRoot 'skills'
+$TemplatesDir = Join-Path $SourceRoot 'templates'
 
 $Version = '0.0.0'
 $VersionFile = Join-Path $SourceRoot 'VERSION'
@@ -788,7 +789,7 @@ if ($Scope -eq 'Local') {
     }
     else {
         $tpl = if ($SkillsOnly) { 'opencode.skills-only.json' } else { 'opencode.json' }
-        Copy-Item -LiteralPath (Join-Path $SourceRoot "templates\$tpl") -Destination $ConfigFile -Force
+        Copy-Item -LiteralPath (Join-Path $TemplatesDir $tpl) -Destination $ConfigFile -Force
         Write-Host 'OK     opencode.json' -ForegroundColor Green
     }
 
@@ -816,7 +817,7 @@ else {
     else {
         if ($WhatIf) { Write-Host 'WOULD  opencode.json global (permisos)' -ForegroundColor DarkCyan }
         else {
-            Copy-Item -LiteralPath (Join-Path $SourceRoot 'templates\opencode.global.json') -Destination $ConfigFile -Force
+            Copy-Item -LiteralPath (Join-Path $TemplatesDir 'opencode.global.json') -Destination $ConfigFile -Force
             Write-Host 'OK     opencode.json global (permisos)' -ForegroundColor Green
         }
     }
@@ -832,7 +833,7 @@ if ($Context -and $Scope -eq 'Local') {
         else {
             if ($WhatIf) { Write-Host "WOULD  $file" -ForegroundColor DarkCyan }
             else {
-                Copy-Item -LiteralPath (Join-Path $SourceRoot "templates\$file") -Destination $target -Force
+                Copy-Item -LiteralPath (Join-Path $TemplatesDir $file) -Destination $target -Force
                 Write-Host "OK     $file" -ForegroundColor Green
             }
         }
@@ -846,7 +847,7 @@ if ($Context -and $Scope -eq 'Local') {
     elseif ($WhatIf) { Write-Host 'WOULD  .harness/session.md' -ForegroundColor DarkCyan }
     else {
         New-Item -ItemType Directory -Path $sessDir -Force | Out-Null
-        Copy-Item -LiteralPath (Join-Path $SourceRoot 'templates\session.md') -Destination $sessFile -Force
+        Copy-Item -LiteralPath (Join-Path $TemplatesDir 'session.md') -Destination $sessFile -Force
         Write-Host 'OK     .harness/session.md' -ForegroundColor Green
     }
 }
