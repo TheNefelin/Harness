@@ -69,6 +69,7 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es/1.1.0/); vers
 - README (`Actualizar`): nota de **portabilidad de la instalación** — no guarda la ruta del repo (solo `version`+`hash` por skill), así que mover o clonar el repo **no requiere reinstalar**; `-Update` corre desde la nueva ubicación. Ejemplos con placeholders neutros (`D:\ruta\al\...`) en README e `install.ps1`; anti-patrón equivalente en `skills/harness-install`.
 - `skills/harness-install`: sección **"Actualizar: agregar o quitar skills"** (re-ejecutar con `-Skills` del **set completo**; `-Update` sin `-Skills` solo refresca) y anti-patrón de pasar solo la skill nueva (podaría el resto).
 - README y `CONTRIBUTING.md`: las **evals** se etiquetan como **heurísticas de routing** (proxy léxico sobre las `description`; no ejecutan openCode ni validan el routing real del agente), para no venderlas como validación del mecanismo de activación.
+- `AGENTS.md`: recorte de redundancias **sin renumerar** secciones (222 → 217 líneas). §6 Fase 4 y la variante *Lista de issues* remiten a §5 en vez de repetirla; se eliminan duplicados en §7 (dependencia ya cubierta por §5.3/§8) y §9 (ramas/historial ya en los dos primeros bullets); se comprimen §4 (workspace) y §12. Se **conserva** el recordatorio explícito de **no ejecutar `git commit`/`git push`** (solo entregar el mensaje) y todas las reglas duras.
 
 ## [0.1.0] - 2026-10-13
 

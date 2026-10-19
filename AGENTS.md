@@ -46,7 +46,7 @@ Cada proyecto tiene su propio **trío de contexto**, que se resuelve relativo al
 | `DEVELOPMENT.md` | Arquitectura, decisiones técnicas y de diseño, avances, pendientes, problemas conocidos, deuda técnica | No es un archivo de reglas. Las **decisiones aceptadas** se registran al cerrar la tarea autorizada (§13); un pedido de **solo análisis** deja la propuesta como propuesta (no se escribe como aceptada) |
 | `SKILL.md` | Criterios técnicos de ese proyecto | Leerlo antes de tocar código y aplicar sus criterios y checklist. Ante contradicción con estas reglas, señalarla antes de implementar. **No crearlo** automáticamente: proponerlo y esperar autorización |
 
-En un workspace con varios proyectos, por ejemplo una app full stack con frontend y backend, cada proyecto mantiene su propio trío y la raíz del workspace tiene un `DEVELOPMENT.md` adicional que describe la composición: cómo se relacionan los proyectos, qué convenciones son compartidas y qué decisiones son transversales. Ese archivo de raíz también se lee, porque el contexto de un proyecto suele depender de él.
+En un workspace con varios proyectos (p. ej. frontend + backend), cada proyecto mantiene su **trío**; la raíz tiene un `DEVELOPMENT.md` adicional con la composición (relación entre proyectos, convenciones compartidas, decisiones transversales). También se lee: el contexto de un proyecto suele depender de él.
 
 ---
 
@@ -72,7 +72,7 @@ Prohibido modificar, crear o eliminar código del proyecto —y su documentació
 
 **Fase 3 — Propuesta.** Explicar qué problema se encontró, qué archivos se afectarían, qué solución se propone, por qué se recomienda, qué alternativas existen, qué riesgos tiene y **qué elementos NO se modificarán**.
 
-**Fase 4 — Autorización.** Ver §5 (regla de precedencia). La propuesta no constituye autorización. Obtenerla explícitamente antes de modificar. Si durante la implementación aparece una modificación adicional necesaria, detenerse, explicar el hallazgo y pedir autorización para ampliar el alcance.
+**Fase 4 — Autorización.** Ver §5 (regla de precedencia): la propuesta no autoriza. Obtener autorización explícita antes de modificar; un cambio adicional que aparezca durante la implementación se detiene y se pide permiso para ampliarlo (§7).
 
 **Fase 5 — Implementación.** Modificar únicamente lo aprobado, respetando la arquitectura existente. Sin cambios no relacionados, sin refactorizaciones por iniciativa propia, sin instalar dependencias y sin tocar Git.
 
@@ -84,7 +84,7 @@ Prohibido modificar, crear o eliminar código del proyecto —y su documentació
 
 **Variantes del flujo.** Estos pasos aplican, con adaptaciones:
 
-- *Lista de issues o hallazgos*: aplicar la **regla de precedencia (§5)** a cada uno. Si el pedido es **solo analizar/revisar**, se explica problema e impacto y se propone solución, esperando confirmación. Si la instrucción es **explícita** ("corrige este hallazgo"), se implementa esa corrección dentro del alcance. En ambos casos: una corrección a la vez, revisarla antes de seguir; los cambios adicionales siguen requiriendo autorización; no corregir varios en paralelo sin autorización individual. Si un hallazgo resulta falso positivo o diseño intencional, detenerse y consultar.
+- *Lista de issues o hallazgos*: aplicar la **regla de precedencia (§5)** a cada uno —si es **solo analizar/revisar**, proponer y esperar confirmación; si la instrucción es **explícita** ("corrige este hallazgo"), implementar esa corrección dentro del alcance—. En ambos casos: **de a una**, revisarla antes de seguir; cambios adicionales y correcciones en paralelo requieren autorización individual. Ante un falso positivo o un diseño intencional, detenerse y consultar.
 - *Feature, página, componente o módulo nuevo*: entender el requisito, preguntar, analizar la arquitectura y el `SKILL.md` del proyecto, proponer plan y estructura, esperar aprobación, implementar lo aprobado, revisar el diff, verificar e informar.
 
 ---
@@ -94,7 +94,6 @@ Prohibido modificar, crear o eliminar código del proyecto —y su documentació
 - Modificar únicamente lo necesario para resolver el problema solicitado.
 - No cambiar arquitectura, nombres, estructura de carpetas, dependencias, estilos o configuraciones que no sean necesarios para la tarea.
 - Una mejora importante fuera de alcance se informa como **recomendación separada**, nunca se implementa por iniciativa propia.
-- Si aparece una dependencia técnica no contemplada, detenerse y pedir autorización para ampliar el alcance.
 
 ---
 
@@ -113,16 +112,14 @@ Prohibido modificar, crear o eliminar código del proyecto —y su documentació
 
 - Está **estrictamente prohibido** ejecutar operaciones que modifiquen el estado del repositorio sin autorización explícita.
 - Incluye: `git commit`, `push`, `pull`, `merge`, `rebase`, `cherry-pick`, `reset`, `revert`, `restore`, `stash`, eliminación de ramas, modificación de tags y equivalentes. No hacer commits, push ni pull automáticos.
-- No modificar ramas, historial ni estado del repositorio sin autorización.
 - Las operaciones de **solo lectura** (`status`, `log`, `diff`, `show`, `ls-files`, `remote`) sí pueden usarse para analizar el proyecto.
 
 ### Mensajes de commit
 
-- Generar **un solo** mensaje, sin importar la extensión del cambio. No ejecutar `git commit` ni `git push`.
+- Generar **un solo** mensaje de commit, sin importar la extensión del cambio. **No ejecutar** `git commit` ni `git push`: se entrega el mensaje para que lo ejecutes tú.
 - Conventional Commits: `tipo(scope1, scope2): resumen en español, imperativo`. Uno o varios scopes ordenados por importancia; usar el área real del cambio (`skills`, `docker`, `api`, `ui`, ...).
 - Body obligatorio con bullets `-`, cada uno con el detalle técnico del cambio y el archivo o área afectada.
 - Incluir siempre al final la línea de verificación con **números reales del run ejecutado**: `suite N/N tests, build N/N`. Nunca inventarlos; si no se corrieron, decirlo así (`suite no ejecutada, build no ejecutado`).
-- Usar bullet final `- Eliminado X (sin uso)` cuando aplique.
 
 Formato:
 
@@ -174,8 +171,6 @@ Los tests están permitidos cuando son seguros. **Ejecución:** el agente puede 
 
 **Tecnologías distintas.** No asumir que el comportamiento de testing de una tecnología es igual al de otra: un flujo de Python/FastAPI puede usar mecanismos de preparación o limpieza diferentes a los de .NET. Antes de ejecutar tests que interactúen con una BD real o compartida, identificar qué BD usan, qué operaciones hacen en setup/fixture/teardown, si afectan datos preexistentes y si la limpieza está aislada. Si no se puede garantizar, detenerse.
 
-**Tests sin BD.** Los que no interactúan con una base compartida se ejecutan normalmente, si no existe otro riesgo relevante.
-
 ---
 
 ## 12. Verificación y reporte
@@ -184,7 +179,7 @@ Los tests están permitidos cuando son seguros. **Ejecución:** el agente puede 
 
 **Verificación runtime.** Cuando el cambio afecte comportamiento visible, integración o flujo de ejecución: indicar qué debería verificarse y ejecutarlo si es seguro y está en el alcance. Si requiere acciones destructivas, datos reales o credenciales, detenerse y pedir autorización.
 
-**Antes de declarar terminada una tarea**, confirmar: solo se modificaron archivos necesarios; sin nombres, redundancia, imports sin uso ni errores no manejados; consistente con los patrones existentes; sin dependencias, Git ni archivos protegidos tocados sin autorización; y **qué verificaciones realmente se ejecutaron**.
+**Antes de declarar terminada una tarea**, confirmar: solo se modificaron los archivos necesarios; sin redundancia, imports sin uso ni errores no manejados; consistente con los patrones existentes; sin dependencias, Git ni archivos protegidos tocados sin autorización; y **qué verificaciones se ejecutaron de verdad**.
 
 **Reporte final**, de forma clara y concisa:
 
