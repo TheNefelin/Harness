@@ -123,6 +123,19 @@ try {
     $insH = (Get-FileHash -LiteralPath $sk).Hash
     Assert ($refH -eq $insH) 'refresca la skill al catalogo'
 
+    # --- Reglas editadas -> respaldo ----------------------------------------
+    Section 'install.ps1 -Update (AGENTS.md editado -> respaldo)'
+    $pg = New-Project 'proj-rules'
+    $r = Invoke-Script $Install @('-Project', $pg, '-Skills', 'dotnet', '-Source', $Repo)
+    Assert ($r.Exit -eq 0) 'instala con reglas'
+    $rg = Join-Path $pg 'harness\AGENTS.md'
+    Add-Content -LiteralPath $rg -Value "`n<!-- editado a mano -->"
+    $r = Invoke-Script $Install @('-Project', $pg, '-Update', '-Source', $Repo)
+    Assert ($r.Exit -eq 0) '-Update con AGENTS.md editado sale 0'
+    $bdir = Join-Path $pg 'harness\.harness-backup'
+    Assert ((Test-Path -LiteralPath $bdir) -and (@(Get-ChildItem -LiteralPath $bdir -Filter 'AGENTS.md-*').Count -ge 1)) 'respalda el AGENTS.md editado'
+    Assert ((Get-FileHash -LiteralPath $rg).Hash -eq (Get-FileHash -LiteralPath (Join-Path $Repo 'AGENTS.md')).Hash) 'refresca AGENTS.md al catalogo'
+
     # --- Deteccion -----------------------------------------------------------
     Section 'install.ps1 -Detect'
     $p3 = New-Project 'proj3'
@@ -148,6 +161,14 @@ try {
     $r = Invoke-Script $Install @('-Project', $p4, '-Doctor', '-Source', $Repo)
     Assert ($r.Exit -ne 0) '-Doctor falla si schemaVersion es mas nuevo'
 
+    # --- Manifiesto corrupto (error limpio) ---------------------------------
+    Section 'install.ps1 manifiesto corrupto (falla limpio)'
+    $px = New-Project 'proj-corrupt'
+    Set-Content -LiteralPath (Join-Path $px '.harness.json') '{ esto no es json'
+    $r = Invoke-Script $Install @('-Project', $px, '-Update', '-Source', $Repo)
+    Assert ($r.Exit -ne 0) '-Update aborta con manifiesto corrupto'
+    Assert (-not (Test-Path -LiteralPath (Join-Path $px 'harness'))) 'no escribe nada si el manifiesto es invalido'
+
     # --- Skill ajena protegida ----------------------------------------------
     Section 'install.ps1 protege skills ajenas'
     $pj = New-Project 'proj5'
@@ -158,6 +179,20 @@ try {
     $r = Invoke-Script $Install @('-Project', $pj, '-Update', '-Source', $Repo)
     Assert ($r.Exit -eq 0) '-Update con skill ajena sale 0'
     Assert (Test-Path -LiteralPath (Join-Path $mine 'SKILL.md')) 'no poda la skill ajena'
+
+    # --- Poda de skill gestionada -------------------------------------------
+    Section 'install.ps1 -Update (poda de skill gestionada)'
+    $pp = New-Project 'proj-prune'
+    $r = Invoke-Script $Install @('-Project', $pp, '-Skills', 'dotnet,sql', '-Source', $Repo)
+    Assert ($r.Exit -eq 0) 'instala dotnet,sql'
+    Assert (Test-Path -LiteralPath (Join-Path $pp 'harness\skills\sql')) 'sql instalada'
+    $r = Invoke-Script $Install @('-Project', $pp, '-Update', '-Skills', 'dotnet', '-Source', $Repo)
+    Assert ($r.Exit -eq 0) '-Update -Skills dotnet sale 0'
+    Assert (-not (Test-Path -LiteralPath (Join-Path $pp 'harness\skills\sql'))) 'poda sql del set'
+    Assert (@(Get-ChildItem -LiteralPath (Join-Path $pp 'harness\.harness-backup') -Filter 'sql-*').Count -ge 1) 'respalda la skill podada'
+    $declp = Get-Content -LiteralPath (Join-Path $pp '.harness.json') -Raw | ConvertFrom-Json
+    Assert (-not (@($declp.skills) -contains 'sql')) 'manifest sin sql'
+    Assert (@($declp.skills) -contains 'dotnet') 'manifest conserva dotnet'
 
     # --- SkillsOnly (sin reglas) --------------------------------------------
     Section 'install.ps1 -SkillsOnly (sin reglas)'

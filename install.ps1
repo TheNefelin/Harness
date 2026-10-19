@@ -878,4 +878,4 @@ if ($WhatIf) {
     exit 0
 }
 Write-Host ("Harness " + $Scope.ToLower() + " listo. " + $desired.Count + " skill(s): " + ($desired -join ', '))
-Write-Host 'Reinicia openCode para que cargue reglas y skills.'
+Write-Host 'Recarga openCode con /reload (o reinicialo) para que cargue reglas y skills.'

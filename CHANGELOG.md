@@ -19,6 +19,7 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es/1.1.0/); vers
 - `tools/check.ps1`: **seguimiento de headroom** — lista (sin bloquear) las skills cuyo cuerpo supera el **80%** de `MaxBodyLines`, para mover detalle a `references/` antes de rozar el límite.
 - `skills/arduino`: nueva skill — firmware para AVR (Uno/Nano/Mega) y ESP32/ESP8266 (núcleo agnóstico + `arduino-cli`/PlatformIO): modelo `setup()`/`loop()`, no bloqueante con `millis()`, límites de memoria en AVR, ADC/PWM, I2C/SPI, interrupciones, bajo consumo y anti-patrones; con marcador de frescura y evals (2 positivos, 1 ambiguo, 1 de frontera, 1 negativo). `evals/triggers.json` pasa a **48 casos** y el README a **17 skills**.
 - `install.ps1` + `templates/session.md`: **checkpoint de sesión** — `-Context` siembra `.harness/session.md` (local, **fuera de Git**) para dejar el punto de continuación de una tarea larga (tarea activa, último avance comprobado, archivos tocados, pruebas ejecutadas con su resultado real, bloqueos, siguiente paso) sin guardar transcripciones; el instalador ignora `.harness/` en `.gitignore`. La regla vive en `AGENTS.md` §13; `DEVELOPMENT.md` sigue siendo la memoria durable. Pruebas en `tools/test.ps1` y nota en `README.md`/`skills/harness-install`.
+- `tools/test.ps1`: casos de fallo nuevos — `-Update` con `AGENTS.md` local **editado** (respaldo + refresco al catálogo), **poda** de una skill gestionada al reducir el set con `-Skills` (respaldo + manifiesto actualizado) y manifiesto **corrupto** (aborta sin escribir). 55 → 68 pruebas.
 
 ### Cambiado
 
@@ -31,6 +32,7 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es/1.1.0/); vers
 - `AGENTS.md` §5: reescrita como **regla de precedencia** (instrucción explícita autoriza; pedido de solo análisis no autoriza; cambio fuera de alcance requiere permiso; operaciones del Harness autorizadas una vez), para eliminar la contradicción con el "esperar un sí, impleméntalo"; §6 Fase 4 remite a esa regla.
 - `AGENTS.md` §6 (`Lista de issues o hallazgos`): la variante remite a la **regla de precedencia (§5)** — si el pedido es solo analizar, se propone y se espera confirmación; si la instrucción es explícita ("corrige este hallazgo"), se implementa ese alcance—, resolviendo la contradicción con §5.
 - `AGENTS.md` §13 (**Memoria, cierre de tarea**): registrar las decisiones aceptadas pasa a ser parte del cierre de una implementación autorizada (no un permiso aparte): se escriben en `DEVELOPMENT.md` al terminar, con **estado** (`Aceptado`/`Propuesto`/`Pendiente`), sin inventar datos y sin registrar una propuesta como decisión aceptada. Cierra el ciclo que antes quedaba solo en el chat ("las decisiones mueren con la sesión").
+- `install.ps1`: el mensaje final tras instalar recomienda **`/reload`** (o reiniciar) en vez de "Reinicia openCode", coherente con el README y `skills/harness-install`.
 
 ### Corregido
 
