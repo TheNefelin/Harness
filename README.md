@@ -39,7 +39,7 @@ Harness/
 
 ## Requisitos
 
-- [openCode](https://opencode.ai) instalado.
+- [openCode](https://opencode.ai) **V2** (o superior). El Harness usa la sintaxis V2 (`permissions`/`shell`/`skills`); openCode **V1 ignora ese bloque sin avisar**, así que se perderían las protecciones (bloquear `.env`, pedir permiso al editar y al ejecutar shell). V1 no es compatible.
 - **PowerShell**: Windows PowerShell 5.1 (viene con Windows) o **PowerShell 7+ (`pwsh`)**, que corre también en Linux/macOS.
 - Los scripts (`install.ps1`, `tools/check.ps1`, `tools/test.ps1`) son **multiplataforma**: corren en Windows (PowerShell 5.1/7) y en Linux/macOS con **PowerShell 7+ (`pwsh`)**. El CI los ejecuta en `windows-latest` y `ubuntu-latest`.
 

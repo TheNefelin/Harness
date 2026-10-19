@@ -98,6 +98,17 @@ try {
     $r = Invoke-Script $Install @('-Project', $p1, '-Doctor', '-Source', $Repo)
     Assert ($r.Exit -eq 0) '-Doctor sale 0'
 
+    # --- Doctor: avisa sintaxis V1 -------------------------------------------
+    Section 'install.ps1 -Doctor (avisa sintaxis V1)'
+    $pv1 = New-Project 'proj-v1'
+    $r = Invoke-Script $Install @('-Project', $pv1, '-Skills', 'dotnet', '-Source', $Repo)
+    Assert ($r.Exit -eq 0) 'instalacion para el caso V1 sale 0'
+    $v1json = '{ "permission": { "read": "allow" }, "skills": { "paths": ["harness/skills"] } }'
+    [System.IO.File]::WriteAllText((Join-Path $pv1 'opencode.json'), $v1json, (New-Object System.Text.UTF8Encoding($false)))
+    $r = Invoke-Script $Install @('-Project', $pv1, '-Doctor', '-Source', $Repo)
+    Assert ($r.Exit -eq 0) '-Doctor con V1 sale 0 (aviso, no fallo)'
+    Assert ($r.Out -match 'V1') '-Doctor avisa de la sintaxis V1'
+
     # --- WhatIf --------------------------------------------------------------
     Section 'install.ps1 -WhatIf (no escribe)'
     $p2 = New-Project 'proj2'
@@ -297,6 +308,7 @@ try {
     # --- Plantillas: permisos V2 (deniega secretos, permite plantillas) ------
     Section 'templates (permisos V2: deniega secretos, permite plantillas)'
     function Get-RuleEffect { param($Rules, [string]$Resource) $eff = $null; foreach ($r in $Rules) { if ($r.action -eq 'read' -and $Resource -like $r.resource) { $eff = $r.effect } }; return $eff }
+    function Get-ShellEffect { param($Rules, [string]$Resource) $worst = 'allow'; foreach ($seg in ($Resource -split '\s*(?:&&|\|\||;|\|)\s*' | Where-Object { $_ -ne '' })) { $eff = $null; foreach ($r in $Rules) { if ($r.action -eq 'shell' -and $seg -like $r.resource) { $eff = $r.effect } }; if ($null -eq $eff) { $eff = 'ask' }; if ($eff -eq 'deny') { return 'deny' }; if ($eff -eq 'ask') { $worst = 'ask' } }; return $worst }
     foreach ($t in @('opencode.json', 'opencode.global.json', 'opencode.skills-only.json')) {
         $cfg = Get-Content -LiteralPath (Join-Path $Repo ('templates/' + $t)) -Raw | ConvertFrom-Json
         Assert ($cfg.PSObject.Properties.Name -contains 'permissions') "$t usa 'permissions' (V2)"
@@ -307,6 +319,13 @@ try {
         Assert ((Get-RuleEffect $rules '.env.example') -eq 'allow') "$t permite .env.example"
         Assert ((Get-RuleEffect $rules '.env.sample') -eq 'allow') "$t permite .env.sample"
         Assert ((Get-RuleEffect $rules '.env.template') -eq 'allow') "$t permite .env.template"
+        Assert ((Get-ShellEffect $rules 'git status --short') -eq 'allow') "$t permite git status (solo lectura)"
+        Assert ((Get-ShellEffect $rules 'git log --oneline') -eq 'allow') "$t permite git log (solo lectura)"
+        Assert ((Get-ShellEffect $rules 'git commit -m x') -eq 'deny') "$t deniega git commit"
+        Assert ((Get-ShellEffect $rules 'git push origin main') -eq 'deny') "$t deniega git push"
+        Assert ((Get-ShellEffect $rules 'git status && rm -rf /') -eq 'ask') "$t no confirma git status encadenado sin preguntar"
+        Assert ((Get-ShellEffect $rules 'git status && git push origin main') -eq 'deny') "$t deniega push encadenado tras un git status permitido"
+        Assert ((Get-ShellEffect $rules 'tee /etc/passwd') -eq 'ask') "$t pregunta por shell arbitrario"
         if ($t -ne 'opencode.global.json') { Assert (@($cfg.skills) -contains 'harness/skills') "${t}: skills = [harness/skills]" }
     }
 }

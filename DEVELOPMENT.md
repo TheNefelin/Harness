@@ -26,20 +26,25 @@ Catálogo de **reglas** (`AGENTS.md`), **skills** (`skills/<nombre>/SKILL.md` + 
 | 2026-10-19 | Aceptado | `read` **deniega** `.env`/`.env.*` pero **permite** plantillas sin valores reales (`.env_demo`, `.env.example`, `.env.sample`, `.env.template`) | Las plantillas son seguras y estándar; los secretos, no | Denegar todo `.env.*` |
 | 2026-10-19 | Aceptado | Solo el **usuario** commitea/pushea; el agente entrega el mensaje | Control total del historial | El agente commitea |
 | 2026-10-19 | Aceptado | El **detalle de subsistema** de una skill (con su código) vive en `references/`; el `SKILL.md` queda en reglas + anti-patrones + punteros | `SKILL.md` scaneable y `MaxBodyLines` con holgura; el detalle se lee solo al hacer falta | Inline (rozaba el límite de 400) |
+| 2026-10-19 | Aceptado | **openCode V2 obligatorio**: la configuración usa `permissions`/`shell`/`skills`; no se soporta V1 | V1 **ignora** el bloque de permisos sin avisar (se perderían las protecciones de `.env`/edición/shell) | Soportar ambas sintaxis (en V1 el bloque no tiene efecto) |
+| 2026-10-19 | Aceptado | Las plantillas **deniegan** las mutaciones de Git (`commit`/`push`/`pull`/`merge`/`rebase`/`cherry-pick`/`reset`/`revert`/`restore`/`stash`) | No depender solo del `ask`: el agente nunca muta Git (coherente con §9). V2 evalúa **cada segmento** de un comando compuesto, así que un `git status && git push` cae en `deny` | Dejar solo `ask` (admite aprobación) |
+| 2026-10-19 | Aceptado | `AGENTS.md` se mantiene como **un solo archivo** (no se parte en skills) | Las reglas duras (idioma, `.env`, Git, permisos) deben **cargarse siempre**; partirlas las volvería condicionales | Mover formato de commit/tests a skills (ahorro marginal, riesgo de perder reglas duras) |
 
 ## Estado
 
 - [x] **0.2.0**: portabilidad multiplataforma, referencias alcanzables, `-Detect` en monorepo, `.env.example`, sintaxis V2 de las plantillas.
+- [x] **openCode V2**: requisito declarado en `README.md` y `skills/harness-install`; `install.ps1 -Doctor` avisa de la sintaxis V1 (`permission`/`bash`/`skills.paths`); plantillas endurecidas (deny de mutaciones de Git).
 - [x] **Progressive disclosure**: `angular`/`astro`/`dotnet`/`fastapi` mueven el detalle de subsistema a `references/`; ninguna skill supera el 80% de `MaxBodyLines` (400).
-- [x] Catálogo: **17 skills**, **49 casos** de eval, **99 pruebas** de integración; `check.ps1 -Strict` en 0.
+- [x] Catálogo: **17 skills**, **49 casos** de eval, **123 pruebas** de integración; `check.ps1 -Strict` en 0.
 
 ## Pendientes
 
-- **Matizados (sin acción):** `AGENTS.md` frente a `permission` (defensa en capas, no duplicación) y marcadores de frescura donde no aplican.
+- **Matizados (sin acción):** `AGENTS.md` frente a `permissions` (defensa en capas, no duplicación) y marcadores de frescura donde no aplican.
 
 ## Problemas conocidos
 
 - `check.ps1` **no** puede exigir marcador de frescura a todas las skills: algunas (p. ej. `nosql`) lo omiten por diseño porque no están atadas a versiones.
+- El patrón `*.env.*` (deny, alineado con el default de openCode) también **bloquea** nombres legítimos como `app.env.ts`: no hay glob que case "basename empieza por `.env`" porque `*` cruza `/`. Se mantiene **fail-closed** (protege `.env.local`/`.env.production`, que es lo importante).
 
 ## Deuda técnica
 

@@ -23,6 +23,7 @@ Repositorio: `https://github.com/TheNefelin/Harness.git`
 
 - `git`.
 - PowerShell: nativo en Windows; en Linux/macOS usar **PowerShell 7+ (`pwsh`)**. Los scripts son **multiplataforma** (Windows y Linux/macOS); el CI los prueba en ambos.
+- **openCode V2** (o superior): la configuración usa la sintaxis V2 (`permissions`/`shell`/`skills`). openCode **V1 ignora ese bloque sin avisar** (se perderían las protecciones de `.env`/edición/shell); si el `opencode.json` ya existía en formato V1, `-Doctor` lo avisa — migra a `permissions` (array), `shell` y `skills` (array de directorios) o reinstala con el archivo eliminado.
 
 ## Parámetros del instalador
 

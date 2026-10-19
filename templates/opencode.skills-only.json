@@ -16,6 +16,16 @@
     { "action": "shell", "resource": "git show*", "effect": "allow" },
     { "action": "shell", "resource": "git remote*", "effect": "allow" },
     { "action": "shell", "resource": "git ls-files*", "effect": "allow" },
+    { "action": "shell", "resource": "git commit*", "effect": "deny" },
+    { "action": "shell", "resource": "git push*", "effect": "deny" },
+    { "action": "shell", "resource": "git pull*", "effect": "deny" },
+    { "action": "shell", "resource": "git merge*", "effect": "deny" },
+    { "action": "shell", "resource": "git rebase*", "effect": "deny" },
+    { "action": "shell", "resource": "git cherry-pick*", "effect": "deny" },
+    { "action": "shell", "resource": "git reset*", "effect": "deny" },
+    { "action": "shell", "resource": "git revert*", "effect": "deny" },
+    { "action": "shell", "resource": "git restore*", "effect": "deny" },
+    { "action": "shell", "resource": "git stash*", "effect": "deny" },
     { "action": "webfetch", "resource": "*", "effect": "ask" },
     { "action": "websearch", "resource": "*", "effect": "ask" }
   ]

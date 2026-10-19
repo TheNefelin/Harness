@@ -543,6 +543,11 @@ if ($Doctor) {
     if (Test-Path -LiteralPath $ConfigFile) {
         try {
             $cfg = Get-Content -LiteralPath $ConfigFile -Raw | ConvertFrom-Json
+            $v1 = @()
+            if ($cfg.PSObject.Properties.Name -contains 'permission') { $v1 += 'permission' }
+            if ($cfg.PSObject.Properties.Name -contains 'bash') { $v1 += 'bash' }
+            if ($cfg.PSObject.Properties.Name -contains 'skills' -and $cfg.skills -is [System.Management.Automation.PSCustomObject] -and ($cfg.skills.PSObject.Properties.Name -contains 'paths')) { $v1 += 'skills.paths' }
+            if ($v1.Count -gt 0) { Write-Check WARN ("opencode.json: sintaxis V1 ({0}); openCode V1 ignora el bloque V2 -- migra a permissions/shell/skills (array)" -f ($v1 -join ', ')) }
             if ($Scope -eq 'Local') {
                 $paths = @()
                 if ($cfg.PSObject.Properties.Name -contains 'skills') {
