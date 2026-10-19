@@ -43,7 +43,7 @@ Cada proyecto tiene su propio **trío de contexto**, que se resuelve relativo al
 | Archivo | Contiene | Regla |
 |---|---|---|
 | `README.md` | Descripción, instalación, uso, dependencias, configuración, comandos | No es un archivo de reglas. Si el cambio altera lo que documenta, **detectar, informar y proponer** la actualización |
-| `DEVELOPMENT.md` | Arquitectura, decisiones técnicas y de diseño, avances, pendientes, problemas conocidos, deuda técnica | No es un archivo de reglas. Si una decisión relevante debe quedar registrada, **proponer** actualizarla |
+| `DEVELOPMENT.md` | Arquitectura, decisiones técnicas y de diseño, avances, pendientes, problemas conocidos, deuda técnica | No es un archivo de reglas. Las **decisiones aceptadas** se registran al cerrar la tarea autorizada (§13); un pedido de **solo análisis** deja la propuesta como propuesta (no se escribe como aceptada) |
 | `SKILL.md` | Criterios técnicos de ese proyecto | Leerlo antes de tocar código y aplicar sus criterios y checklist. Ante contradicción con estas reglas, señalarla antes de implementar. **No crearlo** automáticamente: proponerlo y esperar autorización |
 
 En un workspace con varios proyectos, por ejemplo una app full stack con frontend y backend, cada proyecto mantiene su propio trío y la raíz del workspace tiene un `DEVELOPMENT.md` adicional que describe la composición: cómo se relacionan los proyectos, qué convenciones son compartidas y qué decisiones son transversales. Ese archivo de raíz también se lee, porque el contexto de un proyecto suele depender de él.

@@ -48,6 +48,7 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es/1.1.0/); vers
 - `skills/oci` (`references/always-free.md`): el **boot volume mínimo** pasa de ~47 GB a **50 GB** (predeterminado y mínimo según la doc; la sección de Compute aún menciona 47 GB, discrepancia de la propia fuente).
 - `skills/arduino`: el ejemplo de `arduino-cli config add board_manager.additional_urls` advierte que es configuración **inicial** y que `config add` **agrega** al array —re-ejecutarlo **duplica** la URL—, indicando cómo repetir sin duplicar (`config remove` previo o `config get` para comprobar).
 - `skills/oci` (`references/always-free.md`): se **citan las fuentes oficiales** de dos afirmaciones —el reclamo por inactividad (apartado **"Idle Compute Instances"** de la doc FreeTier) y la eliminación a los **30 días** (FAQ oficial, apartado "Always Free Resources")—.
+- `AGENTS.md` §4 (tabla del trío de contexto): la fila de `DEVELOPMENT.md` **remite a §13** —las decisiones aceptadas se registran al cerrar la tarea autorizada; en pedidos de solo análisis la propuesta no se escribe como aceptada—, eliminando la contradicción con la regla de cierre de memoria.
 
 ### Documentación
 
