@@ -41,6 +41,7 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es/1.1.0/); vers
 ### Corregido
 
 - `install.ps1`: restaurada la cabecera de `Add-Detected` (un reemplazo previo la había dejado fuera y el script no cargaba). Lo detectó `tools/test.ps1`.
+- `install.ps1` (`-Detect`): en un **monorepo** solo se leía **un** `package.json`/`requirements.txt`/`pyproject.toml` (el mapa por nombre se sobrescribía), así que se perdían las dependencias del resto de paquetes. Ahora se agrupan **todos** los archivos por nombre y se leen todos; la evidencia (`-Verbose`) indica la **ruta** que disparó cada detección. Prueba en `tools/test.ps1` (dos `package.json` → angular y astro; dos de Python → fastapi y django).
 - `skills/docker`, `skills/nosql`: resueltos los marcadores de frescura sin fecha que marcaba `check.ps1 -Strict` — `docker` con fecha `(verificado 2026-10-14)` y `nosql` reformulado como nota de **Alcance** (no atado a versiones).
 - Frontmatter: 13 `description` con `: ` (YAML inválido: GitHub y otros parsers lo rechazan) quedan citadas con comillas dobles.
 - `skills/angular`: nota de contexto — los nombres concretos (`CrudPage`, `MutationService`, `ApiService`) son de un proyecto de referencia; los principios son portables.

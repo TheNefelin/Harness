@@ -152,6 +152,21 @@ try {
     Assert ($r.Out -match 'aws') '-Detect detecta aws'
     Assert ($r.Out -match 'sql') '-Detect detecta sql (.csproj Npgsql)'
 
+    # --- Deteccion en monorepo (varios archivos de dependencias) ------------
+    Section 'install.ps1 -Detect (monorepo)'
+    $pm = New-Project 'proj-monorepo'
+    New-Item -ItemType Directory -Force -Path (Join-Path $pm 'apps/web'), (Join-Path $pm 'apps/api'), (Join-Path $pm 'services/py') | Out-Null
+    Set-Content -LiteralPath (Join-Path $pm 'apps/web/package.json') '{ "dependencies": { "@angular/core": "^21.0.0" } }'
+    Set-Content -LiteralPath (Join-Path $pm 'apps/api/package.json') '{ "dependencies": { "astro": "^5.0.0" } }'
+    Set-Content -LiteralPath (Join-Path $pm 'services/py/requirements.txt') 'fastapi'
+    Set-Content -LiteralPath (Join-Path $pm 'requirements.txt') 'django'
+    $r = Invoke-Script $Install @('-Project', $pm, '-Detect', '-Source', $Repo)
+    Assert ($r.Exit -eq 0) '-Detect monorepo sale 0'
+    Assert ($r.Out -match 'angular') '-Detect lee package.json anidado (angular)'
+    Assert ($r.Out -match 'astro') '-Detect lee el otro package.json (astro)'
+    Assert ($r.Out -match 'fastapi') '-Detect lee requirements.txt anidado (fastapi)'
+    Assert ($r.Out -match 'django') '-Detect lee requirements.txt de la raiz (django)'
+
     # --- Guard de schemaVersion ---------------------------------------------
     Section 'install.ps1 guard schemaVersion'
     $p4 = New-Project 'proj4'

@@ -241,6 +241,13 @@ function Add-Detected {
     else { $script:DetectEvidence[$Name] = @($Why) }
 }
 
+function Get-DetectedLoc {
+    # Ruta del archivo relativa a la raiz del proyecto (evidencia legible, separador '/').
+    param([string]$Root, [string]$Full)
+    if ($Full.StartsWith($Root, [System.StringComparison]::OrdinalIgnoreCase)) { return $Full.Substring($Root.Length).TrimStart('\', '/').Replace('\', '/') }
+    return $Full
+}
+
 function Get-ProjectTech {
     param([string]$Root)
 
@@ -252,10 +259,12 @@ function Get-ProjectTech {
     $files = @(Get-ChildItem -LiteralPath $Root -Recurse -File -Force -ErrorAction SilentlyContinue |
         Where-Object { $_.FullName -notmatch $exclude })
 
+    # byName agrupa TODOS los archivos por nombre (monorepo: varios package.json, etc.).
     $byName = @{}
     $exts = [System.Collections.Generic.HashSet[string]]::new([System.StringComparer]::OrdinalIgnoreCase)
     foreach ($f in $files) {
-        $byName[$f.Name.ToLower()] = $f.FullName
+        $key = $f.Name.ToLower()
+        if ($byName.ContainsKey($key)) { $byName[$key] = @($byName[$key]) + $f } else { $byName[$key] = @($f) }
         if ($f.Extension) { [void]$exts.Add($f.Extension.ToLower()) }
     }
     $fullNames = @($files | ForEach-Object { $_.FullName })
@@ -275,30 +284,34 @@ function Get-ProjectTech {
     # SQL por archivos
     if ($exts.Contains('.sql')) { Add-Detected $skills 'sql' 'archivos .sql' }
 
-    # package.json (Node / frameworks / drivers)
+    # package.json (Node / frameworks / drivers) - todos los del arbol (monorepo)
     if ($byName.ContainsKey('package.json')) {
-        $pkg = Get-Content -LiteralPath $byName['package.json'] -Raw -ErrorAction SilentlyContinue
-        if ($pkg) {
-            if ($pkg -match '@angular/core') { Add-Detected $skills 'angular' 'package.json: @angular/core' }
-            if ($pkg -match '"astro"') { Add-Detected $skills 'astro' 'package.json: astro' }
-            if ($pkg -match '"(react|react-dom|next)"') { Add-Detected $skills 'react' 'package.json: react/next' }
-            if ($pkg -match '"vue"') { Add-Detected $skills 'vue' 'package.json: vue' }
-            if ($pkg -match '"svelte"') { Add-Detected $skills 'svelte' 'package.json: svelte' }
-            if ($pkg -match '"(pg|postgres|mysql|mysql2|mssql)"') { Add-Detected $skills 'sql' 'package.json: driver SQL (pg/mysql/mssql)' }
-            if ($pkg -match '"(mongodb|redis|ioredis)"|@azure/cosmos|@aws-sdk/client-dynamodb') { Add-Detected $skills 'nosql' 'package.json: driver NoSQL (mongodb/redis/cosmos/dynamodb)' }
+        foreach ($pj in $byName['package.json']) {
+            $pkg = Get-Content -LiteralPath $pj.FullName -Raw -ErrorAction SilentlyContinue
+            if (-not $pkg) { continue }
+            $loc = Get-DetectedLoc -Root $Root -Full $pj.FullName
+            if ($pkg -match '@angular/core') { Add-Detected $skills 'angular' "${loc}: @angular/core" }
+            if ($pkg -match '"astro"') { Add-Detected $skills 'astro' "${loc}: astro" }
+            if ($pkg -match '"(react|react-dom|next)"') { Add-Detected $skills 'react' "${loc}: react/next" }
+            if ($pkg -match '"vue"') { Add-Detected $skills 'vue' "${loc}: vue" }
+            if ($pkg -match '"svelte"') { Add-Detected $skills 'svelte' "${loc}: svelte" }
+            if ($pkg -match '"(pg|postgres|mysql|mysql2|mssql)"') { Add-Detected $skills 'sql' "${loc}: driver SQL (pg/mysql/mssql)" }
+            if ($pkg -match '"(mongodb|redis|ioredis)"|@azure/cosmos|@aws-sdk/client-dynamodb') { Add-Detected $skills 'nosql' "${loc}: driver NoSQL (mongodb/redis/cosmos/dynamodb)" }
         }
     }
 
-    # Python (requirements / pyproject / pipfile)
+    # Python (requirements / pyproject / pipfile) - todos los del arbol (monorepo)
     foreach ($n in @('requirements.txt', 'pyproject.toml', 'pipfile')) {
         if ($byName.ContainsKey($n)) {
-            $py = Get-Content -LiteralPath $byName[$n] -Raw -ErrorAction SilentlyContinue
-            if ($py) {
-                if ($py -match 'fastapi') { Add-Detected $skills 'fastapi' "${n}: fastapi" }
-                if ($py -match 'django') { Add-Detected $skills 'django' "${n}: django" }
-                if ($py -match 'flask') { Add-Detected $skills 'flask' "${n}: flask" }
-                if ($py -match '(psycopg|sqlalchemy)') { Add-Detected $skills 'sql' "${n}: psycopg/sqlalchemy" }
-                if ($py -match '(pymongo|\bredis\b)') { Add-Detected $skills 'nosql' "${n}: pymongo/redis" }
+            foreach ($pf in $byName[$n]) {
+                $py = Get-Content -LiteralPath $pf.FullName -Raw -ErrorAction SilentlyContinue
+                if (-not $py) { continue }
+                $loc = Get-DetectedLoc -Root $Root -Full $pf.FullName
+                if ($py -match 'fastapi') { Add-Detected $skills 'fastapi' "${loc}: fastapi" }
+                if ($py -match 'django') { Add-Detected $skills 'django' "${loc}: django" }
+                if ($py -match 'flask') { Add-Detected $skills 'flask' "${loc}: flask" }
+                if ($py -match '(psycopg|sqlalchemy)') { Add-Detected $skills 'sql' "${loc}: psycopg/sqlalchemy" }
+                if ($py -match '(pymongo|\bredis\b)') { Add-Detected $skills 'nosql' "${loc}: pymongo/redis" }
             }
         }
     }

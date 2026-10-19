@@ -115,7 +115,7 @@ Qué hace:
 
 ### Detección de tecnologías (`-Detect`)
 
-Es **heurística** (marcadores de archivos y dependencias, no análisis de código) y recorre **todo el árbol** del proyecto, excluyendo `node_modules`, `bin`, `obj`, `.git`, `harness/` y similares. En monorepos detecta a nivel global (no separa por subcarpeta). Añade `-Verbose` para ver **la evidencia** de cada tecnología detectada.
+Es **heurística** (marcadores de archivos y dependencias, no análisis de código) y recorre **todo el árbol** del proyecto, excluyendo `node_modules`, `bin`, `obj`, `.git`, `harness/` y similares. Lee las dependencias de **todos** los paquetes (varios `package.json`/`requirements.txt`/`pyproject.toml` en un monorepo) y **agrega a nivel global** (no separa por subcarpeta). Añade `-Verbose` para ver **la evidencia** de cada tecnología (con la ruta del archivo que la disparó).
 
 | Skill | Marcador |
 | --- | --- |
