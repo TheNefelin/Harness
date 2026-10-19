@@ -203,6 +203,8 @@ Nunca afirmar que algo fue ejecutado, probado o verificado si no ocurrió realme
 
 **Documentación.** Si una tarea implica una decisión de diseño, arquitectura o configuración relevante, identificar si debería quedar documentada, explicar por qué y **proponer** la actualización de `DEVELOPMENT.md` o del `README.md` afectado. No modificar documentación fuera del alcance autorizado ni documentar cambios triviales o de puro formato.
 
+**Memoria (cierre de tarea).** Registrar las decisiones aceptadas es parte de cerrar una implementación autorizada, no un permiso aparte (§5): si la tarea fija una decisión que debe sobrevivir a la sesión (elección técnica, restricción, deuda asumida), escríbela en `DEVELOPMENT.md` al terminar. Marca el **estado** (`Aceptado`/`Propuesto`/`Pendiente`) y no inventes datos: lo no confirmado se anota como pendiente. Si el pedido fue **solo analizar, revisar o proponer**, no registres la propuesta como decisión aceptada. Guarda decisiones y estado vigente, no un diario de cambios triviales: reemplaza lo caducado en vez de acumularlo.
+
 ---
 
 ## 14. Principio general de operación

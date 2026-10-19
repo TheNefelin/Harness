@@ -1,6 +1,8 @@
 # Desarrollo
 
-> Memoria del proyecto. Aquí viven las decisiones y el estado. Mantener al día.
+> Memoria del proyecto: aquí viven las decisiones y el estado que deben sobrevivir a cada sesión.
+> Marca el **estado** de cada decisión (`Aceptado`, `Propuesto`, `Pendiente`); lo desconocido se anota, no se inventa.
+> Reemplaza el estado caducado en vez de acumular un diario de cada sesión.
 
 ## Arquitectura
 
@@ -8,13 +10,16 @@
 
 ## Decisiones técnicas
 
-| Fecha | Decisión | Motivo | Alternativas descartadas |
-|---|---|---|---|
-| | | | |
+| Fecha | Estado | Decisión | Motivo | Alternativas descartadas |
+|---|---|---|---|---|
+| | | | | |
+
+`Estado`: **Aceptado** (vigente), **Propuesto** (aún sin aprobar) o **Pendiente** (por confirmar).
 
 ## Estado
 
 - [ ] ...
+- **Siguiente paso:** ...
 
 ## Pendientes
 

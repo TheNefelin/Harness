@@ -155,6 +155,29 @@ try {
     Assert ($r.Exit -eq 0) '-Update con skill ajena sale 0'
     Assert (Test-Path -LiteralPath (Join-Path $mine 'SKILL.md')) 'no poda la skill ajena'
 
+    # --- SkillsOnly (sin reglas) --------------------------------------------
+    Section 'install.ps1 -SkillsOnly (sin reglas)'
+    $po = New-Project 'proj-skills-only'
+    $r = Invoke-Script $Install @('-Project', $po, '-Skills', 'dotnet', '-SkillsOnly', '-Source', $Repo)
+    Assert ($r.Exit -eq 0) '-SkillsOnly sale 0'
+    Assert (Test-Path -LiteralPath (Join-Path $po 'harness\skills\dotnet\SKILL.md')) '-SkillsOnly instala la skill'
+    Assert (-not (Test-Path -LiteralPath (Join-Path $po 'harness\AGENTS.md'))) '-SkillsOnly no copia AGENTS.md'
+    $declo = Join-Path $po '.harness.json'
+    if (Test-Path -LiteralPath $declo) {
+        $mo = Get-Content -LiteralPath $declo -Raw | ConvertFrom-Json
+        Assert (-not $mo.rules) 'manifest rules=false'
+    }
+    else { Assert $false 'SkillsOnly escribe .harness.json' }
+    $cfgo = Join-Path $po 'opencode.json'
+    if (Test-Path -LiteralPath $cfgo) {
+        $co = Get-Content -LiteralPath $cfgo -Raw | ConvertFrom-Json
+        Assert (-not ($co.PSObject.Properties.Name -contains 'instructions')) 'opencode.json sin instructions'
+        Assert (@($co.skills.paths) -contains 'harness/skills') 'opencode.json conserva skills.paths'
+    }
+    else { Assert $false 'SkillsOnly crea opencode.json' }
+    $r = Invoke-Script $Install @('-Project', $po, '-Doctor', '-Source', $Repo)
+    Assert ($r.Exit -eq 0) '-Doctor de SkillsOnly sale 0'
+
     # --- check.ps1 -----------------------------------------------------------
     Section 'check.ps1'
     $r = Invoke-Script $Check @()

@@ -51,6 +51,10 @@
 .PARAMETER Force
     Reemplaza skills/reglas ajenas (haciendo respaldo) en vez de omitirlas.
 
+.PARAMETER SkillsOnly
+    Instala las skills y omite las reglas (AGENTS.md) en este scope. Util cuando las reglas
+    ya viven en el otro scope (p. ej. global), para no cargar dos copias identicas.
+
 .PARAMETER Context
     Copia ademas las plantillas de memoria (README.md, DEVELOPMENT.md, SKILL.md).
 
@@ -59,6 +63,7 @@
     .\install.ps1 -Project "D:\ruta\al\proyecto" -Detect
     .\install.ps1 -Project "D:\ruta\al\proyecto" -Skills dotnet,postgres
     .\install.ps1 -Global -Skills docker,kubernetes
+    .\install.ps1 -Project "D:\ruta\al\proyecto" -Skills dotnet,postgres -SkillsOnly
     .\install.ps1 -Project "D:\ruta\al\proyecto" -Skills dotnet,postgres -WhatIf
     .\install.ps1 -Project "D:\ruta\al\proyecto" -Update -Source "D:\ruta\al\Harness"
     .\install.ps1 -Project "D:\ruta\al\proyecto" -Update -Source "https://github.com/TheNefelin/Harness.git"
@@ -94,6 +99,8 @@ param(
     [switch]$Global,
 
     [switch]$Force,
+
+    [switch]$SkillsOnly,
 
     [switch]$Context
 )
@@ -496,8 +503,14 @@ if ($Doctor) {
         catch { Write-Check ERR ".harness.json ilegible: $($_.Exception.Message)" }
     }
 
-    if (Test-Path -LiteralPath $RulesFile) { Write-Check OK "reglas presentes: $RulesFile" }
-    else { Write-Check WARN "reglas ausentes: $RulesFile" }
+    $declRules = $true
+    if ($existingDeclObj -and ($existingDeclObj.PSObject.Properties.Name -contains 'rules')) { $declRules = [bool]$existingDeclObj.rules }
+    if ($declRules) {
+        if (Test-Path -LiteralPath $RulesFile) { Write-Check OK "reglas presentes: $RulesFile" }
+        else { Write-Check WARN "reglas ausentes: $RulesFile" }
+    }
+    elseif (Test-Path -LiteralPath $RulesFile) { Write-Check WARN "manifiesto rules:false pero existe $RulesFile (reglas no gestionadas)" }
+    else { Write-Check OK 'reglas no gestionadas en este scope (rules:false)' }
 
     if (Test-Path -LiteralPath $ConfigFile) {
         try {
@@ -506,9 +519,13 @@ if ($Doctor) {
                 $paths = @(); if ($cfg.skills -and $cfg.skills.paths) { $paths = @($cfg.skills.paths) }
                 if ($paths -contains 'harness/skills') { Write-Check OK 'opencode.json: skills.paths -> harness/skills' }
                 else { Write-Check ERR 'opencode.json: falta skills.paths = [harness/skills]' }
-                $instr = @(); if ($cfg.instructions) { $instr = @($cfg.instructions) }
-                if ($instr -contains 'harness/AGENTS.md') { Write-Check OK 'opencode.json: instructions -> harness/AGENTS.md' }
-                else { Write-Check WARN 'opencode.json: falta instructions = [harness/AGENTS.md]' }
+                $instr = @(); if ($cfg.PSObject.Properties.Name -contains 'instructions') { $instr = @($cfg.instructions) }
+                if ($declRules) {
+                    if ($instr -contains 'harness/AGENTS.md') { Write-Check OK 'opencode.json: instructions -> harness/AGENTS.md' }
+                    else { Write-Check WARN 'opencode.json: falta instructions = [harness/AGENTS.md]' }
+                }
+                elseif ($instr -contains 'harness/AGENTS.md') { Write-Check WARN 'opencode.json: instructions -> harness/AGENTS.md con rules:false (duplica reglas de otro scope)' }
+                else { Write-Check OK 'opencode.json: sin instructions (reglas en otro scope)' }
             }
             else {
                 if ($cfg.permission) { Write-Check OK 'opencode.json global: bloque permission presente' }
@@ -683,8 +700,16 @@ $rulesManaged = $false
 if ($Scope -eq 'Local') { $rulesManaged = $true }
 elseif ($existingDeclObj -and ($existingDeclObj.PSObject.Properties.Name -contains 'rules')) { $rulesManaged = [bool]$existingDeclObj.rules }
 
+$skipRules = $SkillsOnly
+if ($existingDeclObj -and ($existingDeclObj.PSObject.Properties.Name -contains 'rules') -and -not [bool]$existingDeclObj.rules) { $skipRules = $true }
+
 $srcRules = Join-Path $SourceRoot 'AGENTS.md'
-if (Test-Path -LiteralPath $RulesFile) {
+if ($skipRules) {
+    if (Test-Path -LiteralPath $RulesFile) { Write-Host "SKIP   $RulesFile (reglas no gestionadas en este scope)" -ForegroundColor Yellow }
+    else { Write-Host 'SKIP   reglas (no gestionadas en este scope)' -ForegroundColor Yellow }
+    $rulesManaged = $false
+}
+elseif (Test-Path -LiteralPath $RulesFile) {
     if ($RulesOurs -or $rulesManaged -or $Force) {
         $same = (Get-FileHash -LiteralPath $RulesFile).Hash -eq (Get-FileHash -LiteralPath $srcRules).Hash
         if (-not $same) { Backup-Path -Path $RulesFile -Name 'AGENTS.md' }
@@ -718,7 +743,8 @@ if ($Scope -eq 'Local') {
         Write-Host 'WOULD  opencode.json' -ForegroundColor DarkCyan
     }
     else {
-        Copy-Item -LiteralPath (Join-Path $SourceRoot 'templates\opencode.json') -Destination $ConfigFile -Force
+        $tpl = if ($SkillsOnly) { 'opencode.skills-only.json' } else { 'opencode.json' }
+        Copy-Item -LiteralPath (Join-Path $SourceRoot "templates\$tpl") -Destination $ConfigFile -Force
         Write-Host 'OK     opencode.json' -ForegroundColor Green
     }
 

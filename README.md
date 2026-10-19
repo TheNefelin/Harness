@@ -82,6 +82,9 @@ Es **agnóstico**: no hay set por defecto. Siempre indicas **qué** skills y **d
 # Global (toda la máquina): ~/.config/opencode\
 .\install.ps1 -Global -Skills docker,ui-ux-mockup
 
+# Skills por proyecto sin duplicar las reglas (si ya las instalaste en global)
+.\install.ps1 -Project "D:\ruta\al\proyecto" -Skills angular,sql -SkillsOnly
+
 # Actualizar lo ya declarado, en su scope (no necesitas recordar cuál)
 .\install.ps1 -Update -Project "D:\ruta\al\proyecto"
 .\install.ps1 -Update -Global
@@ -143,7 +146,7 @@ proyecto/
 **Global** (fuera del proyecto): `~/.config/opencode/` → `AGENTS.md`, `skills/`, `.harness.json`. No toca el proyecto.
 
 - **Commit**: reglas, declaración y memoria. **Ignorado**: las skills (copias gestionadas; se refrescan con `-Update`).
-- openCode combina **global + proyecto**, así que puedes mezclar: skills universales globales y de stack por proyecto.
+- openCode combina **global + proyecto**: puedes mezclar **skills** de ambos scopes, pero las **reglas** (`AGENTS.md`) deben vivir en **un solo** scope. Si ya las tienes en global, instala las skills del proyecto con `-SkillsOnly` (no vuelve a copiar las reglas).
 
 ## Uso
 
