@@ -205,6 +205,8 @@ Nunca afirmar que algo fue ejecutado, probado o verificado si no ocurrió realme
 
 **Memoria (cierre de tarea).** Registrar las decisiones aceptadas es parte de cerrar una implementación autorizada, no un permiso aparte (§5): si la tarea fija una decisión que debe sobrevivir a la sesión (elección técnica, restricción, deuda asumida), escríbela en `DEVELOPMENT.md` al terminar. Marca el **estado** (`Aceptado`/`Propuesto`/`Pendiente`) y no inventes datos: lo no confirmado se anota como pendiente. Si el pedido fue **solo analizar, revisar o proponer**, no registres la propuesta como decisión aceptada. Guarda decisiones y estado vigente, no un diario de cambios triviales: reemplaza lo caducado en vez de acumularlo.
 
+**Checkpoint de sesión.** Para tareas largas, deja el punto de continuación en `.harness/session.md` (local, fuera de Git; ≤ ~40 líneas) al pausar o cerrar: tarea activa, último avance comprobado, archivos tocados, pruebas ejecutadas con su resultado real, bloqueos y siguiente paso. Al retomar, léelo primero. Es estado **efímero**: reemplaza su contenido en vez de acumular y no guardes transcripciones ni secretos. La memoria durable sigue siendo `DEVELOPMENT.md`.
+
 ---
 
 ## 14. Principio general de operación

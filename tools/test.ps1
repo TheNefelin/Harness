@@ -86,7 +86,11 @@ try {
     Assert (Test-Path -LiteralPath (Join-Path $p1 'harness\skills\dotnet\.harness-source')) 'pone marcador .harness-source'
     Assert (Test-Path -LiteralPath (Join-Path $p1 'opencode.json')) 'crea opencode.json'
     $gi = Join-Path $p1 '.gitignore'
-    if (Test-Path -LiteralPath $gi) { Assert ((Get-Content -LiteralPath $gi -Raw) -match 'harness') '.gitignore ignora el harness' }
+    if (Test-Path -LiteralPath $gi) {
+        $giRaw = Get-Content -LiteralPath $gi -Raw
+        Assert ($giRaw -match 'harness') '.gitignore ignora el harness'
+        Assert ($giRaw -match [regex]::Escape('.harness/')) '.gitignore ignora .harness/'
+    }
     else { Assert $false '.gitignore existe' }
 
     # --- Doctor --------------------------------------------------------------
@@ -177,6 +181,14 @@ try {
     else { Assert $false 'SkillsOnly crea opencode.json' }
     $r = Invoke-Script $Install @('-Project', $po, '-Doctor', '-Source', $Repo)
     Assert ($r.Exit -eq 0) '-Doctor de SkillsOnly sale 0'
+
+    # --- Context (plantillas de memoria) ------------------------------------
+    Section 'install.ps1 -Context (plantillas de memoria)'
+    $pc = New-Project 'proj-context'
+    $r = Invoke-Script $Install @('-Project', $pc, '-Skills', 'dotnet', '-Context', '-Source', $Repo)
+    Assert ($r.Exit -eq 0) '-Context sale 0'
+    Assert (Test-Path -LiteralPath (Join-Path $pc 'DEVELOPMENT.md')) '-Context copia DEVELOPMENT.md'
+    Assert (Test-Path -LiteralPath (Join-Path $pc '.harness\session.md')) '-Context copia .harness/session.md'
 
     # --- check.ps1 -----------------------------------------------------------
     Section 'check.ps1'

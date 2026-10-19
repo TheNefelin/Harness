@@ -56,7 +56,8 @@
     ya viven en el otro scope (p. ej. global), para no cargar dos copias identicas.
 
 .PARAMETER Context
-    Copia ademas las plantillas de memoria (README.md, DEVELOPMENT.md, SKILL.md).
+    Copia ademas las plantillas de memoria (README.md, DEVELOPMENT.md, SKILL.md) y el
+    checkpoint de sesion (.harness/session.md).
 
 .EXAMPLE
     .\install.ps1 -List
@@ -751,7 +752,7 @@ if ($Scope -eq 'Local') {
     $gi = Join-Path $Project '.gitignore'
     $existing = ''
     if (Test-Path -LiteralPath $gi) { $existing = Get-Content -LiteralPath $gi -Raw }
-    $entries = @('harness/skills/', 'harness/.harness-backup/')
+    $entries = @('harness/skills/', 'harness/.harness-backup/', '.harness/')
     $toAdd = @($entries | Where-Object { ('' + $existing) -notmatch [regex]::Escape($_) })
     if ($toAdd.Count -gt 0) {
         if ($WhatIf) { Write-Host "WOULD  .gitignore (ignora $($toAdd -join ', '))" -ForegroundColor DarkCyan }
@@ -792,6 +793,18 @@ if ($Context -and $Scope -eq 'Local') {
                 Write-Host "OK     $file" -ForegroundColor Green
             }
         }
+    }
+
+    $sessDir = Join-Path $Project '.harness'
+    $sessFile = Join-Path $sessDir 'session.md'
+    if (Test-Path -LiteralPath $sessFile) {
+        Write-Host 'SKIP   .harness/session.md ya existe' -ForegroundColor Yellow
+    }
+    elseif ($WhatIf) { Write-Host 'WOULD  .harness/session.md' -ForegroundColor DarkCyan }
+    else {
+        New-Item -ItemType Directory -Path $sessDir -Force | Out-Null
+        Copy-Item -LiteralPath (Join-Path $SourceRoot 'templates\session.md') -Destination $sessFile -Force
+        Write-Host 'OK     .harness/session.md' -ForegroundColor Green
     }
 }
 

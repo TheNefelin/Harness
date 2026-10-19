@@ -135,9 +135,11 @@ Es **heurística** (marcadores de archivos y dependencias, no análisis de códi
 proyecto/
 ├─ opencode.json          # apunta a harness/ y define permisos       (commit)
 ├─ .harness.json          # declaración: scope + skills              (commit)
-├─ .gitignore             # ignora harness/skills/                   (commit)
+├─ .gitignore             # ignora harness/skills/ y .harness/       (commit)
 ├─ README.md              # memoria: descripción, uso, comandos      (commit)
 ├─ DEVELOPMENT.md         # memoria: arquitectura, decisiones        (commit)
+├─ .harness/
+│  └─ session.md          # checkpoint de sesión                     (ignorado)
 └─ harness/
    ├─ AGENTS.md           # reglas del harness                       (commit)
    └─ skills/             # skills instaladas                        (ignorado)
@@ -145,7 +147,7 @@ proyecto/
 
 **Global** (fuera del proyecto): `~/.config/opencode/` → `AGENTS.md`, `skills/`, `.harness.json`. No toca el proyecto.
 
-- **Commit**: reglas, declaración y memoria. **Ignorado**: las skills (copias gestionadas; se refrescan con `-Update`).
+- **Commit**: reglas, declaración y memoria. **Ignorado**: las skills (copias gestionadas; se refrescan con `-Update`) y el checkpoint `.harness/` (estado local de sesión).
 - openCode combina **global + proyecto**: puedes mezclar **skills** de ambos scopes, pero las **reglas** (`AGENTS.md`) deben vivir en **un solo** scope. Si ya las tienes en global, instala las skills del proyecto con `-SkillsOnly` (no vuelve a copiar las reglas).
 
 ## Uso
@@ -154,6 +156,7 @@ proyecto/
 - Las **reglas** se cargan automáticamente.
 - Las **skills** se activan solas según su `description` (no hay que invocarlas).
 - Mantén `DEVELOPMENT.md` al día: es la memoria que evita reexplicar todo.
+- En tareas largas, el agente deja el punto de continuación en `.harness/session.md` (local, ignorado por Git); al retomar, lo lee primero.
 
 ## Onboarding: app nueva vs. app existente
 

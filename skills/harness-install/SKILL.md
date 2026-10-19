@@ -38,7 +38,7 @@ Repositorio: `https://github.com/TheNefelin/Harness.git`
 | `-WhatIf` | Previsualiza qué haría (instalar/refrescar/respaldar/omitir/podar) sin modificar nada |
 | `-Source <ruta\|url>` | Origen del catálogo: clon local o URL git (se clona a temp). Actualiza sin abrir el repo Harness |
 | `-Force` | Reemplaza skills/reglas ajenas (con respaldo) en vez de omitirlas |
-| `-Context` | Local: copia además las plantillas de memoria (`README.md`, `DEVELOPMENT.md`, `SKILL.md`) si no existen |
+| `-Context` | Local: copia además las plantillas de memoria (`README.md`, `DEVELOPMENT.md`, `SKILL.md`) y el checkpoint `.harness/session.md` si no existen |
 | `-SkillsOnly` | Instala las skills y **omite las reglas** (`AGENTS.md`) en ese scope: úsalo si las reglas ya viven en el otro scope (p. ej. global), para no cargar dos copias idénticas |
 
 ## Procedimiento
@@ -78,13 +78,14 @@ El set vive en `.harness.json`. Para **cambiarlo**, re-ejecuta con `-Skills` ind
 
 | Scope | Destino | Contenido |
 |-------|---------|-----------|
-| Local | `<proyecto>\` | `harness\AGENTS.md`, `harness\skills\`, `opencode.json`, `.harness.json`, `.gitignore` (ignora `harness/skills/`) |
+| Local | `<proyecto>\` | `harness\AGENTS.md`, `harness\skills\`, `opencode.json`, `.harness.json`, `.gitignore` (ignora `harness/skills/` y `.harness/`); con `-Context`, además `README.md`, `DEVELOPMENT.md`, `SKILL.md` y `.harness\session.md` |
 | Global | `~/.config/opencode\` | `AGENTS.md`, `skills\`, `opencode.json` (permisos), `.harness.json` |
 
 - En Local, `opencode.json` apunta a `harness/skills` por `skills.paths`; abrir openCode **en la raíz** del proyecto (las rutas son relativas al directorio de trabajo).
 - Las **reglas** (`AGENTS.md`) deben vivir en **un solo** scope. openCode combina global + proyecto, así que instalarlas en ambos carga **dos copias idénticas**: usa `-SkillsOnly` en el scope que solo aporta skills.
 - El instalador **nunca pisa** skills/reglas ajenas: las respalda en `.harness-backup\` y las omite, salvo `-Force`.
 - Tres capas: **catálogo** (repo Harness o `-Source`), **instalación** (copias gestionadas con marcador `.harness-source`; no editar a mano) y **personalizaciones** (sin marcador; nunca se podan).
+- El **checkpoint de sesión** (`.harness/session.md`) es estado local y efímero (fuera de Git): el punto de continuación de una tarea larga. La memoria durable sigue siendo `DEVELOPMENT.md`.
 - **Conflictos:** al actualizar, una skill idéntica al catálogo no se toca (`sin cambios`); una **editada localmente** se **respalda** y se avisa `CONFLICT` antes de refrescar. Sin pérdida de datos.
 
 ## Anti-patrones / gotchas
