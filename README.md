@@ -16,6 +16,7 @@ Harness/
 ├─ README.md              # este archivo
 ├─ CONTRIBUTING.md        # cómo añadir/editar skills y evals
 ├─ CHANGELOG.md           # historial de versiones
+├─ DEVELOPMENT.md         # memoria del proyecto (arquitectura, decisiones)
 ├─ LICENSE                # MIT
 ├─ VERSION                # versión del harness
 ├─ .gitattributes         # normaliza saltos de línea (LF)

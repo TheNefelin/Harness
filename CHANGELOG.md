@@ -78,6 +78,7 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es/1.1.0/); vers
 - README y `CONTRIBUTING.md`: las **evals** se etiquetan como **heurísticas de routing** (proxy léxico sobre las `description`; no ejecutan openCode ni validan el routing real del agente), para no venderlas como validación del mecanismo de activación.
 - `AGENTS.md`: recorte de redundancias **sin renumerar** secciones (222 → 217 líneas). §6 Fase 4 y la variante *Lista de issues* remiten a §5 en vez de repetirla; se eliminan duplicados en §7 (dependencia ya cubierta por §5.3/§8) y §9 (ramas/historial ya en los dos primeros bullets); se comprimen §4 (workspace) y §12. Se **conserva** el recordatorio explícito de **no ejecutar `git commit`/`git push`** (solo entregar el mensaje) y todas las reglas duras.
 - `CHANGELOG.md`: cuadrados los conteos de la versión —evals **49 casos** (34/5/4/6) sobre **17 skills** y pruebas de integración **99**—, unificando la entrada duplicada de `evals/triggers.json` (aparecía dos veces con totales históricos dispares, 24 y 43).
+- **`DEVELOPMENT.md`**: se crea la **memoria del proyecto** (arquitectura, decisiones técnicas con su estado, pendientes, problemas conocidos y deuda técnica), que `AGENTS.md` §4/§13 exige como parte del trío de contexto y que el repo aún no tenía; la **estructura** del README lo refleja.
 
 ## [0.1.0] - 2026-10-13
 
