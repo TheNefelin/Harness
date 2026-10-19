@@ -25,16 +25,16 @@ Catálogo de **reglas** (`AGENTS.md`), **skills** (`skills/<nombre>/SKILL.md` + 
 | 2026-10-19 | Aceptado | Plantillas en **sintaxis V2** de openCode: `permissions` (array), `shell`, `skills` (array) | El objeto `permission` y `skills.paths` está **obsoleto** en V2 | Mantener V1 |
 | 2026-10-19 | Aceptado | `read` **deniega** `.env`/`.env.*` pero **permite** plantillas sin valores reales (`.env_demo`, `.env.example`, `.env.sample`, `.env.template`) | Las plantillas son seguras y estándar; los secretos, no | Denegar todo `.env.*` |
 | 2026-10-19 | Aceptado | Solo el **usuario** commitea/pushea; el agente entrega el mensaje | Control total del historial | El agente commitea |
+| 2026-10-19 | Aceptado | El **detalle de subsistema** de una skill (con su código) vive en `references/`; el `SKILL.md` queda en reglas + anti-patrones + punteros | `SKILL.md` scaneable y `MaxBodyLines` con holgura; el detalle se lee solo al hacer falta | Inline (rozaba el límite de 400) |
 
 ## Estado
 
 - [x] **0.2.0**: portabilidad multiplataforma, referencias alcanzables, `-Detect` en monorepo, `.env.example`, sintaxis V2 de las plantillas.
+- [x] **Progressive disclosure**: `angular`/`astro`/`dotnet`/`fastapi` mueven el detalle de subsistema a `references/`; ninguna skill supera el 80% de `MaxBodyLines` (400).
 - [x] Catálogo: **17 skills**, **49 casos** de eval, **99 pruebas** de integración; `check.ps1 -Strict` en 0.
-- **Siguiente paso:** decidir si se aborda el *headroom* de las skills más largas (ver **Pendientes**).
 
 ## Pendientes
 
-- **Headroom:** `angular`/`astro` (~95%) y `dotnet`/`fastapi` (85–89%) cerca del límite de `MaxBodyLines` (400). `check.ps1` ya los lista como *seguimiento*; mover detalle a `references/` al tocarlas.
 - **Matizados (sin acción):** `AGENTS.md` frente a `permission` (defensa en capas, no duplicación) y marcadores de frescura donde no aplican.
 
 ## Problemas conocidos

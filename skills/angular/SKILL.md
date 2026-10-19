@@ -14,6 +14,8 @@ Guía de referencia para construir aplicaciones web con **Angular (Signal-based)
 > - **[CSR]**: SPA pura. La API se consume directo (URL base desde `environment.apiUrl`). Sin `server.ts`, sin proxy.
 > - **[SSR]**: con Express (`src/server.ts`) y proxy `/ssr-api/...`; las credenciales de la API quedan solo en el servidor.
 
+**Referencias** (se leen bajo demanda, rutas relativas a esta skill): `references/crud-page.md` (esqueleto de `CrudPage` y estado agrupado por feature), `references/auth.md` (login, sesión, interceptores, refresh+retry y riesgo XSS), `references/feedback.md` (Error/Success/Confirm), `references/ssr.md` (Express, proxy, `RenderMode` y build de producción), `references/filtro-catalogo.md` (listado paginado con filtro por catálogo), `references/componentes-select.md` (select, selected-list y resolución de modelos).
+
 ## Cuándo NO usar
 
 | Situación | Skill |
@@ -47,7 +49,7 @@ Porque resuelve los problemas que matan a las apps Angular cuando crecen, con de
 | **`ErrorService` (modal) + `SuccessService` (toast) + `ConfirmService` (promise-based)** | Feedback de usuario centralizado: errores HTTP en modal vía interceptor (única fuente), éxitos en cola de toasts con auto-cierre, confirmaciones con `await confirm()` que resuelve `boolean` |
 | **ESLint con `angular-eslint`** | Lint de TS + templates (accesibilidad incluida) en `pnpm lint`, 0 errores — el refactor deja de ser a ciegas |
 | **Spinner solo en carga inicial** | `isLoading() && !hasValue()` en vez de `isLoading()`: al refetchear la lista no se desmonta (acordeón/expansión conserva su estado) |
-| **`(ngSubmit)` en lugar de `(submit)`** | `NgForm.onSubmit` devuelve `false` en forms normales y Angular llama `preventDefault()` automáticamente — Enter no recarga la página. **⚠️ IMPORTANTE**: `(ngSubmit)` es un evento del directive `NgForm`; sin **`FormsModule` importado** en el componente **nunca dispara** y el form hace submit nativo (recarga GET). Ver §7 Forms |
+| **`(ngSubmit)` en lugar de `(submit)`** | `NgForm.onSubmit` devuelve `false` en forms normales y Angular llama `preventDefault()` automáticamente — Enter no recarga la página. **⚠️ IMPORTANTE**: `(ngSubmit)` es un evento del directive `NgForm`; sin **`FormsModule` importado** en el componente **nunca dispara** y el form hace submit nativo (recarga GET). Ver §4.4 Forms |
 | **Formularios con validación local** | Dos variantes senior: (a) `<form (ngSubmit)>` con `FormsModule` importado, o (b) `<form>` **sin** evento de submit + botón `type="button"` con `(clicked)="onSaveClick()"` — la variante (b) es la convención dominante en los modales CRUD (genre/author/subject/editorial/format/copy). Las validaciones se muestran con un componente de mensaje local, nunca como toast/modal |
 
 ---
@@ -129,65 +131,19 @@ admin/
 
 ### 4.2 Páginas de listado — `CrudPage<TModel>`
 
-```ts
-// shared/base/crud-page.ts (esqueleto)
-export abstract class CrudPage<TModel> {
-  protected readonly totalPages = signal(0);
-  protected readonly currentPage = signal(1);
-  protected readonly limit = signal<number>(10);
-  protected readonly search = signal('');
-
-  protected readonly getAllPayload = computed(() => ({
-    page: this.currentPage(),
-    limit: this.limit(),
-    search: this.search(),
-  }));
-
-  nextPage(): void { ... }
-  prevPage(): void { ... }
-  onFilterChange(filter: { search: string; limit: number }): void { ... }
-  onRefreshClick(): void { ... }
-  abstract reload(): void;
-}
-```
-
 - La subclase implementa `reload()` (recarga su `rxResource`) y conserva SUS GETs y mutaciones.
 - **Override**: para cambiar un valor/lógica heredado usar `protected override` (requiere palabra `override` por `noImplicitOverride: true`).
 - Streams `rxResource` **puros**: el side-effect de `totalPages.set()` va en helpers (`mapPaginated`/`emptyPaginated`), nunca dentro del `map` — si no, la paginación queda stale cuando una request falla.
 - **Estado agrupado por feature**: el listado, loading, guardado, modal y item seleccionado se agrupan en un objeto plano con signals/computed. Nunca signals sueltas dispersas.
 
-```ts
-// patrón de estado agrupado en el page
-protected readonly genre = {
-  dataList:    computed<GenreModel[]>(() => this.getAllGenreRX.value() ?? []),
-  isLoading:   computed<boolean>(() => this.getAllGenreRX.isLoading()),
-  isSaving:    signal<boolean>(false),
-  showModal:   signal<boolean>(false),
-  selectedItem: signal<GenreModel | null>(null),
-}
-```
+El esqueleto de `CrudPage<TModel>` y el ejemplo de estado agrupado están en `references/crud-page.md`.
 
 - **Convención de handlers**: los métodos de acción usan `on` + nombre de la acción (`onCreateGenre`, `onEditGenre`, `onDeleteGenre`, `onClearGenreForm`, `onSubmitGenreForm`). `onClear*` cierra el modal y limpia selectedItem. `onSubmit*` desestructura `{ id, data: SaveModel }` del form y delega a `MutationService`.
 - **El form emite `{ id, data: SaveModel }`**: el componente form output `submitForm = output<{ id: number, data: SaveModel }>()`. El id es `0` en creación o `feature.id` en edición. El page extrae `id` y `data` y decide create vs update.
 
 #### 4.2.1 Listado paginado con filtro por catálogo
 
-Patrón para listados con filtro por estado/catálogo (reservation, loan y sus status):
-
-- **`getPaginationPayload` privado por página** (computed tipado con el `*FilterModel`). No se hace `override` de `getAllPayload` de `CrudPage`: es `PaginationRequestModel<null>` y por la varianza de `Signal<PaginationRequestModel<...>>` (TS2416) un `computed<...<LoanFilterModel>>` no es asignable a `computed<...<null>>`.
-- **El select del catálogo emite el modelo completo** y el page recibe el item en el handler:
-  `onFilterByIdStatus(status: FeatureStatusModel | null)` → `selectFilterStatusId.set(status?.id_status ?? 0)` + `currentPage.set(1)`.
-- **Sentinel `0 = todos`**: `selectFilterStatusId = signal<number>(0)`; `ApiService.buildQuery` omite números `<= 0`, así que `0` = sin filtro.
-- **Stream puro del rxResource de listado**:
-  ```
-  if (!params) return of(null);
-  return this.featureService.getAllPagination(params).pipe(
-    map(response => this.mapPaginated(response)),
-    catchError(err => { console.error('[Service::Page] getAllPagination:', err); return of(this.emptyPaginated()); }),
-  );
-  ```
-  Los side-effects de `totalPages` viven solo en `mapPaginated`/`emptyPaginated`.
-- **El list component es presentacional y reemite el filtro**: `selectedIdStatus = output<FeatureStatusModel | null>()`; el template hace `<app-x-status-select-component [selectedId]="selectStatusId()" (selectedItem)="selectedIdStatus.emit($event)" />`.
+Patrón para listados con filtro por estado/catálogo (reservation, loan y sus status): `getPaginationPayload` privado por página (no `override` de `getAllPayload` por la varianza TS2416), el select emite el modelo completo, sentinel `0 = todos` y stream puro con los side-effects de `totalPages` solo en `mapPaginated`/`emptyPaginated`. Detalle en `references/filtro-catalogo.md`.
 
 ### 4.3 Mutaciones — `MutationService`
 
@@ -246,85 +202,36 @@ protected readonly submitForm = output<{ id: number, data: SaveModel }>();
 
 ### 4.6 Select components, selected-list y resolución de modelos
 
-**Select component** (`{feature}-select-component/`):
-- Emite el modelo completo via `selectedItem = output<FeatureModel | null>()` (el item seleccionado, `null` al limpiar).
-- Contiene su propio `rxResource` para cargar la lista de opciones (`getAll()`).
-- Expone `clearTrigger = input<number>(0)` para resetear la selección visual desde el padre.
-- Expone `selectedId = input<number | undefined>(undefined)` (sin default numérico) para preseleccionar desde el padre.
-- Emitir el modelo completo evita que el consumidor haga un segundo fetch del catálogo para resolver id → modelo.
-
-**Selected-list component** (`{feature}-selected-list-component/`):
-- Recibe la lista de items seleccionados como `input<FeatureModel[]>([])` (con default vacío).
-- Emite `delete = output<FeatureModel>()` (sin prefijo `on`).
-- El handler interno `handleDelete` hace `event.preventDefault()` + `event.stopPropagation()` antes de emitir.
-
-**Consumo del modelo en el consumidor** (`book-form-component`, `edition-form-components`):
-- El select emite el `FeatureModel` completo; el consumidor lo agrega directamente a su lista de seleccionados (sin re-fetch):
-
-```ts
-// book-form-component: recibe el AuthorModel completo del select
-protected addAuthor(item: AuthorModel | null): void {
-  if (!item) return;
-  this.formData.update(data => ({
-    ...data,
-    authors: [...(data.authors ?? []), item]
-  }));
-}
-```
-
-- El `delete` del selected-list delega al page (`onDeleteAuthor`/`onDeleteSubject`) que solo persiste en modo edición (`isEditMode()`). En creación solo actualiza `formData` local (no hay filas puente en BD aún).
+- **Select component** (`{feature}-select-component/`): emite el **modelo completo** (`selectedItem = output<FeatureModel | null>()`) — evita que el consumidor re-fetchee el catálogo para resolver id → modelo; expone `clearTrigger`/`selectedId` como inputs.
+- **Selected-list** (`{feature}-selected-list-component/`): recibe `input<FeatureModel[]>([])` y emite `delete = output<FeatureModel>()`.
+- Detalle (inputs, `handleDelete`, patrón de consumo en formularios) en `references/componentes-select.md`.
 
 ---
 
 ## 5. Auth
 
-El patrón de auth difiere según el modo.
+El patrón de auth difiere según el modo: **[CSR]** token en el navegador (`localStorage`/`sessionStorage`) + `authInterceptor` (funcional) que añade el Bearer; **[SSR]** sesión por namespace en `sessionStorage` (`auth.{ns}.access_token/refresh_token/user`) con `sessionSignal(ns)` reactivo y un `authInterceptor` que hace refresh+retry en 401 y `logout(ns)` si el refresh falla. **Nunca** escribir signals en el constructor (NG0950 en SSR): usar `effect()`.
 
-### 5.1 [CSR] — Auth directo
+> **⚠️ Seguridad (XSS)**: `localStorage`/`sessionStorage` **no** aíslan los tokens de JavaScript del propio origen: un XSS puede robarlos. Para producción, preferir un **BFF con cookie `HttpOnly` + `Secure` + `SameSite`** (esta app ya tiene `/ssr-api`). Nunca presentar el storage como frontera de seguridad.
 
-- La API se consume directo desde `environment.apiUrl`; el `authInterceptor` añade `Authorization: Bearer <token>`.
-- El token se guarda en el navegador (`localStorage` o `sessionStorage` según la app; `localStorage` sobrevive al cierre de pestaña).
-- `authInterceptor` (funcional, `HttpInterceptorFn`): lee el token y clona el request con el header.
-- Guardo simple: no hay multi-tenant ni proxy.
-
-### 5.2 [SSR] — Auth multi-tenant (por namespace)
-
-```text
-GET /ssr-api/config                    → { googleClientIds } (mapa por namespace)
-POST /ssr-api/{namespace}/auth/google  → login con el client ID de ese namespace
-GET/POST/DELETE /ssr-api/{namespace}/{resource}  → CRUD con Bearer del namespace
-```
-
-- **Sesión**: `sessionStorage` con prefijo `auth.{namespace}.access_token/refresh_token/user` — sobrevive a F5, muere al cerrar la pestaña.
-- **⚠️ Seguridad (XSS)**: `sessionStorage`/`localStorage` **no** aíslan los tokens de JavaScript del propio origen: un XSS puede robarlos. Para producción, preferir un **BFF con cookie `HttpOnly` + `Secure` + `SameSite`** para el refresh token (esta app ya tiene BFF `/ssr-api`). Si se mantiene el token en storage, asumir el riesgo y reforzar CSP + sanitización; nunca presentar `sessionStorage` como frontera de seguridad.
-- **`sessionSignal(ns)`** reactivo por namespace: `login()`/`logout()` lo actualizan → el UI se desloguea solo cuando el interceptor fuerza logout.
-- **authInterceptor**: extrae ns de la URL, añade `Authorization: Bearer`, hace refresh+retry en 401. Si el refresh falla → `logout(ns)` (limpia sesión + signal).
-- **Client ID por app**: el BFF expone el mapa y el AuthService lo cachea; lanza error claro si no está configurado.
-
-### 5.3 [SSR] — No escribir signals en el constructor
-
-- **Nunca escribir signals en el constructor** (NG0950, prohibido en SSR): usar `effect()` con lectura de signals.
+**Referencia**: el flujo completo y el código están en `references/auth.md`.
 
 ---
 
 ## 6. Feedback de usuario (Error/Success/Confirm)
 
-- **Error → `ErrorService`** (modal): `errorService.show(msg)` setea una signal única; los layouts renderizan el modal. El `errorInterceptor` lo dispara automáticamente ante cualquier HTTP error (única fuente; las páginas no llaman `errorService.show`).
-- **Éxito → `SuccessService`** (toast): `show(msg)` acumula en cola (`ToastModel[]`), auto-cierre a los 5s + cierre manual. Solo en operaciones de escritura.
-- **Confirmación → `ConfirmService`** (promise-based): `await confirmService.confirm({ title, message })` resuelve `boolean`. La página **nunca** toca los outputs del modal (`confirm`/`closed`), solo espera el boolean.
-- **Validaciones de formulario** → componente local de mensaje, nunca toast/modal.
-- **Mensajes de error reales**: `err?.error?.detail || err?.message || fallback` — el interceptor ya formatea, no sobrescribir con genéricos.
+- **Error → `ErrorService`** (modal, disparado por el `errorInterceptor`: única fuente); **Éxito → `SuccessService`** (toast en cola, auto-cierre 5s); **Confirmación → `ConfirmService`** (promise-based: `await confirm(...)` → `boolean`).
+- **Validaciones de formulario** → componente local, nunca toast/modal. **Mensajes**: `err?.error?.detail || err?.message || fallback`. Detalle en `references/feedback.md`.
 
 ---
 
 ## 7. [SSR] SSR y build
 
-> Sección que aplica **solo** si usas SSR. En CSR no existe `server.ts` ni proxy.
+> Aplica **solo** si usas SSR. El detalle (Express, proxy, `RenderMode`, build) está en `references/ssr.md`.
 
-- `src/server.ts`: Express + proxy `/ssr-api/{namespace}/{path}` + handlers multipart (`req.is('multipart/form-data')` para validar el upload).
-- `app.routes.server.ts`: `RenderMode` por página. Dashboards de admin → `RenderMode.Client` (sin prerender, la API disponible al renderizar en el navegador).
-- **Build de producción**: `ng build` (genera `dist/.../server/server.mjs`); `npm start` debe apuntar al **servidor Express de producción** (`node dist/.../server/server.mjs`), **nunca** a `ng serve` (dev server sin SSR).
-- **Verificación**: `ng build` valida plantillas + `pnpm lint` (0 errores) — ambos antes de declarar una feature terminada.
+- **`npm start` = servidor Express de producción** (`node dist/.../server/server.mjs`), **nunca** `ng serve` (dev server sin SSR).
+- `src/server.ts` monta el proxy `/ssr-api/...` + handlers multipart validados con `req.is('multipart/form-data')`; `app.routes.server.ts` fija `RenderMode` por página (dashboards → `RenderMode.Client`).
+- Verificación: `ng build` (valida plantillas) + `pnpm lint` (0 errores).
 
 ---
 

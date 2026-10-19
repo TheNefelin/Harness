@@ -9,7 +9,7 @@ Guía de referencia para construir APIs REST en **.NET (ASP.NET Core)** siguiend
 
 Este archivo es un **skill**: se lee para replicar el patrón en cualquier proyecto .NET nuevo. No es una receta dogmática; es la lista de decisiones que convierten un CRUD simple en un backend mantenible, seguro y desplegable.
 
-**Referencias** (se leen bajo demanda, ruta relativa a esta skill): `references/maui.md` (clientes MAUI), `references/dapper.md` (acceso a datos con Dapper), `references/efcore.md` (acceso a datos con EF Core), `references/errores.md` (GlobalExceptionHandler y 400 uniforme), `references/auth.md` (PBKDF2, JWT, ApiKey), `references/rate-limiting-cors.md` (rate limiting y CORS).
+**Referencias** (se leen bajo demanda, ruta relativa a esta skill): `references/maui.md` (clientes MAUI), `references/dapper.md` (acceso a datos con Dapper), `references/efcore.md` (acceso a datos con EF Core), `references/errores.md` (GlobalExceptionHandler y 400 uniforme), `references/auth.md` (PBKDF2, JWT, ApiKey), `references/rate-limiting-cors.md` (rate limiting y CORS), `references/swagger.md` (Swashbuckle vs OpenApi, filter y gotchas), `references/configuracion.md` (appsettings por entorno y fail-fast).
 
 ## Cuándo NO usar
 
@@ -221,66 +221,20 @@ El código está en **`references/rate-limiting-cors.md`**.
 
 ## 9. Configuración y fail-fast
 
-`appsettings.json` (producción) y `appsettings.Development.json` (local) por separado:
+`appsettings.json` (producción) y `appsettings.Development.json` (local) por separado; con PostgreSQL, `ConnectionName = "Postgres"`.
 
-```json
-{
-  "Database": { "ConnectionName": "SqlServer" },
-  "ConnectionStrings": {
-    "SqlServer": "Server=LOCAL;Database=...;Integrated Security=True",
-    "SqlServerWeb": "Server=...;Database=...;User Id=...;Password=...;TrustServerCertificate=True"
-  },
-  "JWT": { "Key": "...", "Issuer": "...", "Audience": "...", "ExpireMinutes": 60 },
-  "Cors": [ "https://origen-frontend" ],
-  "RateLimit": { "PermitLimit": 10, "WindowMinutes": 1 }
-}
-```
+- **Fail-fast**: validar la config requerida **al arrancar**, no al primer request. Un servidor que arranca con config inválida es un bug silencioso; uno que lanza excepción es un bug evidente.
+- **Nunca** commitear `appsettings.json` con secretos reales: usar `.env`/secrets del proveedor o variables de entorno y mantener en el repo una plantilla `appsettings.Example.json`.
 
-Con PostgreSQL, `ConnectionName` = `"Postgres"` y las claves `Postgres`/`PostgresWeb` (p. ej. `Host=localhost;Database=app;Username=...;Password=...`).
-
-Fail-fast: validar la config requerida **al arrancar**, no al primer request:
-
-```csharp
-if (string.IsNullOrWhiteSpace(config["JWT:Key"])) throw new InvalidOperationException("JWT:Key no configurada");
-```
-
-**Regla de oro**: un servidor que arranca con config inválida es un bug silencioso; uno que lanza excepción es un bug evidente.
-
-**Nunca** commitear `appsettings.json` con secretos reales. Usar `.env`/secrets del proveedor o variables de entorno y mantener en el repo una plantilla `appsettings.Example.json`.
+El ejemplo de `appsettings` y el código de fail-fast están en `references/configuracion.md`.
 
 ---
 
 ## 10. Swagger / OpenAPI (compatibilidad de versiones)
 
-La versión de Swashbuckle define la API de `Microsoft.OpenApi`:
+La versión de **Swashbuckle** define la API de `Microsoft.OpenApi`: **6.x/9.x → OpenApi 1.x**; **10.x → OpenApi 2.x** (breaking: `OpenApiSchema` no existe, `Type` es `JsonSchemaType?`, `OpenApiReference` eliminado). El endpoint de Swagger se monta con **ruta absoluta** (para proxies/host virtuales).
 
-| Swashbuckle | Microsoft.OpenApi | Nota |
-|-------------|-------------------|------|
-| 6.x | 1.x | `OpenApiSchema`, `OpenApiReference` (legado, aún válido) |
-| 9.x | 1.x | Igual que 6.x pero más actualizada |
-| 10.x | **2.x** | **Breaking**: `OpenApiSchema` no existe, `Type` es `JsonSchemaType?`, `OpenApiReference` eliminado |
-
-### Ejemplo de filter compatible (OpenApi 2.x, Swashbuckle 10+)
-
-```csharp
-// en OpenApi 2.x el namespace Microsoft.OpenApi.Models fue reemplazado por Microsoft.OpenApi
-var schemeRef = new OpenApiSecuritySchemeReference("Bearer");
-operation.Security = [new OpenApiSecurityRequirement { { schemeRef, new List<string>() } }];
-// para OpenApi 1.x (6.x/9.x) se usaba:
-//   new OpenApiReference { Type = ReferenceType.SecurityScheme, Id = "Bearer" }
-```
-
-Endpoint de Swagger en `Program.cs` — usar **ruta absoluta** para evitar problemas tras proxies/host virtuales:
-
-```csharp
-app.UseSwagger();
-app.UseSwaggerUI(c => c.SwaggerEndpoint("/swagger/v1/swagger.json", "WebApiCore v1"));
-```
-
-**Gotchas reales detectados**:
-- Si `index.html`/`index.js` de Swagger se sirven con `Cache-Control` largo, el navegador cachea la UI vieja y muestra errores como *"does not specify a valid version field"* aunque el JSON sea válido. Probar con **Ctrl+Shift+R** (hard reload) o incógnito antes de concluir que el spec está roto.
-- Validar el spec en `/swagger/v1/swagger.json` directamente, no la página HTML.
-- Si Swashbuckle 9.x da problemas de render (UI rota en producción), **bajar a 6.6.2** es una solución validada que conserva todo el spec.
+El ejemplo de filter por versión, el endpoint y los **gotchas reales** (caché de la UI, validar el JSON del spec, downgrade a 6.6.2) están en `references/swagger.md`.
 
 ---
 

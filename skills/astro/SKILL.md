@@ -14,6 +14,8 @@ Este archivo es un **skill**: se lee para replicar el patrón en cualquier proye
 - **API**: cualquier backend REST autenticado con `X-API-Key` (origen) + Bearer JWT (usuario) — accedido únicamente vía proxy SSR.
 - **Hosting**: Vercel (adapter `@astrojs/vercel`, `output: 'server'`) — el patrón SSR aplica a cualquier host Node.
 
+**Referencias** (se leen bajo demanda, rutas relativas a esta skill): `references/bff-proxy.md` (proxy universal + BFF de cookies auth), `references/auth-cliente.md` (auth decay-aware, `apiFetch`, `auth-ui`), `references/toast.md` (bridge SSR + store CSR).
+
 ## Cuándo NO usar
 
 | Situación | Skill |
@@ -162,143 +164,28 @@ export async function getGameBySlug(slug: string, origin: string): Promise<Resul
 
 ## 5. Proxy universal BFF (`pages/api/proxy/[...path].ts`)
 
-El corazón del patrón: una sola ruta que traduce **toda** la comunicación con el backend.
+El corazón del patrón: **una sola ruta** que traduce toda la comunicación con el backend. **Reglas de oro**: único lugar que lee `API_URL`/`API_KEY`; `buildHeaders()` agrega `X-API-Key` y reenvía el `Authorization` entrante (el front solo manda el Bear); **sin try/catch que trague el status**; GET sin body y 204 sin body. El BFF guarda el `refresh_token` en cookie `HttpOnly` (nunca en `localStorage`).
 
-**Reglas de oro:**
-- **Único lugar** que lee `API_URL` y `API_KEY` de env.
-- `buildHeaders()` agrega `X-API-Key` (origen) y **reenvía el `Authorization` entrante** (Bear del usuario). El front solo manda el Bear, nunca la API key.
-- **Sin try/catch que trague el status code**: la respuesta se devuelve con su status intacto.
-- GET no lleva body; 204 se responde sin body.
-
-```ts
-// src/pages/api/proxy/[...path].ts
-const API_URL = import.meta.env.API_URL;
-const API_KEY = import.meta.env.API_KEY;
-const REFRESH_COOKIE = 'gg_refresh';
-
-function getPath(url: URL) { return url.pathname.replace('/api/proxy/', ''); }
-
-function buildHeaders(request: Request, extra?: Record<string, string>) {
-  const headers = { 'X-API-Key': API_KEY, ...extra };
-  const auth = request.headers.get('Authorization');
-  if (auth) headers['Authorization'] = auth;
-  return headers;
-}
-
-export const GET: APIRoute = async ({ url, request }) => {
-  const response = await fetch(`${API_URL}/${getPath(url)}${url.search}`, { headers: buildHeaders(request) });
-  return proxyResponse(response); // status intacto, 204 sin body
-};
-```
-
-### 5.1 BFF de cookies auth (refresh_token nunca en localStorage)
-
-Los endpoints `/auth/google`, `/auth/refresh` y `/auth/logout` se manejan **especial** en el POST del proxy:
-
-```ts
-export const POST: APIRoute = async ({ url, request, cookies }) => {
-  const path = getPath(url);
-
-  if (path === 'auth/google') { /* body → backend; si trae refresh_token lo guarda en cookie y lo quita del body */ }
-  if (path === 'auth/refresh') { /* lee el refresh_token DE LA COOKIE y lo manda al backend */ }
-  if (path === 'auth/logout')  { /* revoca en el backend + borra la cookie */ }
-  // resto: POST genérico al backend
-};
-```
-
-```ts
-function cookieOptions() {
-  return { httpOnly: true, secure: import.meta.env.PROD, sameSite: 'lax' as const, path: '/' };
-}
-
-async function handleAuthResponse(cookies: AstroCookies, response: globalThis.Response): Promise<Response> {
-  const text = await response.text();
-  if (!response.ok || !text) return proxyResponse(response, text);
-  const data = JSON.parse(text);
-  if (data.refresh_token) {
-    cookies.set(REFRESH_COOKIE, String(data.refresh_token), cookieOptions());
-    const { refresh_token: _unused, ...rest } = data; // el navegador NUNCA ve el refresh_token
-    return jsonResponse(rest, response.status);
-  }
-  return jsonResponse(data, response.status);
-}
-```
-
-**Por qué es senior**: el refresh token queda `HttpOnly` (invisible para JavaScript, inmune a XSS). El front solo persiste `access_token` + `user` en `localStorage` — y eso con expiración chequeada.
+**Referencia**: código del proxy y del BFF de cookies en `references/bff-proxy.md`.
 
 ---
 
 ## 6. Auth cliente — decay-aware + refresh + retry
 
-```ts
-// src/lib/auth.ts
-// Acceso: solo access_token + user en localStorage. El refresh NO vive en el navegador.
+- Solo `access_token` + `user` en `localStorage` (el refresh vive en la cookie del BFF, no en el navegador).
+- `isTokenExpired(token)` decodifica `exp`: al boot, `clearExpiredSession()` refresca en silencio y solo hace `logout()` si el refresh falla.
+- `apiFetch()`: 401 → refresh+retry **una vez** → si falla, `logout()`; `logout()` dispara `authchange` para que la UI se re-sincronice sola.
+- **`auth-ui.ts`**: `initAuthUI(elements)` registra el listener `authchange` **una sola vez** (el bug clásico es acumularlo dentro del click de logout). Un `<script is:inline>` previo solo hace FOUC-prevention.
 
-export function isTokenExpired(token: string): boolean {
-  try {
-    const [, payload] = token.split('.');
-    const base64 = payload.replace(/-/g, '+').replace(/_/g, '/');
-    const json = atob(base64 + '='.repeat((4 - (base64.length % 4)) % 4));
-    const decoded = JSON.parse(json);
-    if (typeof decoded.exp !== 'number') return true;
-    return decoded.exp * 1000 <= Date.now();
-  } catch { return true; } // token corrupto → expirado
-}
-
-// Al boot: si el access venció → refresh silencioso; solo logout si el refresh falla.
-export async function clearExpiredSession(): Promise<void> {
-  const token = getAccessToken();
-  if (!token || !isTokenExpired(token)) return;
-  const refreshed = await refreshAccessToken();
-  if (!refreshed) logout();
-}
-
-export function logout(): void {
-  void fetch('/api/proxy/auth/logout', { method: 'POST' }); // fire-and-forget
-  localStorage.removeItem('access_token');
-  localStorage.removeItem('refresh_token');
-  localStorage.removeItem('user');
-  window.dispatchEvent(new CustomEvent('authchange')); // la UI se re-sincroniza sola
-  showToast('Sesión finalizada', 'info');
-}
-```
-
-### 6.1 `auth-ui.ts` — un solo listener (sin leaks)
-
-La UI de auth (login/logout) se centraliza en `lib/auth-ui.ts` con `initAuthUI(elements)`. Registra el listener de `authchange` **una sola vez** — el bug clásico es agregarlo dentro del click de logout y acumular listeners duplicados.
-
-```ts
-// src/lib/auth-ui.ts
-export function initAuthUI(e: AuthUIElements) {
-  // updateUI() lee isAuthenticated() + getUser()
-  // logoutBtn → logout() (que dispara authchange → la UI se re-sincroniza sola)
-  window.addEventListener('authchange', updateUI);
-  // NUNCA registrar el listener dentro de un handler
-}
-```
-
-Las páginas/componentes solo pasan los elementos del DOM (`loginSection`, `userSection`, `loginBtn`, `logoutBtn`, `avatar`, `name`, `email`, `fallbackAvatar`). Un `<script is:inline>` previo a los módulos solo hace **FOUC-prevention** (muestra el estado en el primer paint antes de que carguen los módulos).
+**Referencia**: código de `lib/auth.ts` y `lib/auth-ui.ts` en `references/auth-cliente.md`.
 
 ---
 
 ## 7. Toast — bridge SSR + store CSR
 
-`lib/toastTrigger.ts` es el store (solo cliente: `window`/`document`). Como `showToast()` no puede correr en SSR, el contenedor tiene **dos formas**:
+`lib/toastTrigger.ts` es un store **solo cliente** (`showToast()` no corre en SSR). El contenedor tiene dos formas: con props `message?`/`type?` renderiza un `<div data-ssr-toast>` (bridge que deja el mensaje en el HTML del servidor); sin props es el contenedor CSR apilable (montado una vez en Layout) que se suscribe al store y procesa los bridges. **Nota**: usa `<section>` con clases propias, **no** `toast toast-end` de DaisyUI.
 
-1. **Con props `message?`/`type?`** → renderiza un `<div data-ssr-toast>` (bridge): el servidor deja el mensaje en el HTML.
-2. **Sin props** → contenedor CSR apilable que se suscribe al store y procesa los bridges `[data-ssr-toast]` de la página (único procesador, montado en Layout).
-
-```ts
-// src/lib/toastTrigger.ts
-export function showToast(message: string, type: ToastType = 'error'): void {
-  const id = nextId++;
-  toasts = [...toasts, { id, message, type }];
-  emit();
-  window.setTimeout(() => dismissToast(id), TOAST_DURATION_MS); // 5s
-}
-```
-
-**Nota**: el container usa `<section>` con clases propias, **no** `toast toast-end` de DaisyUI — el backdrop-blur funciona bien sin el `translate` del componente de DaisyUI.
+**Referencia**: el store y el contenedor están en `references/toast.md`.
 
 ---
 
