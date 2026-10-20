@@ -26,7 +26,7 @@ Catálogo de **reglas** (`AGENTS.md`), **skills** (`skills/<nombre>/SKILL.md` + 
 | 2026-10-19 | Aceptado | `read` **deniega** `.env`/`.env.*` pero **permite** plantillas sin valores reales (`.env_demo`, `.env.example`, `.env.sample`, `.env.template`) | Las plantillas son seguras y estándar; los secretos, no | Denegar todo `.env.*` |
 | 2026-10-19 | Aceptado | Solo el **usuario** commitea/pushea; el agente entrega el mensaje | Control total del historial | El agente commitea |
 | 2026-10-19 | Aceptado | El **detalle de subsistema** de una skill (con su código) vive en `references/`; el `SKILL.md` queda en reglas + anti-patrones + punteros | `SKILL.md` scaneable y `MaxBodyLines` con holgura; el detalle se lee solo al hacer falta | Inline (rozaba el límite de 400) |
-| 2026-10-19 | Aceptado | **openCode V2 obligatorio**: la configuración usa `permissions`/`shell`/`skills`; no se soporta V1 | V1 **ignora** el bloque de permisos sin avisar (se perderían las protecciones de `.env`/edición/shell) | Soportar ambas sintaxis (en V1 el bloque no tiene efecto) |
+| 2026-10-19 | Aceptado | **openCode V2 obligatorio**: la configuración usa `permissions`/`shell`/`skills`; no se soporta V1 | V1 **rechaza** el bloque de permisos (`ConfigInvalidError`, observado en vivo): la app no carga la config y se perderían las protecciones (`.env`/edición/shell) | Soportar ambas sintaxis (en V1 el bloque no tiene efecto) |
 | 2026-10-19 | Aceptado | Las plantillas **deniegan** las mutaciones de Git (`commit`/`push`/`pull`/`merge`/`rebase`/`cherry-pick`/`reset`/`revert`/`restore`/`stash`) | No depender solo del `ask`: el agente nunca muta Git (coherente con §9). Falta comprobar si un **comando compuesto** (`git status && git push`) se segmenta y cae en `deny` — **sin verificar** en V2 | Dejar solo `ask` (admite aprobación) |
 | 2026-10-19 | Aceptado | `AGENTS.md` se mantiene como **un solo archivo** (no se parte en skills) | Las reglas duras (idioma, `.env`, Git, permisos) deben **cargarse siempre**; partirlas las volvería condicionales | Mover formato de commit/tests a skills (ahorro marginal, riesgo de perder reglas duras) |
 
@@ -37,10 +37,39 @@ Catálogo de **reglas** (`AGENTS.md`), **skills** (`skills/<nombre>/SKILL.md` + 
 - [x] **Progressive disclosure**: `angular`/`astro`/`dotnet`/`fastapi` mueven el detalle de subsistema a `references/`; ninguna skill supera el 80% de `MaxBodyLines` (400).
 - [x] Catálogo: **17 skills**, **49 casos** de eval, **123 pruebas** de integración; `check.ps1 -Strict` en 0.
 
+## Memoria: propuesta (estudio de `ericrisco/rsc-harness`)
+
+Objetivo declarado por el usuario: que el agente **sepa sin escrapear** el código, **ahorre tokens** y **evite alucinaciones** (memoria estructurada, no re-lectura). Simple y conservador, pero tan capaz como la referencia. Estudio hecho en local (`D:\Repo\Others\rsc-harness`, solo lectura). **Estado: Propuesto — sin implementar.**
+
+### Cómo lo resuelve la referencia (hechos)
+
+- **La memoria es una wiki, no un archivo.** `02-DOCS/` (Karpathy "LLM wiki"): `inbox/` (drop zone de cualquier formato) → `raw/` (fuente inmutable) → `wiki/` (artículos compilados con frontmatter YAML + enlaces markdown + `index.md`/`log.md`/`gaps.md`/`scores.json`). El agente **escribe** la wiki; el humano la lee (Obsidian). Sin vector DB, sin embeddings, sin RAG: **estructura, no similitud**.
+- **Anti-scrapeo = puntero fijo, no índice completo.** El `CLAUDE.md` raíz (leído en **cada** turno, tope ~200 líneas) guarda un `## Knowledge map` **corto** que apunta a `wiki/index.md` (el índice completo, que crece libre). Regla: *"lee el artículo del área antes de trabajar en ella"*.
+- **Dos on-ramps de captura.** (1) *Inbox Sweep*: el usuario suelta archivos y el agente "sale a pasear" y los compila. (2) *Worklog Sweep*: cada sesión con señal durable (archivos cambiados, decisión, commit) escribe `raw/worklog/<fecha>-<slug>.md` (qué hicimos, por qué, archivos, resultado, pendientes) y se compila a `wiki/`.
+- **Runtime (lo caro):** hooks de ciclo de vida (`SessionStart` inyecta memoria; `PreCompact`/`SessionEnd` recuerdan escribir el worklog), plugins por cliente (`opencode-memory-plugin.js`), un core de ~39 KB, retención 30 días, tope de contexto 4 KB, y "lecciones" puntuadas.
+- **Curaduría automática:** Maintenance Pass / Micro-Improve / Deep Improve con cron; `log.md` inmutable (newest-first), `gaps.md` append-only, sin resolución automática de conflictos.
+
+### Lectura crítica para nuestro Harness
+
+- **Lo que encaja con el objetivo:** (a) memoria como **conocimiento destilado con puntero**, no volcado; (b) **"lee antes de trabajar en tu área"** — es *exactamente* el antídoto al escrapeo; (c) **frontera raw→wiki** (evidencia vs. destilado); (d) índice **fuera** del archivo de cada turno; (e) **worklog** de sesión.
+- **Lo que NO encaja (sobre-ingeniería para nuestro tamaño):** wiki multiformato + Obsidian + `.base` + OKF; **plugins y hooks por cliente** (nosotros somos "PowerShell único, sin Node"); curaduría por cron y scores automáticos. Somos una implementación **simple y conservadora** (lo dice el README) y **no reutilizamos su código**.
+- **Decisión clave:** *quién* mantiene la memoria. En la referencia es **automático**; en el nuestro la memoria se **cura con permiso** (§5). Mantener nuestro modelo es más seguro; adoptar el automático exigiría hooks/plugins que rompen "PowerShell único".
+
+### Opciones (a decidir por el usuario)
+
+1. **Mínimo (recomendado).** Mantener `DEVELOPMENT.md` como memoria y arreglar dos huecos concretos:
+   - `-Context` siembra la plantilla cuando el `.md` existe **vacío** (0 B); si tiene contenido, **respeta**.
+   - Regla explícita en `AGENTS.md` §4: **leer `DEVELOPMENT.md` antes de trabajar** en el área (hoy se infiere; hacerlo explícito es lo que evita el escrapeo).
+   - Coste: 2 cambios pequeños. No cambia la convención.
+2. **Memoria+índice (medio).** Lo anterior **más** un **índice** del proyecto en `DEVELOPMENT.md` (tabla "artículo → cuándo leerlo") que separa *qué leer* de *dónde está*, más un **worklog** de sesión (plantilla `raw/`-like) con disparo por *checkpoint* de sesión (ya existe `.harness/session.md`). Sin carpeta wiki, sin cron, sin plugins.
+3. **Adoptar el patrón wiki (grande).** Carpeta de documentación (`docs/` o `02-DOCS/`-like) como wiki + `index.md`/`log.md`, y actualizar `AGENTS.md` §4/§13, `templates/`, `install.ps1` y `README`. Rediseño de convención; solo si de verdad se va a usar el volumen.
+
+**Recomendación:** empezar por la **1** (barata, corrige lo que falló en `LaserBoy-Arduino`) y tratar la **2** como siguiente paso natural. La **3** solo con uso real que la justifique.
+
 ## Pendientes
 
 - **Matizados (sin acción):** `AGENTS.md` frente a `permissions` (defensa en capas, no duplicación) y marcadores de frescura donde no aplican.
-- **`-Adopt` (propuesta, no implementado):** en un proyecto avanzado el Harness **no** reescribe ni estandariza la documentación existente; `-Context` solo crea la plantilla **si falta**, así que un `README.md`/`DEVELOPMENT.md` que ya exista (aunque esté **vacío**) se deja igual y no se aprovecha. Idea: un modo de **solo lectura** que compare los `.md` del proyecto con las plantillas y **proponga** diffs para aprobación. Decisión: nunca por defecto (reescribir docs ajenas es destructivo).
+- **`-Adopt` (propuesta, no implementado):** en un proyecto avanzado el Harness **no** reescribe ni estandariza la documentación existente; `-Context` solo crea la plantilla **si falta**, así que un `README.md`/`DEVELOPMENT.md` que ya exista (aunque esté **vacío**) se deja igual y no se aprovecha. Idea: un modo de **solo lectura** que compare los `.md` del proyecto con las plantillas y **proponga** diffs para aprobación. Decisión: nunca por defecto (reescribir docs ajenas es destructivo). *(Ver "Memoria: propuesta", opción 1.)*
 - **Verificar la versión del cliente (propuesta, no implementado):** `install.ps1 -Doctor` solo **avisa** si el `opencode.json` está en sintaxis V1, pero **no** comprueba la versión de openCode instalada. Observado en vivo (`LaserBoy-Arduino`): abrir con la app **V1** un `opencode.json` V2 da **`ConfigInvalidError`** (la V1 **rechaza** el config; no lo ignora en silencio). Conviene que el instalador **detecte V1/V2** y avise o aborte antes de dejar una instalación inservible.
 
 ## Problemas conocidos
