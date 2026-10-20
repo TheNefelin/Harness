@@ -38,7 +38,9 @@ Prioridades, en orden: seguridad, mantenibilidad, simplicidad, calidad técnica,
 
 Leer el contexto relevante **antes** de modificar. No leer el repositorio entero: ampliar solo de forma incremental, priorizando los archivos directos de la tarea.
 
-**Regla de lectura (evita re-escrapear):** antes de trabajar en un área, leer primero su **memoria** —`DEVELOPMENT.md` (decisiones, arquitectura, pendientes) y el `README.md`— y usar lo que ya está escrito en vez de deducirlo del código. Si la memoria y el código discrepan, señalarlo; no asumir que la memoria está actualizada ni reemplazarla por una lectura completa del repositorio.
+**Regla de lectura (evita re-escrapear):** antes de trabajar en un área, leer primero su **memoria** —el **Mapa del proyecto** de `DEVELOPMENT.md` (índice "área → dónde mirar → cuándo"), luego las secciones o archivos a los que apunte para esa área, y el `README.md`— y usar lo que ya está escrito en vez de deducirlo del código. El mapa existe para **no leer el `DEVELOPMENT.md` entero ni re-escanear el repositorio**: abre solo el destino de la fila que corresponde. Si la memoria y el código discrepan, señalarlo; no asumir que la memoria está actualizada ni reemplazarla por una lectura completa del repositorio.
+
+**Tarea en curso:** si existe `.harness/session.md` (checkpoint local, fuera de Git), **léelo primero** al retomar: es el punto de continuación de la tarea activa. Es **efímero**; la memoria durable sigue siendo `DEVELOPMENT.md` (§13).
 
 Cada proyecto tiene su propio **trío de contexto**, que se resuelve relativo al proyecto que se modifica y no a la raíz del workspace:
 

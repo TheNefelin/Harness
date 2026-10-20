@@ -3,6 +3,21 @@
 > Memoria del proyecto: aquí viven las decisiones y el estado que deben sobrevivir a cada sesión.
 > Marca el **estado** de cada decisión (`Aceptado`, `Propuesto`, `Pendiente`); lo desconocido se anota, no se inventa.
 > Reemplaza el estado caducado en vez de acumular un diario de cada sesión.
+> Empieza por el **Mapa del proyecto**: apunta a dónde mirar sin re-escanear el código.
+
+## Mapa del proyecto
+
+Índice puntero: **qué leer y cuándo**, para no re-escanear el código. El detalle vive en el destino; lee la fila del área y abre solo ese destino.
+
+| Área / tema | Dónde mirar | Cuándo leerlo |
+|---|---|---|
+| Reglas duras (idioma, permisos, Git, `.env`) | `AGENTS.md` | Siempre activo; al operar en cualquier repo |
+| Catálogo de skills | `skills/<nombre>/SKILL.md` (+ `references/`) | Al tocar una skill o su tecnología |
+| Instalación / desinstalación | `install.ps1` (cabecera `.PARAMETER`) y `README.md` | Al cambiar scopes, manifiesto, `-Detect`/`-Doctor`/`-Uninstall` |
+| Plantillas de contexto | `templates/` | Al sembrar/actualizar `README.md`/`DEVELOPMENT.md`/`SKILL.md` de un proyecto |
+| Verificación | `tools/check.ps1` (estructura/solapamiento/frescura) y `tools/test.ps1` (integración) | Antes de cerrar cualquier cambio |
+| Memoria y contexto | Este archivo (`DEVELOPMENT.md`) + `AGENTS.md` §4 | Antes de trabajar en cualquier área |
+| Tarea en curso (efímera) | `.harness/session.md` (local, fuera de Git) | Al pausar/retomar una tarea larga |
 
 ## Arquitectura
 
@@ -29,13 +44,14 @@ Catálogo de **reglas** (`AGENTS.md`), **skills** (`skills/<nombre>/SKILL.md` + 
 | 2026-10-19 | Aceptado | **openCode V2 obligatorio**: la configuración usa `permissions`/`shell`/`skills`; no se soporta V1 | V1 **rechaza** el bloque de permisos (`ConfigInvalidError`, observado en vivo): la app no carga la config y se perderían las protecciones (`.env`/edición/shell) | Soportar ambas sintaxis (en V1 el bloque no tiene efecto) |
 | 2026-10-19 | Aceptado | Las plantillas **deniegan** las mutaciones de Git (`commit`/`push`/`pull`/`merge`/`rebase`/`cherry-pick`/`reset`/`revert`/`restore`/`stash`) | No depender solo del `ask`: el agente nunca muta Git (coherente con §9). Falta comprobar si un **comando compuesto** (`git status && git push`) se segmenta y cae en `deny` — **sin verificar** en V2 | Dejar solo `ask` (admite aprobación) |
 | 2026-10-19 | Aceptado | `AGENTS.md` se mantiene como **un solo archivo** (no se parte en skills) | Las reglas duras (idioma, `.env`, Git, permisos) deben **cargarse siempre**; partirlas las volvería condicionales | Mover formato de commit/tests a skills (ahorro marginal, riesgo de perder reglas duras) |
+| 2026-10-20 | Aceptado | `DEVELOPMENT.md` abre con un **Mapa del proyecto** (índice puntero "área → dónde mirar → cuándo"); `AGENTS.md` §4 arranca por él y enlaza el checkpoint `.harness/session.md` | Separar *qué leer* de *dónde está* evita leer el `DEVELOPMENT.md` entero y re-escanear el código (menos tokens, menos alucinación). Se adopta el puntero + worklog del estudio `rsc-harness` **sin** su wiki/cron/plugins (PowerShell único) | Volcar la memoria entera en el archivo de cada turno (lo que se quería evitar); carpeta wiki multiformato (sobre-ingeniería para este tamaño) |
 
 ## Estado
 
 - [x] **0.2.0**: verificador (`check.ps1`), evals de disparo, CI, instalador base (`-Detect`/`-Doctor`/`-Global`) y skills base (godot/aws/azure/oci/harness-install).
 - [x] **0.3.0**: openCode V2 obligatorio, portabilidad multiplataforma, referencias citadas/alcanzables, `-Detect` en monorepo, `-SkillsOnly`/`-IncludeRules`, checkpoint de sesión, `DEVELOPMENT.md` y plantillas endurecidas (deny de Git).
 - [x] **Progressive disclosure**: `angular`/`astro`/`dotnet`/`fastapi` mueven el detalle de subsistema a `references/`; ninguna skill supera el 80% de `MaxBodyLines` (400).
-- [x] Catálogo: **17 skills**, **49 casos** de eval, **158 pruebas** de integración; `check.ps1 -Strict` en 0.
+- [x] Catálogo: **17 skills**, **49 casos** de eval, **159 pruebas** de integración; `check.ps1 -Strict` en 0.
 - [x] **Adopción segura** (2026-10-20): `-Context` siembra plantillas en `.md` existentes pero **vacíos**; `AGENTS.md` §4 exige **leer la memoria primero** (anti-scrapeo); `-Doctor` verifica el **cliente openCode V1/V2**; `-Uninstall` desinstala **solo lo gestionado** (respeta tu código y tu documentación).
 
 ## Memoria: propuesta (estudio de `ericrisco/rsc-harness`)
@@ -72,8 +88,7 @@ Objetivo declarado por el usuario: que el agente **sepa sin escrapear** el códi
 - [x] **Opción 1 implementada** (2026-10-20): `-Context` siembra plantillas cuando el `.md` existe **vacío** (`Test-EmptiedFile`); `AGENTS.md` §4 gana la regla explícita de **leer la memoria primero**. Pruebas: `tools/test.ps1` 123 → **135**.
 - [x] **Hueco V1/V2 cerrado** (2026-10-20): `install.ps1 -Doctor` detecta la **versión del cliente** (`Get-OpenCodeClient`): V2 OK, V1 **falla**, ausente avisa.
 - [x] **Desinstalación limpia** (2026-10-20): `install.ps1 -Uninstall` borra **solo lo gestionado** y deja el proyecto "sin Harness, con el avance del usuario". `opencode.json` solo se borra si lo creó el Harness (campo `created` en el manifiesto); si preexistía, se conserva sin el `instructions` fusionado. Nunca toca código, `.md` (ni los sembrados) ni `.harness-backup/`. Pruebas: 135 → **158**. Decisión del usuario: plantillas sembradas desde vacío → **se dejan**.
-- [ ] **Opción 2** (índice + worklog): **Propuesto**, sin implementar.
-
+- [x] **Opción 2 implementada** (2026-10-20): **Mapa del proyecto** en `DEVELOPMENT.md` (y su plantilla) como índice puntero; `AGENTS.md` §4 arranca por el mapa (no lee el archivo entero) y enlaza el **checkpoint** `.harness/session.md` como worklog de la tarea activa. Sin carpeta wiki, sin cron, sin plugins. Pruebas: 158 → **159**.
 ## Pendientes
 
 - **Matizados (sin acción):** `AGENTS.md` frente a `permissions` (defensa en capas, no duplicación) y marcadores de frescura donde no aplican.

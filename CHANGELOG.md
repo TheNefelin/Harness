@@ -6,6 +6,7 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es/1.1.0/); vers
 
 ### Añadido
 
+- `templates/DEVELOPMENT.md`: nueva sección **`Mapa del proyecto`** (índice puntero "área → dónde mirar → cuándo"). `AGENTS.md` §4 ahora **arranca por el mapa** (lee solo el destino del área; no el `DEVELOPMENT.md` entero ni el repo) y enlaza el **checkpoint** `.harness/session.md` como punto de continuación de la tarea activa. Cierra la opción 2 del estudio de memoria (índice + worklog), sin carpeta wiki, sin cron y sin plugins: PowerShell único. Prueba en `tools/test.ps1`.
 - `install.ps1 -Uninstall`: **desinstalación limpia** del scope. Borra **solo lo gestionado** (`harness/`, `.harness.json`, `.harness/session.md` y el bloque del `.gitignore`); `opencode.json` solo si lo **creó** el Harness (lo registra `created` en el manifiesto) y, si ya existía, se conserva quitándole el `instructions` fusionado. **Nunca** toca tu código, tu documentación (incluidos los `.md` sembrados) ni `.harness-backup/`. Admite `-WhatIf`. Pruebas en `tools/test.ps1`.
 - `install.ps1 -Doctor`: **verifica la versión del cliente openCode** (V1 vs V2) buscando `opencode` en el `PATH`. V2 → `OK`; V1 → **fallo** (rechaza el bloque V2 con `ConfigInvalidError`, así que la instalación quedaría inservible); no encontrado o versión ilegible → aviso. Cierra el hueco observado en vivo (`LaserBoy-Arduino`). Pruebas en `tools/test.ps1` (stub de `opencode` V1/V2 vía `PATH`).
 - `install.ps1 -Context`: **siembra las plantillas de memoria cuando el archivo existe pero está vacío** (0 bytes o solo espacios). Antes, un `README.md`/`DEVELOPMENT.md`/`SKILL.md` preexistente —aunque estuviera vacío— se dejaba igual y no se aprovechaba; ahora se rellena sin riesgo (no había contenido que perder). Con contenido, se respeta. Pruebas en `tools/test.ps1`.
@@ -20,7 +21,7 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es/1.1.0/); vers
 - `tools/test.ps1`: 68 → **99 pruebas** (referencias citada/alcanzable —incl. anidada— y huérfana; `-Detect` en monorepo; permisos V2 y `.env` de las plantillas).
 - `tools/test.ps1`: 99 → **123 pruebas** — `install.ps1 -Doctor` avisa de la sintaxis V1 (`permission`/`skills.paths`), y para las tres plantillas: el shell permite solo lectura (`git status`/`log`) y **deniega** las mutaciones de Git, incluido un `git push` encadenado tras un `git status` permitido.
 - `tools/test.ps1`: 123 → **135 pruebas** — `-Doctor` detecta la **versión del cliente** openCode (V1 falla, V2 pasa, ausente avisa) con un stub en el `PATH`; `-Context` **siembra** un `.md` vacío y **respeta** uno con contenido.
-- `tools/test.ps1`: 135 → **158 pruebas** — `-Uninstall` (borra solo lo gestionado, respeta código/`.md`/avance del usuario, conserva `opencode.json` y `.gitignore` preexistentes quitando el bloque del Harness, `-WhatIf` no borra, sin manifiesto avisa).
+- `tools/test.ps1`: 135 → **158 pruebas** — `-Uninstall` (borra solo lo gestionado, respeta código/`.md`/avance del usuario, conserva `opencode.json` y `.gitignore` preexistentes quitando el bloque del Harness, `-WhatIf` no borra, sin manifiesto avisa). 158 → **159 pruebas** — la plantilla sembrada incluye el **Mapa del proyecto**.
 
 ### Cambiado
 

@@ -16,7 +16,7 @@ Harness/
 ├─ README.md              # este archivo
 ├─ CONTRIBUTING.md        # cómo añadir/editar skills y evals
 ├─ CHANGELOG.md           # historial de versiones
-├─ DEVELOPMENT.md         # memoria del proyecto (arquitectura, decisiones)
+├─ DEVELOPMENT.md         # memoria del proyecto (mapa, arquitectura, decisiones)
 ├─ LICENSE                # MIT
 ├─ VERSION                # versión del harness
 ├─ .gitattributes         # normaliza saltos de línea (LF)
@@ -176,10 +176,10 @@ proyecto/
 **App existente (ya en marcha)**
 
 1. Instala con tus skills y `-Context`: las plantillas se crean si **no** existen y se siembran si existen **vacías** (0 bytes); si tienen contenido, se respetan y nunca se pisan.
-2. Conserva tu `README.md`; crea o actualiza `DEVELOPMENT.md` con arquitectura, comandos de build/test, decisiones y pendientes.
+2. Conserva tu `README.md`; crea o actualiza `DEVELOPMENT.md`. Empieza por su **Mapa del proyecto** (tabla "área → dónde mirar → cuándo"): es el puntero que hace que el agente sepa **qué leer sin re-escanear el código**; después añade arquitectura, comandos de build/test, decisiones y pendientes.
 3. Revisa que `opencode.json` apunte a `harness/` y ajusta permisos si hace falta.
 
-En ambos casos el agente lee primero `AGENTS.md` + `DEVELOPMENT.md`: cuanto mejor sea ese contexto, menos tokens gastas repitiendo.
+En ambos casos el agente lee primero `AGENTS.md` y el **Mapa del proyecto** de `DEVELOPMENT.md`, y abre solo el destino que corresponde al área: cuanto mejor sea ese mapa, menos tokens gastas releyendo y menos alucina. El **checkpoint** de la tarea en curso vive en `.harness/session.md` (local, fuera de Git).
 
 **Colaborador (clon nuevo)**
 

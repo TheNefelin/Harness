@@ -282,6 +282,7 @@ try {
     Assert ($r.Exit -eq 0) '-Context con .md preexistentes sale 0'
     $devRaw = Get-Content -LiteralPath (Join-Path $pd 'DEVELOPMENT.md') -Raw
     Assert ($devRaw -match 'Decisiones t') '-Context siembra la plantilla en DEVELOPMENT.md vacio'
+    Assert ($devRaw -match 'Mapa del proyecto') '-Context siembra la plantilla con el Mapa del proyecto'
     Assert ($r.Out -match 'existia vacio') '-Context informa que sembro un archivo vacio'
     $readmeRaw = Get-Content -LiteralPath (Join-Path $pd 'README.md') -Raw
     Assert ($readmeRaw -match 'Contenido propio') '-Context respeta README.md con contenido'
