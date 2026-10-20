@@ -24,7 +24,10 @@ $Repo    = Split-Path -Parent (Split-Path -Parent $MyInvocation.MyCommand.Path)
 $Install = Join-Path $Repo 'install.ps1'
 $Check   = Join-Path (Join-Path $Repo 'tools') 'check.ps1'
 
-$script:OnWindows = ($env:OS -eq 'Windows_NT')
+# $IsWindows solo existe en PS Core; en 5.1 (StrictMode) referenciarlo lanza, asi que se
+# consulta con Get-Variable, que devuelve $null si no esta definida.
+$isWinVar = Get-Variable -Name IsWindows -ErrorAction SilentlyContinue
+$script:OnWindows = if ($null -ne $isWinVar) { [bool]$isWinVar.Value } else { $env:OS -eq 'Windows_NT' }
 if ($PSVersionTable.PSEdition -eq 'Core') {
     $script:Exe = if ($script:OnWindows) { Join-Path $PSHOME 'pwsh.exe' } else { Join-Path $PSHOME 'pwsh' }
 }
@@ -306,12 +309,22 @@ try {
     $savedPath = $env:PATH
     $savedEap = $ErrorActionPreference
     try {
-        Write-NoBom (Join-Path $ocStub 'opencode.cmd') "@echo off`r`necho 1.18.9`r`n"
+        # Stub portable: en Windows un .cmd; en Linux/macOS un ejecutable con shebang.
+        $stubName = if ($script:OnWindows) { 'opencode.cmd' } else { 'opencode' }
+        $stubPath = Join-Path $ocStub $stubName
+        function New-OpenCodeStub { param([string]$Version)
+            if ($script:OnWindows) { Write-NoBom $stubPath "@echo off`r`necho $Version`r`n" }
+            else {
+                Write-NoBom $stubPath "#!/bin/sh`necho $Version`n"
+                & chmod +x $stubPath
+            }
+        }
+        New-OpenCodeStub '1.18.9'
         $env:PATH = $ocStub + [System.IO.Path]::PathSeparator + $savedPath
         $r = Invoke-Script $Install @('-Project', $pdOc, '-Doctor', '-Source', $Repo)
         Assert ($r.Exit -ne 0) '-Doctor falla con cliente V1 en PATH'
         Assert ($r.Out -match 'opencode V1') '-Doctor nombra el cliente V1'
-        Write-NoBom (Join-Path $ocStub 'opencode.cmd') "@echo off`r`necho 3.0.2`r`n"
+        New-OpenCodeStub '3.0.2'
         $r = Invoke-Script $Install @('-Project', $pdOc, '-Doctor', '-Source', $Repo)
         Assert ($r.Exit -eq 0) '-Doctor pasa con cliente V2 en PATH'
         Assert ($r.Out -match 'opencode V2') '-Doctor reconoce el cliente V2'
