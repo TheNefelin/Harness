@@ -359,7 +359,12 @@ try {
     Assert (-not (Test-Path -LiteralPath (Join-Path $pu '.harness.json'))) '-Uninstall borra .harness.json'
     Assert (-not (Test-Path -LiteralPath (Join-Path $pu '.harness/session.md'))) '-Uninstall borra .harness/session.md'
     Assert (-not (Test-Path -LiteralPath (Join-Path $pu 'opencode.json'))) '-Uninstall borra opencode.json creado por el Harness'
-    Assert (-not (Test-Path -LiteralPath (Join-Path $pu '.gitignore'))) '-Uninstall borra .gitignore si solo tenia el bloque Harness'
+    # El .gitignore CONSERVA harness/.harness-backup/ porque quedan respaldos (evita no-rastreados)
+    Assert (Test-Path -LiteralPath (Join-Path $pu '.gitignore')) '-Uninstall conserva .gitignore mientras queden respaldos'
+    $giAfter = Get-Content -LiteralPath (Join-Path $pu '.gitignore') -Raw
+    Assert ($giAfter -match 'harness/\.harness-backup/') '-Uninstall conserva la linea harness/.harness-backup/ si quedan respaldos'
+    Assert (-not ($giAfter -match 'harness/skills/')) '-Uninstall quita la linea harness/skills/ del .gitignore'
+    Assert ($r.Out -match 'respaldo') '-Uninstall avisa de que quedan respaldos'
     Assert (Test-Path -LiteralPath (Join-Path $pu 'LaserBoy.md')) '-Uninstall respeta el codigo/doc del usuario'
     Assert (Test-Path -LiteralPath (Join-Path $pu 'DEVELOPMENT.md')) '-Uninstall respeta DEVELOPMENT.md'
     Assert ((Get-Content -LiteralPath (Join-Path $pu 'DEVELOPMENT.md') -Raw) -match 'mi avance') '-Uninstall conserva el avance del usuario en DEVELOPMENT.md'
@@ -442,6 +447,30 @@ try {
     Assert (-not (Test-Path -LiteralPath (Join-Path $cfgG 'skills/dotnet'))) 'global: retira la skill gestionada'
     Assert (-not (Test-Path -LiteralPath (Join-Path $cfgG '.harness.json'))) 'global: borra .harness.json'
 
+    # -Uninstall con AGENTS.md ajeno preexistente + -Force: el ajeno acaba en RESPALDO (recuperable),
+    # nunca se pierde (el manifiesto queda rules:true, pero el contenido ajeno esta en .harness-backup).
+    Section 'install.ps1 -Global -Force con AGENTS.md ajeno (va a respaldo, no se pierde)'
+    $homeF = New-Project 'home-global-force'
+    $cfgF = Join-Path $homeF '.config/opencode'
+    New-Item -ItemType Directory -Force -Path $cfgF | Out-Null
+    Write-NoBom (Join-Path $cfgF 'AGENTS.md') "# Reglas propias del usuario`ncontenido unico del usuario`n"
+    $envF = @{ HOME = $homeF; USERPROFILE = $homeF }
+    $r = Invoke-Script $Install @('-Global', '-Skills', 'dotnet', '-Force', '-Source', $Repo) -Env $envF
+    Assert ($r.Exit -eq 0) 'global -Force sobre AGENTS.md ajeno sale 0'
+    # El AGENTS.md ajeno quedo respaldado al reemplazar (no se perdio)
+    $bkAgents = @(Get-ChildItem -LiteralPath (Join-Path $cfgF '.harness-backup') -Force -File -Filter 'AGENTS.md-*' -ErrorAction SilentlyContinue)
+    Assert ($bkAgents.Count -ge 1) '-Force respalda el AGENTS.md ajeno antes de reemplazarlo'
+    $bkContent = ($bkAgents | Select-Object -First 1 | ForEach-Object { Get-Content -LiteralPath $_.FullName -Raw })
+    Assert ($bkContent -match 'contenido unico del usuario') 'el respaldo conserva el contenido ajeno integro'
+    $r = Invoke-Script $Install @('-Global', '-Uninstall', '-Source', $Repo) -Env $envF
+    Assert ($r.Exit -eq 0) '-Uninstall tras -Force (global) sale 0'
+    Assert (Test-Path -LiteralPath (Join-Path $cfgF '.harness-backup')) '-Uninstall CONSERVA el respaldo del AGENTS.md ajeno'
+    $bkAfter = @(Get-ChildItem -LiteralPath (Join-Path $cfgF '.harness-backup') -Force -File -Filter 'AGENTS.md-*' -ErrorAction SilentlyContinue)
+    Assert (@($bkAfter | Where-Object { (Get-Content -LiteralPath $_.FullName -Raw) -match 'contenido unico del usuario' }).Count -ge 1) 'el AGENTS.md ajeno sigue recuperable tras desinstalar'
+    # Dos respaldos del MISMO nombre en el mismo segundo no deben colisionar ni abortar
+    Assert ($bkAfter.Count -ge 2) 'dos respaldos de AGENTS.md conviven (sin colision de sello)'
+    Assert ($r.Out -match 'Harness desinstalado') '-Uninstall no aborta aunque haya dos AGENTS.md respaldados'
+
     # --- check.ps1 -----------------------------------------------------------
     Section 'check.ps1'
     $r = Invoke-Script $Check @()
@@ -479,6 +508,8 @@ try {
     # Nota: Get-ShellEffect SIMULA las reglas V2 (no prueba openCode): "last match wins"
     # y "un patron que termina en ' *' tambien casa sin argumentos". Los asertos de .env
     # son reales; los de shell validan la INTENCION de las reglas, no el runtime.
+    # ADVERTENCIA: si openCode V2 no segmenta un comando compuesto ("git status && git push"),
+    # el 'deny' del segundo tramo NO se aplica en la practica. Sin verificar en un V2 real.
     function Test-ShellMatch { param([string]$Cmd, [string]$Pattern)
         if ($Cmd -like $Pattern) { return $true }
         if ($Pattern.EndsWith(' *') -and $Cmd -like $Pattern.Substring(0, $Pattern.Length - 2)) { return $true }

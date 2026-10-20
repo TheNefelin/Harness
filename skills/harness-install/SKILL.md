@@ -89,7 +89,7 @@ El set vive en `.harness.json`. Para **cambiarlo**, re-ejecuta con `-Skills` ind
 - El instalador **nunca pisa** skills/reglas ajenas: las respalda en `.harness-backup\` y las omite, salvo `-Force`.
 - Tres capas: **catálogo** (repo Harness o `-Source`), **instalación** (copias gestionadas con marcador `.harness-source`; no editar a mano) y **personalizaciones** (sin marcador; nunca se podan).
 - El **checkpoint de sesión** (`.harness/session.md`) es estado local y efímero (fuera de Git): el punto de continuación de una tarea larga. La memoria durable sigue siendo `DEVELOPMENT.md`, que abre con el **Mapa del proyecto** (área → dónde mirar → cuándo): el agente lee la fila del área y abre solo ese destino.
-- **`-Uninstall` no destruye**: lo gestionado se mueve a `.harness-backup\` y lo ajeno se conserva. En **Global** `~/.config/opencode\` **no se borra** (tiene tu config, plugins y otros agentes); solo se retiran las skills/reglas gestionadas.
+- **`-Uninstall` no destruye**: lo gestionado se mueve a `.harness-backup\` y lo ajeno se conserva. En **Global** `~/.config/opencode\` **no se borra** (tiene tu config, plugins y otros agentes); solo se retiran las skills/reglas gestionadas. Mientras queden respaldos, el `.gitignore` conserva la línea `harness/.harness-backup/` y el cierre avisa de cómo retirarla cuando los borres.
 - **Conflictos:** al actualizar, una skill idéntica al catálogo no se toca (`sin cambios`); una **editada localmente** se **respalda** y se avisa `CONFLICT` antes de refrescar. Sin pérdida de datos.
 
 ## Anti-patrones / gotchas

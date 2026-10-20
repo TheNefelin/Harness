@@ -686,12 +686,17 @@ if ($Uninstall) {
     $bkDir = Join-Path $ScopeRoot '.harness-backup'
     $stamp = Get-Date -Format 'yyyyMMdd-HHmmss'
     $keepDir = $false   # el usuario tiene contenido ajeno -> conservar el directorio
+    $bkLeft = $false    # al terminar queda carpeta de respaldos -> conservar su linea de .gitignore y avisar
 
     function Move-ToBackup {
         param([string]$Path, [string]$Name)
         if ($WhatIf) { Write-Host ("WOULD  mover {0} -> .harness-backup" -f $Path) -ForegroundColor DarkCyan; return }
         New-Item -ItemType Directory -Path $bkDir -Force | Out-Null
+        # El sello tiene granularidad de segundo: dos respaldos del MISMO nombre en el mismo
+        # segundo colisionarian (Move-Item falla y aborta la desinstalacion). Se desambigua.
         $dest = Join-Path $bkDir ("{0}-{1}" -f $Name, $stamp)
+        $n = 1
+        while (Test-Path -LiteralPath $dest) { $dest = Join-Path $bkDir ("{0}-{1}-{2}" -f $Name, $stamp, $n); $n++ }
         Move-Item -LiteralPath $Path -Destination $dest
         Write-Host ("BAK    {0} -> .harness-backup" -f $Name) -ForegroundColor Yellow
     }
@@ -778,13 +783,24 @@ if ($Uninstall) {
             $giRaw = Get-Content -LiteralPath $gi -Raw
             $marker = '# Harness (gestionado; refrescar con install.ps1 -Update)'
             if ($giRaw -match [regex]::Escape($marker)) {
+                # Si quedan respaldos, se CONSERVA la entrada 'harness/.harness-backup/' (y la
+                # cabecera): asi los respaldos no aparecen como no rastreados tras desinstalar
+                # (evita un commit por descuido). Si no hay carpeta de respaldos, se quita todo.
+                $keepBkEntry = Test-Path -LiteralPath $bkDir
                 $lines = Get-Content -LiteralPath $gi
                 $out = New-Object System.Collections.Generic.List[string]
                 $skip = 0
                 foreach ($ln in $lines) {
-                    if ($ln.Trim() -eq $marker) { $skip = 1; continue }
+                    if ($ln.Trim() -eq $marker) {
+                        if ($keepBkEntry) { $out.Add($ln) }
+                        $skip = 1
+                        continue
+                    }
                     if ($skip -eq 1) {
-                        if ($ln -match '^(harness/skills/|harness/\.harness-backup/|\.harness/)\s*$') { continue }
+                        if ($ln -match '^(harness/skills/|harness/\.harness-backup/|\.harness/)\s*$') {
+                            if ($keepBkEntry -and $ln -match '^harness/\.harness-backup/\s*$') { $out.Add($ln) }
+                            continue
+                        }
                         $skip = 0
                     }
                     $out.Add($ln)
@@ -799,7 +815,9 @@ if ($Uninstall) {
                 }
                 else {
                     [System.IO.File]::WriteAllText($gi, $newGi, (New-Object System.Text.UTF8Encoding($false)))
-                    Write-Host 'OK     .gitignore (bloque Harness eliminado)' -ForegroundColor Green
+                    if ($keepBkEntry) { Write-Host 'OK     .gitignore (bloque Harness eliminado salvo harness/.harness-backup/, que se conserva por los respaldos)' -ForegroundColor Green }
+                    else { Write-Host 'OK     .gitignore (bloque Harness eliminado)' -ForegroundColor Green }
+                    if ($keepBkEntry) { $kept += '.gitignore: harness/.harness-backup/' }
                 }
             }
         }
@@ -821,6 +839,8 @@ if ($Uninstall) {
             }
         }
     }
+    # Al terminar: ¿queda la carpeta de respaldos? (para el aviso y la linea de .gitignore)
+    if (-not $WhatIf) { $bkLeft = Test-Path -LiteralPath $bkDir }
 
     # 6) .harness.json (manifiesto): al final.
     if ($WhatIf) { Write-Host ("WOULD  borrar {0}" -f $DeclFile) -ForegroundColor DarkCyan }
@@ -830,6 +850,11 @@ if ($Uninstall) {
     Write-Host ''
     if ($WhatIf) { Write-Host 'WHATIF  Simulacion: no se modifico nada.' -ForegroundColor Cyan; exit 0 }
     if ($kept.Count -gt 0) { Write-Host ("Conservado: {0}" -f ($kept -join ', ')) -ForegroundColor DarkGray }
+    if ($bkLeft) {
+        Write-Host ''
+        Write-Host ("AVISO  quedan respaldos en {0}" -f $bkDir) -ForegroundColor Yellow
+        Write-Host '       revisalos; cuando los borres, puedes quitar la linea harness/.harness-backup/ del .gitignore.' -ForegroundColor Yellow
+    }
     Write-Host ("Harness desinstalado del scope {0}. Recarga openCode con /reload." -f $Scope.ToLower())
     exit 0
 }
@@ -868,7 +893,11 @@ $BackupDir = Join-Path $ScopeRoot '.harness-backup'
 function Backup-Path {
     param([string]$Path, [string]$Name)
     $stamp = Get-Date -Format 'yyyyMMdd-HHmmss'
+    # Igual que Move-ToBackup: el sello es por segundo; si dos respaldos del mismo nombre
+    # caen en el mismo segundo, se desambigua para no fallar (ni perder el respaldo).
     $dest = Join-Path $BackupDir ("{0}-{1}" -f $Name, $stamp)
+    $n = 1
+    while (-not $WhatIf -and (Test-Path -LiteralPath $dest)) { $dest = Join-Path $BackupDir ("{0}-{1}-{2}" -f $Name, $stamp, $n); $n++ }
     if ($WhatIf) {
         Write-Host "WOULD  respaldar $Name -> .harness-backup\$([System.IO.Path]::GetFileName($dest))" -ForegroundColor DarkCyan
         return $null
