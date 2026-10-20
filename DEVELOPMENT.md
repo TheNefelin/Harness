@@ -40,6 +40,8 @@ Catálogo de **reglas** (`AGENTS.md`), **skills** (`skills/<nombre>/SKILL.md` + 
 ## Pendientes
 
 - **Matizados (sin acción):** `AGENTS.md` frente a `permissions` (defensa en capas, no duplicación) y marcadores de frescura donde no aplican.
+- **`-Adopt` (propuesta, no implementado):** en un proyecto avanzado el Harness **no** reescribe ni estandariza la documentación existente; `-Context` solo crea la plantilla **si falta**, así que un `README.md`/`DEVELOPMENT.md` que ya exista (aunque esté **vacío**) se deja igual y no se aprovecha. Idea: un modo de **solo lectura** que compare los `.md` del proyecto con las plantillas y **proponga** diffs para aprobación. Decisión: nunca por defecto (reescribir docs ajenas es destructivo).
+- **Verificar la versión del cliente (propuesta, no implementado):** `install.ps1 -Doctor` solo **avisa** si el `opencode.json` está en sintaxis V1, pero **no** comprueba la versión de openCode instalada. Observado en vivo (`LaserBoy-Arduino`): abrir con la app **V1** un `opencode.json` V2 da **`ConfigInvalidError`** (la V1 **rechaza** el config; no lo ignora en silencio). Conviene que el instalador **detecte V1/V2** y avise o aborte antes de dejar una instalación inservible.
 
 ## Problemas conocidos
 
