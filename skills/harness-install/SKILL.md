@@ -31,15 +31,16 @@ Repositorio: `https://github.com/TheNefelin/Harness.git`
 |-----------|-------------|
 | `-List` | Muestra el catálogo (nombre + descripción) y sale |
 | `-Detect` | Escanea el proyecto (`-Project`) y lista las tecnologías sin skill en el catálogo. Solo lectura |
-| `-Doctor` | Audita la instalación del scope (manifiesto, marcadores/hashes, reglas, `opencode.json`). Solo lectura; sale 0/1 |
+| `-Doctor` | Audita la instalación del scope (manifiesto, marcadores/hashes, reglas, `opencode.json`, **versión del cliente V1/V2**). Solo lectura; sale 0/1 |
 | `-Project <ruta>` | Scope **Local**: vive en `<ruta>\harness\` |
 | `-Global` | Scope **Global**: vive en `~/.config/opencode\` |
-| `-Skills a,b,c` | Skills a instalar. **Obligatorio** salvo con `-Update`/`-List`: no hay set por defecto |
+| `-Skills a,b,c` | Skills a instalar. **Obligatorio** salvo con `-Update`/`-Uninstall`/`-List`: no hay set por defecto |
 | `-Update` | Refresca lo declarado en `.harness.json` (su scope), agrega lo que falte y **poda** lo que ya no se declare |
+| `-Uninstall` | Desinstala el Harness del scope: borra **solo lo gestionado** (`harness/`, `.harness.json`, `.harness/session.md`, el bloque del `.gitignore`) y `opencode.json` solo si lo creó el Harness. **Nunca** toca tu código, tus `.md` (ni los sembrados) ni `.harness-backup/`. Admite `-WhatIf` |
 | `-WhatIf` | Previsualiza qué haría (instalar/refrescar/respaldar/omitir/podar) sin modificar nada |
 | `-Source <ruta\|url>` | Origen del catálogo: clon local o URL git (se clona a temp). Actualiza sin abrir el repo Harness |
 | `-Force` | Reemplaza skills/reglas ajenas (con respaldo) en vez de omitirlas |
-| `-Context` | Local: copia además las plantillas de memoria (`README.md`, `DEVELOPMENT.md`, `SKILL.md`) y el checkpoint `.harness/session.md` si no existen |
+| `-Context` | Local: copia además las plantillas de memoria (`README.md`, `DEVELOPMENT.md`, `SKILL.md`) y el checkpoint `.harness/session.md` si no existen. Si un `.md` existe **vacío** (0 bytes), se **siembra** la plantilla; con contenido, se respeta |
 | `-SkillsOnly` | Instala las skills y **omite las reglas** (`AGENTS.md`) en ese scope: úsalo si las reglas ya viven en el otro scope (p. ej. global), para no cargar dos copias idénticas |
 | `-IncludeRules` | **Revierte** un `rules:false` previo (de un `-SkillsOnly`): reinstala las reglas y, en Local, asegura `instructions` en `opencode.json`. Incompatible con `-SkillsOnly` |
 

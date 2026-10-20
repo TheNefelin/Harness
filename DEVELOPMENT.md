@@ -35,7 +35,8 @@ Catálogo de **reglas** (`AGENTS.md`), **skills** (`skills/<nombre>/SKILL.md` + 
 - [x] **0.2.0**: verificador (`check.ps1`), evals de disparo, CI, instalador base (`-Detect`/`-Doctor`/`-Global`) y skills base (godot/aws/azure/oci/harness-install).
 - [x] **0.3.0**: openCode V2 obligatorio, portabilidad multiplataforma, referencias citadas/alcanzables, `-Detect` en monorepo, `-SkillsOnly`/`-IncludeRules`, checkpoint de sesión, `DEVELOPMENT.md` y plantillas endurecidas (deny de Git).
 - [x] **Progressive disclosure**: `angular`/`astro`/`dotnet`/`fastapi` mueven el detalle de subsistema a `references/`; ninguna skill supera el 80% de `MaxBodyLines` (400).
-- [x] Catálogo: **17 skills**, **49 casos** de eval, **123 pruebas** de integración; `check.ps1 -Strict` en 0.
+- [x] Catálogo: **17 skills**, **49 casos** de eval, **158 pruebas** de integración; `check.ps1 -Strict` en 0.
+- [x] **Adopción segura** (2026-10-20): `-Context` siembra plantillas en `.md` existentes pero **vacíos**; `AGENTS.md` §4 exige **leer la memoria primero** (anti-scrapeo); `-Doctor` verifica el **cliente openCode V1/V2**; `-Uninstall` desinstala **solo lo gestionado** (respeta tu código y tu documentación).
 
 ## Memoria: propuesta (estudio de `ericrisco/rsc-harness`)
 
@@ -66,11 +67,17 @@ Objetivo declarado por el usuario: que el agente **sepa sin escrapear** el códi
 
 **Recomendación:** empezar por la **1** (barata, corrige lo que falló en `LaserBoy-Arduino`) y tratar la **2** como siguiente paso natural. La **3** solo con uso real que la justifique.
 
+### Estado de la implementación
+
+- [x] **Opción 1 implementada** (2026-10-20): `-Context` siembra plantillas cuando el `.md` existe **vacío** (`Test-EmptiedFile`); `AGENTS.md` §4 gana la regla explícita de **leer la memoria primero**. Pruebas: `tools/test.ps1` 123 → **135**.
+- [x] **Hueco V1/V2 cerrado** (2026-10-20): `install.ps1 -Doctor` detecta la **versión del cliente** (`Get-OpenCodeClient`): V2 OK, V1 **falla**, ausente avisa.
+- [x] **Desinstalación limpia** (2026-10-20): `install.ps1 -Uninstall` borra **solo lo gestionado** y deja el proyecto "sin Harness, con el avance del usuario". `opencode.json` solo se borra si lo creó el Harness (campo `created` en el manifiesto); si preexistía, se conserva sin el `instructions` fusionado. Nunca toca código, `.md` (ni los sembrados) ni `.harness-backup/`. Pruebas: 135 → **158**. Decisión del usuario: plantillas sembradas desde vacío → **se dejan**.
+- [ ] **Opción 2** (índice + worklog): **Propuesto**, sin implementar.
+
 ## Pendientes
 
 - **Matizados (sin acción):** `AGENTS.md` frente a `permissions` (defensa en capas, no duplicación) y marcadores de frescura donde no aplican.
-- **`-Adopt` (propuesta, no implementado):** en un proyecto avanzado el Harness **no** reescribe ni estandariza la documentación existente; `-Context` solo crea la plantilla **si falta**, así que un `README.md`/`DEVELOPMENT.md` que ya exista (aunque esté **vacío**) se deja igual y no se aprovecha. Idea: un modo de **solo lectura** que compare los `.md` del proyecto con las plantillas y **proponga** diffs para aprobación. Decisión: nunca por defecto (reescribir docs ajenas es destructivo). *(Ver "Memoria: propuesta", opción 1.)*
-- **Verificar la versión del cliente (propuesta, no implementado):** `install.ps1 -Doctor` solo **avisa** si el `opencode.json` está en sintaxis V1, pero **no** comprueba la versión de openCode instalada. Observado en vivo (`LaserBoy-Arduino`): abrir con la app **V1** un `opencode.json` V2 da **`ConfigInvalidError`** (la V1 **rechaza** el config; no lo ignora en silencio). Conviene que el instalador **detecte V1/V2** y avise o aborte antes de dejar una instalación inservible.
+- **`-Adopt` (opción 2/3, no implementado):** un modo de **solo lectura** que compare los `.md` del proyecto con las plantillas y **proponga** diffs para aprobación (el caso "vacío" ya está resuelto; esto cubre el "tiene contenido pero no sigue el estándar"). Decisión: nunca por defecto (reescribir docs ajenas es destructivo).
 
 ## Problemas conocidos
 

@@ -38,6 +38,8 @@ Prioridades, en orden: seguridad, mantenibilidad, simplicidad, calidad técnica,
 
 Leer el contexto relevante **antes** de modificar. No leer el repositorio entero: ampliar solo de forma incremental, priorizando los archivos directos de la tarea.
 
+**Regla de lectura (evita re-escrapear):** antes de trabajar en un área, leer primero su **memoria** —`DEVELOPMENT.md` (decisiones, arquitectura, pendientes) y el `README.md`— y usar lo que ya está escrito en vez de deducirlo del código. Si la memoria y el código discrepan, señalarlo; no asumir que la memoria está actualizada ni reemplazarla por una lectura completa del repositorio.
+
 Cada proyecto tiene su propio **trío de contexto**, que se resuelve relativo al proyecto que se modifica y no a la raíz del workspace:
 
 | Archivo | Contiene | Regla |

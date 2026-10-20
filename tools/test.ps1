@@ -54,6 +54,8 @@ function Invoke-Script {
 
 function New-Project { param([string]$Name) $p = Join-Path $script:Sandbox $Name; New-Item -ItemType Directory -Force -Path $p | Out-Null; return $p }
 
+function Write-NoBom { param([string]$Path, [string]$Text) [System.IO.File]::WriteAllText($Path, $Text, (New-Object System.Text.UTF8Encoding($false))) }
+
 $script:Sandbox = Join-Path ([System.IO.Path]::GetTempPath()) ('harness-test-' + [guid]::NewGuid().ToString('N').Substring(0, 8))
 New-Item -ItemType Directory -Force -Path $script:Sandbox | Out-Null
 
@@ -272,6 +274,94 @@ try {
     Assert (Test-Path -LiteralPath (Join-Path $pc 'DEVELOPMENT.md')) '-Context copia DEVELOPMENT.md'
     Assert (Test-Path -LiteralPath (Join-Path $pc '.harness/session.md')) '-Context copia .harness/session.md'
 
+    # -Context respeta archivos con contenido y siembra los vacios
+    $pd = New-Project 'proj-context-vacio'
+    Write-NoBom (Join-Path $pd 'DEVELOPMENT.md') "   `r`n"
+    Write-NoBom (Join-Path $pd 'README.md') "# Mi proyecto`r`n`r`nContenido propio.`r`n"
+    $r = Invoke-Script $Install @('-Project', $pd, '-Skills', 'dotnet', '-Context', '-Source', $Repo)
+    Assert ($r.Exit -eq 0) '-Context con .md preexistentes sale 0'
+    $devRaw = Get-Content -LiteralPath (Join-Path $pd 'DEVELOPMENT.md') -Raw
+    Assert ($devRaw -match 'Decisiones t') '-Context siembra la plantilla en DEVELOPMENT.md vacio'
+    Assert ($r.Out -match 'existia vacio') '-Context informa que sembro un archivo vacio'
+    $readmeRaw = Get-Content -LiteralPath (Join-Path $pd 'README.md') -Raw
+    Assert ($readmeRaw -match 'Contenido propio') '-Context respeta README.md con contenido'
+    Assert (-not ($readmeRaw -match 'Requisitos')) '-Context no pisa README.md con contenido'
+
+    # --- Doctor: version del cliente openCode --------------------------------
+    Section 'install.ps1 -Doctor (cliente openCode)'
+    $ocStub = Join-Path $script:Sandbox 'oc-stub'
+    New-Item -ItemType Directory -Force -Path $ocStub | Out-Null
+    $pdOc = New-Project 'proj-doctor-oc'
+    $r = Invoke-Script $Install @('-Project', $pdOc, '-Skills', 'dotnet', '-Source', $Repo)
+    Assert ($r.Exit -eq 0) 'instalacion para el caso openCode sale 0'
+    $r = Invoke-Script $Install @('-Project', $pdOc, '-Doctor', '-Source', $Repo)
+    Assert ($r.Exit -eq 0) '-Doctor sin cliente openCode sale 0'
+    Assert ($r.Out -match 'no encontrado en PATH') '-Doctor avisa si no encuentra el cliente'
+    $savedPath = $env:PATH
+    $savedEap = $ErrorActionPreference
+    try {
+        Write-NoBom (Join-Path $ocStub 'opencode.cmd') "@echo off`r`necho 1.18.9`r`n"
+        $env:PATH = $ocStub + [System.IO.Path]::PathSeparator + $savedPath
+        $r = Invoke-Script $Install @('-Project', $pdOc, '-Doctor', '-Source', $Repo)
+        Assert ($r.Exit -ne 0) '-Doctor falla con cliente V1 en PATH'
+        Assert ($r.Out -match 'opencode V1') '-Doctor nombra el cliente V1'
+        Write-NoBom (Join-Path $ocStub 'opencode.cmd') "@echo off`r`necho 3.0.2`r`n"
+        $r = Invoke-Script $Install @('-Project', $pdOc, '-Doctor', '-Source', $Repo)
+        Assert ($r.Exit -eq 0) '-Doctor pasa con cliente V2 en PATH'
+        Assert ($r.Out -match 'opencode V2') '-Doctor reconoce el cliente V2'
+    }
+    finally { $env:PATH = $savedPath; $ErrorActionPreference = $savedEap }
+
+    # --- Uninstall -----------------------------------------------------------
+    Section 'install.ps1 -Uninstall (borra solo lo gestionado)'
+    $pu = New-Project 'proj-uninstall'
+    Write-NoBom (Join-Path $pu 'LaserBoy.md') "# Doc propio`r`ncontenido`r`n"
+    Write-NoBom (Join-Path $pu 'DEVELOPMENT.md') ''
+    $r = Invoke-Script $Install @('-Project', $pu, '-Skills', 'dotnet', '-Context', '-Source', $Repo)
+    Assert ($r.Exit -eq 0) 'instalacion para -Uninstall sale 0'
+    # El usuario escribe en la memoria sembrada (simula avance)
+    Write-NoBom (Join-Path $pu 'DEVELOPMENT.md') "# Desarrollo`r`n`r`nmi avance`r`n"
+    # Un respaldo dentro de harness/ (no debe perderse silenciosamente, pero se borra con harness/)
+    $declPu = Get-Content -LiteralPath (Join-Path $pu '.harness.json') -Raw | ConvertFrom-Json
+    Assert ($declPu.created.'opencode.json' -eq $true) 'manifiesto registra created.opencode.json=true'
+    # -WhatIf no borra nada
+    $r = Invoke-Script $Install @('-Project', $pu, '-Uninstall', '-WhatIf', '-Source', $Repo)
+    Assert ($r.Exit -eq 0) '-Uninstall -WhatIf sale 0'
+    Assert (Test-Path -LiteralPath (Join-Path $pu 'harness')) '-Uninstall -WhatIf no borra harness/'
+    Assert ($r.Out -match 'WHATIF') '-Uninstall -WhatIf informa simulacion'
+    # Desinstalacion real
+    $r = Invoke-Script $Install @('-Project', $pu, '-Uninstall', '-Source', $Repo)
+    Assert ($r.Exit -eq 0) '-Uninstall sale 0'
+    Assert (-not (Test-Path -LiteralPath (Join-Path $pu 'harness'))) '-Uninstall borra harness/'
+    Assert (-not (Test-Path -LiteralPath (Join-Path $pu '.harness.json'))) '-Uninstall borra .harness.json'
+    Assert (-not (Test-Path -LiteralPath (Join-Path $pu '.harness/session.md'))) '-Uninstall borra .harness/session.md'
+    Assert (-not (Test-Path -LiteralPath (Join-Path $pu 'opencode.json'))) '-Uninstall borra opencode.json creado por el Harness'
+    Assert (-not (Test-Path -LiteralPath (Join-Path $pu '.gitignore'))) '-Uninstall borra .gitignore si solo tenia el bloque Harness'
+    Assert (Test-Path -LiteralPath (Join-Path $pu 'LaserBoy.md')) '-Uninstall respeta el codigo/doc del usuario'
+    Assert (Test-Path -LiteralPath (Join-Path $pu 'DEVELOPMENT.md')) '-Uninstall respeta DEVELOPMENT.md'
+    Assert ((Get-Content -LiteralPath (Join-Path $pu 'DEVELOPMENT.md') -Raw) -match 'mi avance') '-Uninstall conserva el avance del usuario en DEVELOPMENT.md'
+
+    # -Uninstall con opencode.json y .gitignore preexistentes: los conserva
+    $pu2 = New-Project 'proj-uninstall-keep'
+    Write-NoBom (Join-Path $pu2 'opencode.json') "{`n  `"model`": `"mi-modelo`"`n}`n"
+    Write-NoBom (Join-Path $pu2 '.gitignore') "# mis reglas`r`nnode_modules/`r`n"
+    $r = Invoke-Script $Install @('-Project', $pu2, '-Skills', 'dotnet', '-Source', $Repo)
+    Assert ($r.Exit -eq 0) 'instalacion sobre archivos propios sale 0'
+    $r = Invoke-Script $Install @('-Project', $pu2, '-Uninstall', '-Source', $Repo)
+    Assert ($r.Exit -eq 0) '-Uninstall sobre archivos propios sale 0'
+    Assert (Test-Path -LiteralPath (Join-Path $pu2 'opencode.json')) '-Uninstall conserva opencode.json preexistente'
+    $cfgKept = Get-Content -LiteralPath (Join-Path $pu2 'opencode.json') -Raw | ConvertFrom-Json
+    Assert ($cfgKept.model -eq 'mi-modelo') '-Uninstall conserva el contenido propio de opencode.json'
+    Assert (-not ($cfgKept.PSObject.Properties.Name -contains 'instructions')) '-Uninstall quita el instructions fusionado del opencode.json conservado'
+    $giKept = Get-Content -LiteralPath (Join-Path $pu2 '.gitignore') -Raw
+    Assert ($giKept -match 'node_modules') '-Uninstall conserva las reglas propias de .gitignore'
+    Assert (-not ($giKept -match 'harness/skills')) '-Uninstall quita el bloque Harness del .gitignore'
+    # -Uninstall sin manifiesto: aviso, no error
+    $pu3 = New-Project 'proj-uninstall-none'
+    $r = Invoke-Script $Install @('-Project', $pu3, '-Uninstall', '-Source', $Repo)
+    Assert ($r.Exit -eq 0) '-Uninstall sin instalacion sale 0 (aviso)'
+    Assert ($r.Out -match 'nada que desinstalar') '-Uninstall sin manifiesto avisa'
+
     # --- check.ps1 -----------------------------------------------------------
     Section 'check.ps1'
     $r = Invoke-Script $Check @()
@@ -283,7 +373,6 @@ try {
 
     # --- check.ps1: referencias citadas/alcanzables -------------------------
     Section 'check.ps1 referencias (citadas y alcanzables)'
-    function Write-NoBom { param([string]$Path, [string]$Text) [System.IO.File]::WriteAllText($Path, $Text, (New-Object System.Text.UTF8Encoding($false))) }
 
     $fa = New-Project 'chk-refs-ok'
     New-Item -ItemType Directory -Force -Path (Join-Path $fa 'tools'), (Join-Path $fa 'evals'), (Join-Path $fa 'skills/demo/references/sub') | Out-Null

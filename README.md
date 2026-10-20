@@ -103,7 +103,7 @@ Es **agnóstico**: no hay set por defecto. Siempre indicas **qué** skills y **d
 Qué hace:
 
 1. Copia las **skills elegidas** y las **reglas** (`AGENTS.md`) al destino del scope.
-2. Escribe `.harness.json` (`{schemaVersion, scope, rules, skills, harnessVersion}`): la **declaración** que usa `-Update`.
+2. Escribe `.harness.json` (`{schemaVersion, scope, rules, skills, harnessVersion, created}`): la **declaración** que usan `-Update`, `-Doctor` y `-Uninstall`.
 3. Local: crea `opencode.json` si falta y agrega `harness/skills/` a `.gitignore`.
 4. **Nunca pisa** skills/reglas ajenas: las **respalda** en `.harness-backup\` y las omite (o las reemplaza con `-Force`).
 5. `-Update` alinea el set: agrega las que falten y **poda** las que ya no declaraste.
@@ -112,7 +112,9 @@ Qué hace:
 
 `-WhatIf` previsualiza la operación completa (instalar, refrescar, respaldar, omitir, podar) **sin escribir nada**: úsalo para ver qué pasaría antes de aplicar.
 
-`-Doctor` audita la instalación del scope (manifiesto `.harness.json`, marcadores y hashes de cada skill, reglas y `opencode.json`) y sale con código **0** (ok, con avisos) o **1** (fallo): útil para saber si algo quedó a medias o para CI.
+`-Doctor` audita la instalación del scope (manifiesto `.harness.json`, marcadores y hashes de cada skill, reglas, `opencode.json` y la **versión del cliente openCode: V1 vs V2**) y sale con código **0** (ok, con avisos) o **1** (fallo): útil para saber si algo quedó a medias o para CI. Verifica V2 porque **openCode V1 rechaza** el bloque V2 de `opencode.json` (`ConfigInvalidError`); si detecta V1, marca **fallo**.
+
+`-Uninstall` **desinstala** el Harness del scope: borra **solo lo gestionado** —`harness/` (reglas + skills), `.harness.json`, `.harness/session.md` y el bloque que el instalador añadió a `.gitignore`—. Tu **código** y tu **documentación** (`README.md`/`DEVELOPMENT.md`/`SKILL.md`, incluida la que se **sembró** por estar vacía) **nunca** se tocan: el proyecto queda **sin Harness, pero con tu avance**. `opencode.json` se borra **solo si lo creó el Harness** (lo registra `created` en el manifiesto); si ya existía, se conserva y se le **quita** el `instructions = ["harness/AGENTS.md"]` que el instalador había fusionado. `.harness-backup/` (tus respaldos) **se conserva**. Admite `-WhatIf`.
 
 ### Detección de tecnologías (`-Detect`)
 
@@ -173,7 +175,7 @@ proyecto/
 
 **App existente (ya en marcha)**
 
-1. Instala con tus skills y `-Context`: las plantillas solo se crean si **no** existen, nunca pisan tus archivos.
+1. Instala con tus skills y `-Context`: las plantillas se crean si **no** existen y se siembran si existen **vacías** (0 bytes); si tienen contenido, se respetan y nunca se pisan.
 2. Conserva tu `README.md`; crea o actualiza `DEVELOPMENT.md` con arquitectura, comandos de build/test, decisiones y pendientes.
 3. Revisa que `opencode.json` apunte a `harness/` y ajusta permisos si hace falta.
 

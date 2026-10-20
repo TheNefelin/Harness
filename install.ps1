@@ -9,9 +9,9 @@
       - Sin -Project  -> scope Global (~/.config/opencode\)
       - -Update       -> lee .harness.json y respeta el scope ya declarado
 
-    Escribe una declaracion .harness.json ({schemaVersion, scope, rules, skills, harnessVersion})
-    para que -Update sepa siempre donde actualizar. Nunca pisa skills ni reglas ajenas: las
-    respalda en .harness-backup\.
+    Escribe una declaracion .harness.json ({schemaVersion, scope, rules, skills, harnessVersion,
+    created}) para que -Update sepa siempre donde actualizar. Nunca pisa skills ni reglas ajenas:
+    las respalda en .harness-backup\.
 
 .PARAMETER Scope
     Auto (deduce segun -Project / .harness.json), Global o Local.
@@ -21,10 +21,16 @@
 
 .PARAMETER Skills
     Skills a instalar, separadas por coma (ej. dotnet,postgres). Obligatorio salvo con
-    -Update o -List.
+    -Update, -Uninstall o -List.
 
 .PARAMETER Update
     Refresca las skills y reglas declaradas en .harness.json, en su scope.
+
+.PARAMETER Uninstall
+    Desinstala el Harness del scope: borra SOLO lo gestionado (harness/ con reglas y skills,
+    .harness.json, .harness/session.md y el bloque del .gitignore). opencode.json se borra
+    unicamente si lo creo el Harness (lo registra el manifiesto). Nunca toca tu codigo, tu
+    documentacion (.md) ni .harness-backup/ (tus respaldos). Local: actua sobre -Project.
 
 .PARAMETER List
     Muestra las skills disponibles en el catalogo y sale.
@@ -39,7 +45,7 @@
 
 .PARAMETER Doctor
     Diagnostica la instalacion en el scope (manifiesto .harness.json, rutas, marcadores,
-    reglas y config de openCode) sin modificar nada.
+    reglas, config de openCode y version del cliente V1/V2) sin modificar nada.
 
 .PARAMETER Source
     Origen del catalogo: ruta local a un clon del Harness o URL git (https/ssh). Permite
@@ -62,7 +68,9 @@
 
 .PARAMETER Context
     Copia ademas las plantillas de memoria (README.md, DEVELOPMENT.md, SKILL.md) y el
-    checkpoint de sesion (.harness/session.md).
+    checkpoint de sesion (.harness/session.md). Si un archivo ya existe, se respeta; si
+    existe pero esta VACIO (0 bytes o solo espacios), se siembra la plantilla (no se pierde
+    contenido, porque no lo habia).
 
 .EXAMPLE
     .\install.ps1 -List
@@ -77,6 +85,7 @@
     .\install.ps1 -Project "D:\ruta\al\proyecto" -Update
     .\install.ps1 -Project "D:\ruta\al\proyecto" -Doctor
     .\install.ps1 -Global -Doctor
+    .\install.ps1 -Project "D:\ruta\al\proyecto" -Uninstall
 
 .NOTES
     Diagnostico: -Detect y -Doctor aceptan -Verbose para ver la evidencia de cada deteccion.
@@ -92,6 +101,8 @@ param(
     [string[]]$Skills,
 
     [switch]$Update,
+
+    [switch]$Uninstall,
 
     [switch]$List,
 
@@ -220,6 +231,48 @@ function Get-Marker {
         try { return ($raw | ConvertFrom-Json) } catch { return $null }
     }
     return [pscustomobject]@{ version = $raw; hash = $null }
+}
+
+function Test-EmptiedFile {
+    # True si el archivo existe pero no aporta contenido: 0 bytes o solo espacios/saltos.
+    # Sirve para sembrar la plantilla sin pisar documentacion real.
+    param([string]$Path)
+    if (-not (Test-Path -LiteralPath $Path -PathType Leaf)) { return $false }
+    return ([string]::IsNullOrWhiteSpace((Get-Content -LiteralPath $Path -Raw)))
+}
+
+function Get-OpenCodeClient {
+    # Version del cliente openCode en PATH: [pscustomobject]@{ Found; Version; Major } o Found=$false.
+    # V1 rechaza el bloque V2 de opencode.json (ConfigInvalidError); V2 lo exige. Solo lectura.
+    $cmd = Get-Command 'opencode' -ErrorAction SilentlyContinue
+    if (-not $cmd) { return [pscustomobject]@{ Found = $false; Version = $null; Major = 0 } }
+    $raw = ''
+    try { $raw = (& $cmd.Source --version 2>$null | Out-String).Trim() }
+    catch { return [pscustomobject]@{ Found = $true; Version = $null; Major = 0 } }
+    $ver = $null
+    $major = 0
+    if ($raw -match '(\d+)\.(\d+)(?:\.(\d+))?') {
+        $major = [int]$Matches[1]
+        $patch = if ($Matches[3]) { $Matches[3] } else { '0' }
+        $ver = ('{0}.{1}.{2}' -f $Matches[1], $Matches[2], $patch)
+    }
+    return [pscustomobject]@{ Found = $true; Version = $ver; Major = $major }
+}
+
+function Unmerge-Instruction {
+    # Quita 'harness/AGENTS.md' de instructions en un opencode.json preexistente (al desinstalar).
+    # Devuelve 'removed', 'absent' o 'invalid'. Si instructions queda vacio, se elimina la clave.
+    param([string]$ConfigPath, [string]$Value)
+    try { $cfg = Get-Content -LiteralPath $ConfigPath -Raw | ConvertFrom-Json }
+    catch { return 'invalid' }
+    if (-not ($cfg.PSObject.Properties.Name -contains 'instructions')) { return 'absent' }
+    $instr = @($cfg.instructions)
+    if ($instr -notcontains $Value) { return 'absent' }
+    $rest = @($instr | Where-Object { $_ -ne $Value })
+    if ($rest.Count -gt 0) { $cfg.instructions = $rest }
+    else { $cfg.PSObject.Properties.Remove('instructions') }
+    [System.IO.File]::WriteAllText($ConfigPath, ($cfg | ConvertTo-Json -Depth 12), (New-Object System.Text.UTF8Encoding($false)))
+    return 'removed'
 }
 
 function Get-SchemaStatus {
@@ -394,6 +447,7 @@ if ($List) {
     Write-Host 'Global:  .\install.ps1 -Global -Skills <a,b>'
     Write-Host 'Update:  .\install.ps1 [-Project <ruta>|-Global] -Update'
     Write-Host 'Doctor:  .\install.ps1 [-Project <ruta>|-Global] -Doctor'
+    Write-Host 'Quitar:  .\install.ps1 [-Project <ruta>|-Global] -Uninstall'
     exit 0
 }
 
@@ -486,6 +540,21 @@ if ($Doctor) {
     $catalogNames = @(Get-Catalog | ForEach-Object { $_.Name })
     if ((Test-Path -LiteralPath $CatalogDir) -and $catalogNames.Count -gt 0) { Write-Check OK 'catalogo accesible' }
     else { Write-Check ERR "catalogo no accesible: $CatalogDir" }
+
+    # Cliente openCode: V1 rechaza el bloque V2 (ConfigInvalidError); V2 lo exige.
+    $oc = Get-OpenCodeClient
+    if (-not $oc.Found) {
+        Write-Check WARN 'cliente openCode no encontrado en PATH (no se pudo verificar V1/V2)'
+    }
+    elseif ($oc.Major -ge 2) {
+        Write-Check OK ("cliente openCode V2 ({0})" -f $oc.Version)
+    }
+    elseif ($oc.Major -eq 1) {
+        Write-Check ERR ("cliente openCode V1 ({0}): rechaza el bloque V2 (ConfigInvalidError) -- actualiza a V2" -f $oc.Version)
+    }
+    else {
+        Write-Check WARN ("cliente openCode de version ilegible ({0}): se requiere V2" -f $oc.Version)
+    }
 
     if (-not (Test-Path -LiteralPath $DeclFile)) {
         Write-Check WARN 'sin manifiesto (.harness.json): no instalado en este scope'
@@ -584,6 +653,119 @@ if ($Doctor) {
         exit 1
     }
     Write-Host ("Doctor: OK ({0} aviso(s))." -f $warnCount) -ForegroundColor Green
+    exit 0
+}
+
+if ($Uninstall) {
+    # Borra SOLO lo gestionado; nunca el codigo, la documentacion (.md) ni .harness-backup/.
+    Write-Host ("Desinstalacion - scope {0} - raiz: {1}" -f $Scope, $ScopeRoot) -ForegroundColor Cyan
+
+    if (-not (Test-Path -LiteralPath $DeclFile)) {
+        Write-Host 'AVISO  no hay .harness.json: nada que desinstalar en este scope.' -ForegroundColor Yellow
+        exit 0
+    }
+
+    # Que creo el Harness (registro del manifiesto): por defecto, no borrar opencode.json.
+    $createdConfig = $false
+    if ($existingDeclObj -and ($existingDeclObj.PSObject.Properties.Name -contains 'created')) {
+        $created = $existingDeclObj.created
+        if ($created -and ($created.PSObject.Properties.Name -contains 'opencode.json')) {
+            $createdConfig = [bool]$created.'opencode.json'
+        }
+    }
+
+    $removed = 0
+    $kept = @()
+
+    # 1) harness/ (reglas + skills + marcadores + .harness-backup/ dentro)
+    if (Test-Path -LiteralPath $ScopeRoot) {
+        if ($WhatIf) { Write-Host ("WOULD  borrar {0}" -f $ScopeRoot) -ForegroundColor DarkCyan }
+        else { Remove-Item -LiteralPath $ScopeRoot -Recurse -Force; Write-Host ("DEL    {0}" -f $ScopeRoot) -ForegroundColor Green }
+        $removed++
+    }
+
+    # 2) opencode.json, solo si lo creo el Harness
+    if (Test-Path -LiteralPath $ConfigFile) {
+        if ($createdConfig) {
+            if ($WhatIf) { Write-Host ("WOULD  borrar {0} (creado por el Harness)" -f $ConfigFile) -ForegroundColor DarkCyan }
+            else { Remove-Item -LiteralPath $ConfigFile -Force; Write-Host ("DEL    {0} (creado por el Harness)" -f $ConfigFile) -ForegroundColor Green }
+            $removed++
+        }
+        else {
+            Write-Host ("KEEP   {0} (preexistente; no lo creo el Harness)" -f $ConfigFile) -ForegroundColor Yellow
+            if ($WhatIf) { Write-Host 'WOULD  quitar instructions -> harness/AGENTS.md del opencode.json conservado' -ForegroundColor DarkCyan }
+            else {
+                $un = Unmerge-Instruction -ConfigPath $ConfigFile -Value 'harness/AGENTS.md'
+                if ($un -eq 'removed') { Write-Host 'OK     opencode.json (instructions -> harness/AGENTS.md eliminado)' -ForegroundColor Green }
+            }
+            $kept += 'opencode.json'
+        }
+    }
+
+    # 3) .harness/session.md (checkpoint) y 4) .gitignore: solo existen en scope Local.
+    if ($Scope -eq 'Local') {
+    $sessDir = Join-Path $Project '.harness'
+    $sessFile = Join-Path $sessDir 'session.md'
+    if (Test-Path -LiteralPath $sessFile) {
+        if ($WhatIf) { Write-Host ("WOULD  borrar {0}" -f $sessFile) -ForegroundColor DarkCyan }
+        else { Remove-Item -LiteralPath $sessFile -Force; Write-Host ("DEL    {0}" -f $sessFile) -ForegroundColor Green }
+        $removed++
+    }
+    if ((Test-Path -LiteralPath $sessDir) -and (@(Get-ChildItem -LiteralPath $sessDir -Force).Count -eq 0)) {
+        if ($WhatIf) { Write-Host ("WOULD  borrar {0} (vacio)" -f $sessDir) -ForegroundColor DarkCyan }
+        else { Remove-Item -LiteralPath $sessDir -Force; Write-Host ("DEL    {0} (vacio)" -f $sessDir) -ForegroundColor Green }
+    }
+
+    # 4) .gitignore: quitar el bloque gestionado por el Harness (cabecera + entradas)
+    $gi = Join-Path $Project '.gitignore'
+    if (Test-Path -LiteralPath $gi) {
+        $giRaw = Get-Content -LiteralPath $gi -Raw
+        $marker = '# Harness (gestionado; refrescar con install.ps1 -Update)'
+        if ($giRaw -match [regex]::Escape($marker)) {
+            $lines = Get-Content -LiteralPath $gi
+            $out = New-Object System.Collections.Generic.List[string]
+            $skip = 0
+            foreach ($ln in $lines) {
+                if ($ln.Trim() -eq $marker) { $skip = 1; continue }  # salta la cabecera
+                if ($skip -eq 1) {
+                    if ($ln -match '^(harness/skills/|harness/\.harness-backup/|\.harness/)\s*$') { continue }
+                    $skip = 0
+                }
+                $out.Add($ln)
+            }
+            # Colapsar saltos finales sobrantes
+            while ($out.Count -gt 0 -and [string]::IsNullOrWhiteSpace($out[$out.Count - 1])) { $out.RemoveAt($out.Count - 1) }
+            $newGi = (@($out) -join "`n")
+            if ($newGi.Length -gt 0) { $newGi += "`n" }
+            if ($WhatIf) { Write-Host 'WOULD  limpiar .gitignore (bloque Harness)' -ForegroundColor DarkCyan }
+            elseif ($newGi.Trim().Length -eq 0) {
+                Remove-Item -LiteralPath $gi -Force
+                Write-Host 'DEL    .gitignore (solo tenia el bloque Harness)' -ForegroundColor Green
+            }
+            else {
+                [System.IO.File]::WriteAllText($gi, $newGi, (New-Object System.Text.UTF8Encoding($false)))
+                Write-Host 'OK     .gitignore (bloque Harness eliminado)' -ForegroundColor Green
+            }
+        }
+    }
+    } # fin scope Local
+
+    # 5) .harness.json (manifiesto): al final
+    if ($WhatIf) { Write-Host ("WOULD  borrar {0}" -f $DeclFile) -ForegroundColor DarkCyan }
+    else { Remove-Item -LiteralPath $DeclFile -Force; Write-Host ("DEL    {0}" -f $DeclFile) -ForegroundColor Green }
+    $removed++
+
+    # Respaldos: NUNCA se borran (son del usuario)
+    $bkPath = Join-Path $ScopeRoot '.harness-backup'
+    if (Test-Path -LiteralPath $bkPath) {
+        Write-Host ("KEEP   {0} (tus respaldos; borralos tu si quieres)" -f $bkPath) -ForegroundColor Yellow
+        $kept += '.harness-backup/'
+    }
+
+    Write-Host ''
+    if ($WhatIf) { Write-Host 'WHATIF  Simulacion: no se modifico nada.' -ForegroundColor Cyan; exit 0 }
+    if ($kept.Count -gt 0) { Write-Host ("Conservado: {0}" -f ($kept -join ', ')) -ForegroundColor DarkGray }
+    Write-Host ("Harness desinstalado del scope {0}. Recarga openCode con /reload." -f $Scope.ToLower())
     exit 0
 }
 
@@ -790,6 +972,7 @@ else {
 }
 
 # opencode.json
+$configCreated = $false
 if ($Scope -eq 'Local') {
     if (Test-Path -LiteralPath $ConfigFile) {
         if ($rulesManaged) {
@@ -813,6 +996,7 @@ if ($Scope -eq 'Local') {
     else {
         $tpl = if ($SkillsOnly) { 'opencode.skills-only.json' } else { 'opencode.json' }
         Copy-Item -LiteralPath (Join-Path $TemplatesDir $tpl) -Destination $ConfigFile -Force
+        $configCreated = $true
         Write-Host 'OK     opencode.json' -ForegroundColor Green
     }
 
@@ -851,7 +1035,16 @@ if ($Context -and $Scope -eq 'Local') {
     foreach ($file in @('README.md', 'DEVELOPMENT.md', 'SKILL.md')) {
         $target = Join-Path $Project $file
         if (Test-Path -LiteralPath $target) {
-            Write-Host "SKIP   $file ya existe" -ForegroundColor Yellow
+            if (Test-EmptiedFile -Path $target) {
+                if ($WhatIf) { Write-Host "WOULD  $file (sembrado: existia vacio)" -ForegroundColor DarkCyan }
+                else {
+                    Copy-Item -LiteralPath (Join-Path $TemplatesDir $file) -Destination $target -Force
+                    Write-Host "OK     $file (sembrado: existia vacio)" -ForegroundColor Green
+                }
+            }
+            else {
+                Write-Host "SKIP   $file ya existe (con contenido; se respeta)" -ForegroundColor Yellow
+            }
         }
         else {
             if ($WhatIf) { Write-Host "WOULD  $file" -ForegroundColor DarkCyan }
@@ -876,6 +1069,9 @@ if ($Context -and $Scope -eq 'Local') {
 }
 
 # Declaracion
+# 'created' registra que archivos preexistentes creo el Harness (para -Uninstall).
+# Se conserva el valor previo y se suma lo recien creado (nunca se degrada a false).
+$createdConfig = $configCreated -or ($existingDeclObj -and ($existingDeclObj.PSObject.Properties.Name -contains 'created') -and ($existingDeclObj.created.PSObject.Properties.Name -contains 'opencode.json') -and [bool]$existingDeclObj.created.'opencode.json')
 $skillsJson = ($desired | ForEach-Object { '    "{0}"' -f $_ }) -join ",`n"
 $json = @"
 {
@@ -885,7 +1081,10 @@ $json = @"
   "skills": [
 $skillsJson
   ],
-  "harnessVersion": "$Version"
+  "harnessVersion": "$Version",
+  "created": {
+    "opencode.json": $($createdConfig.ToString().ToLower())
+  }
 }
 "@
 if ($WhatIf) {
