@@ -40,15 +40,20 @@ function Section { param([string]$t) Write-Host ""; Write-Host "[$t]" -Foregroun
 function Assert { param([bool]$Cond, [string]$Msg) if ($Cond) { $script:Pass++; Write-Host "  ok   $Msg" -ForegroundColor Green } else { $script:Fail++; [void]$script:Failures.Add($Msg); Write-Host "  FAIL $Msg" -ForegroundColor Red } }
 
 function Invoke-Script {
-    param([string]$Script, [string[]]$Arguments)
+    param([string]$Script, [string[]]$Arguments, [hashtable]$Env)
     $all = @('-NoProfile')
     if ($script:OnWindows) { $all += @('-ExecutionPolicy', 'Bypass') }
     $all += @('-File', $Script)
     if ($Arguments) { $all += $Arguments }
     $eap = $ErrorActionPreference
     $ErrorActionPreference = 'Continue'
+    $saved = @{}
+    if ($Env) { foreach ($k in $Env.Keys) { $saved[$k] = [System.Environment]::GetEnvironmentVariable($k); [System.Environment]::SetEnvironmentVariable($k, $Env[$k]) } }
     try { $out = & $script:Exe @all 2>&1 | Out-String }
-    finally { $ErrorActionPreference = $eap }
+    finally {
+        if ($Env) { foreach ($k in $Env.Keys) { [System.Environment]::SetEnvironmentVariable($k, $saved[$k]) } }
+        $ErrorActionPreference = $eap
+    }
     return [pscustomobject]@{ Exit = $LASTEXITCODE; Out = $out }
 }
 
@@ -322,18 +327,22 @@ try {
     Assert ($r.Exit -eq 0) 'instalacion para -Uninstall sale 0'
     # El usuario escribe en la memoria sembrada (simula avance)
     Write-NoBom (Join-Path $pu 'DEVELOPMENT.md') "# Desarrollo`r`n`r`nmi avance`r`n"
-    # Un respaldo dentro de harness/ (no debe perderse silenciosamente, pero se borra con harness/)
     $declPu = Get-Content -LiteralPath (Join-Path $pu '.harness.json') -Raw | ConvertFrom-Json
     Assert ($declPu.created.'opencode.json' -eq $true) 'manifiesto registra created.opencode.json=true'
     # -WhatIf no borra nada
     $r = Invoke-Script $Install @('-Project', $pu, '-Uninstall', '-WhatIf', '-Source', $Repo)
     Assert ($r.Exit -eq 0) '-Uninstall -WhatIf sale 0'
-    Assert (Test-Path -LiteralPath (Join-Path $pu 'harness')) '-Uninstall -WhatIf no borra harness/'
+    Assert (Test-Path -LiteralPath (Join-Path $pu 'harness/skills/dotnet')) '-Uninstall -WhatIf no toca las skills'
     Assert ($r.Out -match 'WHATIF') '-Uninstall -WhatIf informa simulacion'
     # Desinstalacion real
     $r = Invoke-Script $Install @('-Project', $pu, '-Uninstall', '-Source', $Repo)
     Assert ($r.Exit -eq 0) '-Uninstall sale 0'
-    Assert (-not (Test-Path -LiteralPath (Join-Path $pu 'harness'))) '-Uninstall borra harness/'
+    Assert (-not (Test-Path -LiteralPath (Join-Path $pu 'harness/skills/dotnet'))) '-Uninstall retira la skill gestionada'
+    # NADA se destruye: lo gestionado va a .harness-backup (skill + reglas)
+    Assert (Test-Path -LiteralPath (Join-Path $pu 'harness/.harness-backup')) '-Uninstall CONSERVA .harness-backup (respaldos)'
+    Assert (@(Get-ChildItem -LiteralPath (Join-Path $pu 'harness/.harness-backup') -Force -Directory -Filter 'dotnet-*').Count -ge 1) '-Uninstall respalda la skill gestionada en vez de borrarla'
+    Assert (@(Get-ChildItem -LiteralPath (Join-Path $pu 'harness/.harness-backup') -Force -File -Filter 'AGENTS.md-*').Count -ge 1) '-Uninstall respalda las reglas gestionadas'
+    Assert (Test-Path -LiteralPath (Join-Path $pu 'harness')) '-Uninstall CONSERVA harness/ (quedan respaldos)'
     Assert (-not (Test-Path -LiteralPath (Join-Path $pu '.harness.json'))) '-Uninstall borra .harness.json'
     Assert (-not (Test-Path -LiteralPath (Join-Path $pu '.harness/session.md'))) '-Uninstall borra .harness/session.md'
     Assert (-not (Test-Path -LiteralPath (Join-Path $pu 'opencode.json'))) '-Uninstall borra opencode.json creado por el Harness'
@@ -341,6 +350,21 @@ try {
     Assert (Test-Path -LiteralPath (Join-Path $pu 'LaserBoy.md')) '-Uninstall respeta el codigo/doc del usuario'
     Assert (Test-Path -LiteralPath (Join-Path $pu 'DEVELOPMENT.md')) '-Uninstall respeta DEVELOPMENT.md'
     Assert ((Get-Content -LiteralPath (Join-Path $pu 'DEVELOPMENT.md') -Raw) -match 'mi avance') '-Uninstall conserva el avance del usuario en DEVELOPMENT.md'
+
+    # -Uninstall NO borra archivos ajenos dentro de harness/ ni skills ajenas
+    $puA = New-Project 'proj-uninstall-ajenas'
+    $r = Invoke-Script $Install @('-Project', $puA, '-Skills', 'dotnet', '-Source', $Repo)
+    Assert ($r.Exit -eq 0) 'instalacion con contenido ajeno sale 0'
+    # Contenido propio del usuario dentro de harness/
+    Write-NoBom (Join-Path $puA 'harness/mi-nota.md') 'nota del usuario'
+    New-Item -ItemType Directory -Force -Path (Join-Path $puA 'harness/skills/mi-skill-ajena') | Out-Null
+    Write-NoBom (Join-Path $puA 'harness/skills/mi-skill-ajena/SKILL.md') '# skill ajena sin marcador'
+    $r = Invoke-Script $Install @('-Project', $puA, '-Uninstall', '-Source', $Repo)
+    Assert ($r.Exit -eq 0) '-Uninstall con contenido ajeno sale 0'
+    Assert (Test-Path -LiteralPath (Join-Path $puA 'harness/mi-nota.md')) '-Uninstall conserva archivos ajenos en harness/'
+    Assert (Test-Path -LiteralPath (Join-Path $puA 'harness/skills/mi-skill-ajena')) '-Uninstall conserva skills ajenas (sin marcador)'
+    Assert (-not (Test-Path -LiteralPath (Join-Path $puA 'harness/skills/dotnet'))) '-Uninstall retira solo la skill gestionada'
+    Assert ($r.Out -match 'ajena') '-Uninstall informa de lo que conserva por ajeno'
 
     # -Uninstall con opencode.json y .gitignore preexistentes: los conserva
     $pu2 = New-Project 'proj-uninstall-keep'
@@ -353,15 +377,57 @@ try {
     Assert (Test-Path -LiteralPath (Join-Path $pu2 'opencode.json')) '-Uninstall conserva opencode.json preexistente'
     $cfgKept = Get-Content -LiteralPath (Join-Path $pu2 'opencode.json') -Raw | ConvertFrom-Json
     Assert ($cfgKept.model -eq 'mi-modelo') '-Uninstall conserva el contenido propio de opencode.json'
-    Assert (-not ($cfgKept.PSObject.Properties.Name -contains 'instructions')) '-Uninstall quita el instructions fusionado del opencode.json conservado'
+    Assert (-not ($cfgKept.PSObject.Properties.Name -contains 'instructions')) '-Uninstall quita el instructions que ANADIO el Harness'
     $giKept = Get-Content -LiteralPath (Join-Path $pu2 '.gitignore') -Raw
     Assert ($giKept -match 'node_modules') '-Uninstall conserva las reglas propias de .gitignore'
     Assert (-not ($giKept -match 'harness/skills')) '-Uninstall quita el bloque Harness del .gitignore'
+
+    # -Uninstall NO quita un instructions que ya existia antes de instalar (no consta como propio)
+    $puI = New-Project 'proj-uninstall-instr-previo'
+    Write-NoBom (Join-Path $puI 'opencode.json') "{`n  `"instructions`": [`"harness/AGENTS.md`"]`n}`n"
+    $r = Invoke-Script $Install @('-Project', $puI, '-Skills', 'dotnet', '-Source', $Repo)
+    Assert ($r.Exit -eq 0) 'instalacion con instructions previo sale 0'
+    $declI = Get-Content -LiteralPath (Join-Path $puI '.harness.json') -Raw | ConvertFrom-Json
+    Assert ($declI.created.instructions -eq $false) 'manifiesto: instructions NO lo anadio el Harness'
+    $r = Invoke-Script $Install @('-Project', $puI, '-Uninstall', '-Source', $Repo)
+    Assert ($r.Exit -eq 0) '-Uninstall con instructions previo sale 0'
+    $cfgI = Get-Content -LiteralPath (Join-Path $puI 'opencode.json') -Raw | ConvertFrom-Json
+    Assert (@($cfgI.instructions) -contains 'harness/AGENTS.md') '-Uninstall CONSERVA un instructions que no anadio el Harness'
+
     # -Uninstall sin manifiesto: aviso, no error
     $pu3 = New-Project 'proj-uninstall-none'
     $r = Invoke-Script $Install @('-Project', $pu3, '-Uninstall', '-Source', $Repo)
     Assert ($r.Exit -eq 0) '-Uninstall sin instalacion sale 0 (aviso)'
     Assert ($r.Out -match 'nada que desinstalar') '-Uninstall sin manifiesto avisa'
+
+    # -Uninstall GLOBAL: no borra la config ajena del usuario en ~/.config/opencode
+    Section 'install.ps1 -Uninstall -Global (config ajena intacta)'
+    $homeG = New-Project 'home-global'
+    $cfgG = Join-Path $homeG '.config/opencode'
+    New-Item -ItemType Directory -Force -Path $cfgG | Out-Null
+    # Contenido ajeno que NUNCA debe borrarse
+    Write-NoBom (Join-Path $cfgG 'opencode.json') "{`n  `"model`": `"config-propia`"`n}`n"
+    New-Item -ItemType Directory -Force -Path (Join-Path $cfgG 'plugin') | Out-Null
+    Write-NoBom (Join-Path $cfgG 'plugin/mi-plugin.js') '// plugin ajeno'
+    Write-NoBom (Join-Path $cfgG 'otro-agente.md') 'otro agente'
+    $envG = @{ HOME = $homeG; USERPROFILE = $homeG }
+    $r = Invoke-Script $Install @('-Global', '-Skills', 'dotnet', '-Source', $Repo) -Env $envG
+    Assert ($r.Exit -eq 0) 'instalacion global sale 0'
+    Assert (Test-Path -LiteralPath (Join-Path $cfgG 'skills/dotnet')) 'global: instala la skill gestionada'
+    Assert (Test-Path -LiteralPath (Join-Path $cfgG '.harness.json')) 'global: escribe .harness.json'
+    # Un respaldo ajeno y uno propio
+    New-Item -ItemType Directory -Force -Path (Join-Path $cfgG '.harness-backup') | Out-Null
+    Write-NoBom (Join-Path $cfgG '.harness-backup/algo-20200101') 'respaldo'
+    $r = Invoke-Script $Install @('-Global', '-Uninstall', '-Source', $Repo) -Env $envG
+    Assert ($r.Exit -eq 0) '-Uninstall -Global sale 0'
+    Assert (Test-Path -LiteralPath (Join-Path $cfgG 'opencode.json')) 'global: CONSERVA opencode.json ajeno'
+    Assert ((Get-Content -LiteralPath (Join-Path $cfgG 'opencode.json') -Raw) -match 'config-propia') 'global: opencode.json ajena sin cambios'
+    Assert (Test-Path -LiteralPath (Join-Path $cfgG 'plugin/mi-plugin.js')) 'global: CONSERVA plugins ajenos'
+    Assert (Test-Path -LiteralPath (Join-Path $cfgG 'otro-agente.md')) 'global: CONSERVA otros agentes'
+    Assert (Test-Path -LiteralPath (Join-Path $cfgG '.harness-backup')) 'global: CONSERVA .harness-backup'
+    Assert (Test-Path -LiteralPath $cfgG) 'global: CONSERVA ~/.config/opencode (no lo borra)'
+    Assert (-not (Test-Path -LiteralPath (Join-Path $cfgG 'skills/dotnet'))) 'global: retira la skill gestionada'
+    Assert (-not (Test-Path -LiteralPath (Join-Path $cfgG '.harness.json'))) 'global: borra .harness.json'
 
     # --- check.ps1 -----------------------------------------------------------
     Section 'check.ps1'
@@ -397,11 +463,16 @@ try {
 
     # --- Plantillas: permisos V2 (deniega secretos, permite plantillas) ------
     Section 'templates (permisos V2: deniega secretos, permite plantillas)'
-    # Nota: Get-ShellEffect SIMULA la segmentacion de comandos compuestos (no prueba
-    # openCode). Los asertos de .env son reales; los de shell validan la INTENCION de las
-    # reglas, no el runtime. Si openCode no segmenta, "git status && git push" no se bloquea.
+    # Nota: Get-ShellEffect SIMULA las reglas V2 (no prueba openCode): "last match wins"
+    # y "un patron que termina en ' *' tambien casa sin argumentos". Los asertos de .env
+    # son reales; los de shell validan la INTENCION de las reglas, no el runtime.
+    function Test-ShellMatch { param([string]$Cmd, [string]$Pattern)
+        if ($Cmd -like $Pattern) { return $true }
+        if ($Pattern.EndsWith(' *') -and $Cmd -like $Pattern.Substring(0, $Pattern.Length - 2)) { return $true }
+        return $false
+    }
     function Get-RuleEffect { param($Rules, [string]$Resource) $eff = $null; foreach ($r in $Rules) { if ($r.action -eq 'read' -and $Resource -like $r.resource) { $eff = $r.effect } }; return $eff }
-    function Get-ShellEffect { param($Rules, [string]$Resource) $worst = 'allow'; foreach ($seg in ($Resource -split '\s*(?:&&|\|\||;|\|)\s*' | Where-Object { $_ -ne '' })) { $eff = $null; foreach ($r in $Rules) { if ($r.action -eq 'shell' -and $seg -like $r.resource) { $eff = $r.effect } }; if ($null -eq $eff) { $eff = 'ask' }; if ($eff -eq 'deny') { return 'deny' }; if ($eff -eq 'ask') { $worst = 'ask' } }; return $worst }
+    function Get-ShellEffect { param($Rules, [string]$Resource) $worst = 'allow'; foreach ($seg in ($Resource -split '\s*(?:&&|\|\||;|\|)\s*' | Where-Object { $_ -ne '' })) { $eff = $null; foreach ($r in $Rules) { if ($r.action -eq 'shell' -and (Test-ShellMatch $seg $r.resource)) { $eff = $r.effect } }; if ($null -eq $eff) { $eff = 'ask' }; if ($eff -eq 'deny') { return 'deny' }; if ($eff -eq 'ask') { $worst = 'ask' } }; return $worst }
     foreach ($t in @('opencode.json', 'opencode.global.json', 'opencode.skills-only.json')) {
         $cfg = Get-Content -LiteralPath (Join-Path $Repo ('templates/' + $t)) -Raw | ConvertFrom-Json
         Assert ($cfg.PSObject.Properties.Name -contains 'permissions') "$t usa 'permissions' (V2)"
@@ -418,6 +489,10 @@ try {
         Assert ((Get-ShellEffect $rules 'git push origin main') -eq 'deny') "$t deniega git push"
         Assert ((Get-ShellEffect $rules 'git status && rm -rf /') -eq 'ask') "$t no confirma git status encadenado sin preguntar"
         Assert ((Get-ShellEffect $rules 'git status && git push origin main') -eq 'deny') "$t deniega push encadenado tras un git status permitido"
+        Assert ((Get-ShellEffect $rules 'git remote -v') -eq 'allow') "$t permite git remote -v (consulta)"
+        Assert ((Get-ShellEffect $rules 'git remote remove origin') -eq 'deny') "$t deniega git remote remove (mutacion)"
+        Assert ((Get-ShellEffect $rules 'git remote set-url origin mal') -eq 'deny') "$t deniega git remote set-url (mutacion)"
+        Assert ((Get-ShellEffect $rules 'git remote add x y') -eq 'deny') "$t deniega git remote add (mutacion)"
         Assert ((Get-ShellEffect $rules 'tee /etc/passwd') -eq 'ask') "$t pregunta por shell arbitrario"
         if ($t -ne 'opencode.global.json') { Assert (@($cfg.skills) -contains 'harness/skills') "${t}: skills = [harness/skills]" }
     }

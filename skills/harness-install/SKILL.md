@@ -36,7 +36,7 @@ Repositorio: `https://github.com/TheNefelin/Harness.git`
 | `-Global` | Scope **Global**: vive en `~/.config/opencode\` |
 | `-Skills a,b,c` | Skills a instalar. **Obligatorio** salvo con `-Update`/`-Uninstall`/`-List`: no hay set por defecto |
 | `-Update` | Refresca lo declarado en `.harness.json` (su scope), agrega lo que falte y **poda** lo que ya no se declare |
-| `-Uninstall` | Desinstala el Harness del scope: borra **solo lo gestionado** (`harness/`, `.harness.json`, `.harness/session.md`, el bloque del `.gitignore`) y `opencode.json` solo si lo creó el Harness. **Nunca** toca tu código, tus `.md` (ni los sembrados) ni `.harness-backup/`. Admite `-WhatIf` |
+| `-Uninstall` | Desinstala el Harness del scope **por pertenencia**: retira skills con marcador `.harness-source`, reglas (`rules:true`/hash == catálogo) y el `instructions` que el Harness **añadió**; lo gestionado **se mueve a `.harness-backup`** y lo **ajeno se conserva** (skills sin marcador, archivos propios, config/plugins de `~/.config/opencode`). Los directorios solo se borran si quedan vacíos. Admite `-WhatIf` |
 | `-WhatIf` | Previsualiza qué haría (instalar/refrescar/respaldar/omitir/podar) sin modificar nada |
 | `-Source <ruta\|url>` | Origen del catálogo: clon local o URL git (se clona a temp). Actualiza sin abrir el repo Harness |
 | `-Force` | Reemplaza skills/reglas ajenas (con respaldo) en vez de omitirlas |
@@ -89,6 +89,7 @@ El set vive en `.harness.json`. Para **cambiarlo**, re-ejecuta con `-Skills` ind
 - El instalador **nunca pisa** skills/reglas ajenas: las respalda en `.harness-backup\` y las omite, salvo `-Force`.
 - Tres capas: **catálogo** (repo Harness o `-Source`), **instalación** (copias gestionadas con marcador `.harness-source`; no editar a mano) y **personalizaciones** (sin marcador; nunca se podan).
 - El **checkpoint de sesión** (`.harness/session.md`) es estado local y efímero (fuera de Git): el punto de continuación de una tarea larga. La memoria durable sigue siendo `DEVELOPMENT.md`, que abre con el **Mapa del proyecto** (área → dónde mirar → cuándo): el agente lee la fila del área y abre solo ese destino.
+- **`-Uninstall` no destruye**: lo gestionado se mueve a `.harness-backup\` y lo ajeno se conserva. En **Global** `~/.config/opencode\` **no se borra** (tiene tu config, plugins y otros agentes); solo se retiran las skills/reglas gestionadas.
 - **Conflictos:** al actualizar, una skill idéntica al catálogo no se toca (`sin cambios`); una **editada localmente** se **respalda** y se avisa `CONFLICT` antes de refrescar. Sin pérdida de datos.
 
 ## Anti-patrones / gotchas

@@ -657,7 +657,11 @@ if ($Doctor) {
 }
 
 if ($Uninstall) {
-    # Borra SOLO lo gestionado; nunca el codigo, la documentacion (.md) ni .harness-backup/.
+    # Desinstala SOLO lo gestionado, por PERTENENCIA (no borra la carpeta entera):
+    # - skills con marcador .harness-source -> se mueven a .harness-backup (nunca se destruyen);
+    # - reglas (AGENTS.md) solo si el manifiesto dice rules:true o el hash coincide con el catalogo;
+    # - .harness-backup y todo archivo ajeno -> se conservan;
+    # - los directorios solo se eliminan si quedan VACIOS.
     Write-Host ("Desinstalacion - scope {0} - raiz: {1}" -f $Scope, $ScopeRoot) -ForegroundColor Cyan
 
     if (-not (Test-Path -LiteralPath $DeclFile)) {
@@ -665,26 +669,76 @@ if ($Uninstall) {
         exit 0
     }
 
-    # Que creo el Harness (registro del manifiesto): por defecto, no borrar opencode.json.
+    # Que creo el Harness (registro del manifiesto): por defecto, conservar.
     $createdConfig = $false
-    if ($existingDeclObj -and ($existingDeclObj.PSObject.Properties.Name -contains 'created')) {
-        $created = $existingDeclObj.created
-        if ($created -and ($created.PSObject.Properties.Name -contains 'opencode.json')) {
-            $createdConfig = [bool]$created.'opencode.json'
+    $rulesManaged = $false
+    $instrAdded = $false
+    if ($existingDeclObj) {
+        if ($existingDeclObj.PSObject.Properties.Name -contains 'created') {
+            $created = $existingDeclObj.created
+            if ($created -and ($created.PSObject.Properties.Name -contains 'opencode.json')) { $createdConfig = [bool]$created.'opencode.json' }
+            if ($created -and ($created.PSObject.Properties.Name -contains 'instructions')) { $instrAdded = [bool]$created.instructions }
         }
+        if ($existingDeclObj.PSObject.Properties.Name -contains 'rules') { $rulesManaged = [bool]$existingDeclObj.rules }
+    }
+
+    # Respaldo dentro del scope donde aparcamos lo gestionado (no se destruye nada).
+    $bkDir = Join-Path $ScopeRoot '.harness-backup'
+    $stamp = Get-Date -Format 'yyyyMMdd-HHmmss'
+    $keepDir = $false   # el usuario tiene contenido ajeno -> conservar el directorio
+
+    function Move-ToBackup {
+        param([string]$Path, [string]$Name)
+        if ($WhatIf) { Write-Host ("WOULD  mover {0} -> .harness-backup" -f $Path) -ForegroundColor DarkCyan; return }
+        New-Item -ItemType Directory -Path $bkDir -Force | Out-Null
+        $dest = Join-Path $bkDir ("{0}-{1}" -f $Name, $stamp)
+        Move-Item -LiteralPath $Path -Destination $dest
+        Write-Host ("BAK    {0} -> .harness-backup" -f $Name) -ForegroundColor Yellow
     }
 
     $removed = 0
     $kept = @()
 
-    # 1) harness/ (reglas + skills + marcadores + .harness-backup/ dentro)
-    if (Test-Path -LiteralPath $ScopeRoot) {
-        if ($WhatIf) { Write-Host ("WOULD  borrar {0}" -f $ScopeRoot) -ForegroundColor DarkCyan }
-        else { Remove-Item -LiteralPath $ScopeRoot -Recurse -Force; Write-Host ("DEL    {0}" -f $ScopeRoot) -ForegroundColor Green }
-        $removed++
+    # 1) SKILLS gestionadas (marcador .harness-source). Las ajenas se conservan.
+    if (Test-Path -LiteralPath $SkillsDir) {
+        foreach ($dir in (Get-ChildItem -LiteralPath $SkillsDir -Directory -Force)) {
+            if ($dir.Name -eq '.harness-backup') { $keepDir = $true; continue }
+            if (Test-Path -LiteralPath (Join-Path $dir.FullName $MarkerName)) {
+                Move-ToBackup -Path $dir.FullName -Name $dir.Name
+                $removed++
+            }
+            else {
+                $keepDir = $true
+                Write-Host ("KEEP   skill {0} (ajena: sin marcador)" -f $dir.Name) -ForegroundColor Yellow
+                $kept += "skill:$($dir.Name)"
+            }
+        }
+        # El directorio skills/ se borra solo si quedo vacio.
+        if (-not $WhatIf -and (Test-Path -LiteralPath $SkillsDir) -and (@(Get-ChildItem -LiteralPath $SkillsDir -Force).Count -eq 0)) {
+            Remove-Item -LiteralPath $SkillsDir -Force
+        }
     }
 
-    # 2) opencode.json, solo si lo creo el Harness
+    # 2) REGLAS (AGENTS.md): solo si son nuestras (manifiesto rules:true o hash == catalogo).
+    if ($rulesManaged -or $RulesOurs) {
+        if (Test-Path -LiteralPath $RulesFile) {
+            $srcRules = Join-Path $SourceRoot 'AGENTS.md'
+            $ours = $false
+            if ($rulesManaged) { $ours = $true }
+            elseif (Test-Path -LiteralPath $srcRules) {
+                try { $ours = ((Get-FileHash -LiteralPath $RulesFile).Hash -eq (Get-FileHash -LiteralPath $srcRules).Hash) } catch { $ours = $false }
+            }
+            if ($ours) { Move-ToBackup -Path $RulesFile -Name 'AGENTS.md'; $removed++ }
+            else { $keepDir = $true; Write-Host ("KEEP   reglas {0} (editadas; no coinciden con el catalogo)" -f $RulesFile) -ForegroundColor Yellow; $kept += 'AGENTS.md' }
+        }
+    }
+    elseif (Test-Path -LiteralPath $RulesFile) {
+        $keepDir = $true
+        Write-Host ("KEEP   reglas {0} (ajenas)" -f $RulesFile) -ForegroundColor Yellow
+        $kept += 'AGENTS.md'
+    }
+
+    # 3) opencode.json: borrar SOLO si lo creo el Harness; si no, conservarlo.
     if (Test-Path -LiteralPath $ConfigFile) {
         if ($createdConfig) {
             if ($WhatIf) { Write-Host ("WOULD  borrar {0} (creado por el Harness)" -f $ConfigFile) -ForegroundColor DarkCyan }
@@ -692,75 +746,86 @@ if ($Uninstall) {
             $removed++
         }
         else {
-            Write-Host ("KEEP   {0} (preexistente; no lo creo el Harness)" -f $ConfigFile) -ForegroundColor Yellow
-            if ($WhatIf) { Write-Host 'WOULD  quitar instructions -> harness/AGENTS.md del opencode.json conservado' -ForegroundColor DarkCyan }
-            else {
-                $un = Unmerge-Instruction -ConfigPath $ConfigFile -Value 'harness/AGENTS.md'
-                if ($un -eq 'removed') { Write-Host 'OK     opencode.json (instructions -> harness/AGENTS.md eliminado)' -ForegroundColor Green }
+            # Conservar, pero quitar el instructions SOLO si lo anadio el Harness (manifiesto).
+            if ($instrAdded) {
+                if ($WhatIf) { Write-Host 'WOULD  quitar instructions -> harness/AGENTS.md del opencode.json conservado' -ForegroundColor DarkCyan }
+                else {
+                    $un = Unmerge-Instruction -ConfigPath $ConfigFile -Value 'harness/AGENTS.md'
+                    if ($un -eq 'removed') { Write-Host 'OK     opencode.json (instructions -> harness/AGENTS.md eliminado)' -ForegroundColor Green }
+                }
             }
+            else { Write-Host ("KEEP   {0} (y su instructions: no consta que la anadiera el Harness)" -f $ConfigFile) -ForegroundColor Yellow }
             $kept += 'opencode.json'
         }
     }
 
-    # 3) .harness/session.md (checkpoint) y 4) .gitignore: solo existen en scope Local.
+    # 4) .harness/session.md y .gitignore: solo existen en scope Local.
     if ($Scope -eq 'Local') {
-    $sessDir = Join-Path $Project '.harness'
-    $sessFile = Join-Path $sessDir 'session.md'
-    if (Test-Path -LiteralPath $sessFile) {
-        if ($WhatIf) { Write-Host ("WOULD  borrar {0}" -f $sessFile) -ForegroundColor DarkCyan }
-        else { Remove-Item -LiteralPath $sessFile -Force; Write-Host ("DEL    {0}" -f $sessFile) -ForegroundColor Green }
-        $removed++
-    }
-    if ((Test-Path -LiteralPath $sessDir) -and (@(Get-ChildItem -LiteralPath $sessDir -Force).Count -eq 0)) {
-        if ($WhatIf) { Write-Host ("WOULD  borrar {0} (vacio)" -f $sessDir) -ForegroundColor DarkCyan }
-        else { Remove-Item -LiteralPath $sessDir -Force; Write-Host ("DEL    {0} (vacio)" -f $sessDir) -ForegroundColor Green }
-    }
+        $sessDir = Join-Path $Project '.harness'
+        $sessFile = Join-Path $sessDir 'session.md'
+        if (Test-Path -LiteralPath $sessFile) {
+            if ($WhatIf) { Write-Host ("WOULD  borrar {0}" -f $sessFile) -ForegroundColor DarkCyan }
+            else { Remove-Item -LiteralPath $sessFile -Force; Write-Host ("DEL    {0}" -f $sessFile) -ForegroundColor Green }
+            $removed++
+        }
+        if (-not $WhatIf -and (Test-Path -LiteralPath $sessDir) -and (@(Get-ChildItem -LiteralPath $sessDir -Force).Count -eq 0)) {
+            Remove-Item -LiteralPath $sessDir -Force; Write-Host ("DEL    {0} (vacio)" -f $sessDir) -ForegroundColor Green
+        }
 
-    # 4) .gitignore: quitar el bloque gestionado por el Harness (cabecera + entradas)
-    $gi = Join-Path $Project '.gitignore'
-    if (Test-Path -LiteralPath $gi) {
-        $giRaw = Get-Content -LiteralPath $gi -Raw
-        $marker = '# Harness (gestionado; refrescar con install.ps1 -Update)'
-        if ($giRaw -match [regex]::Escape($marker)) {
-            $lines = Get-Content -LiteralPath $gi
-            $out = New-Object System.Collections.Generic.List[string]
-            $skip = 0
-            foreach ($ln in $lines) {
-                if ($ln.Trim() -eq $marker) { $skip = 1; continue }  # salta la cabecera
-                if ($skip -eq 1) {
-                    if ($ln -match '^(harness/skills/|harness/\.harness-backup/|\.harness/)\s*$') { continue }
-                    $skip = 0
+        # .gitignore: quitar el bloque gestionado por el Harness (cabecera + entradas)
+        $gi = Join-Path $Project '.gitignore'
+        if (Test-Path -LiteralPath $gi) {
+            $giRaw = Get-Content -LiteralPath $gi -Raw
+            $marker = '# Harness (gestionado; refrescar con install.ps1 -Update)'
+            if ($giRaw -match [regex]::Escape($marker)) {
+                $lines = Get-Content -LiteralPath $gi
+                $out = New-Object System.Collections.Generic.List[string]
+                $skip = 0
+                foreach ($ln in $lines) {
+                    if ($ln.Trim() -eq $marker) { $skip = 1; continue }
+                    if ($skip -eq 1) {
+                        if ($ln -match '^(harness/skills/|harness/\.harness-backup/|\.harness/)\s*$') { continue }
+                        $skip = 0
+                    }
+                    $out.Add($ln)
                 }
-                $out.Add($ln)
+                while ($out.Count -gt 0 -and [string]::IsNullOrWhiteSpace($out[$out.Count - 1])) { $out.RemoveAt($out.Count - 1) }
+                $newGi = (@($out) -join "`n")
+                if ($newGi.Length -gt 0) { $newGi += "`n" }
+                if ($WhatIf) { Write-Host 'WOULD  limpiar .gitignore (bloque Harness)' -ForegroundColor DarkCyan }
+                elseif ($newGi.Trim().Length -eq 0) {
+                    Remove-Item -LiteralPath $gi -Force
+                    Write-Host 'DEL    .gitignore (solo tenia el bloque Harness)' -ForegroundColor Green
+                }
+                else {
+                    [System.IO.File]::WriteAllText($gi, $newGi, (New-Object System.Text.UTF8Encoding($false)))
+                    Write-Host 'OK     .gitignore (bloque Harness eliminado)' -ForegroundColor Green
+                }
             }
-            # Colapsar saltos finales sobrantes
-            while ($out.Count -gt 0 -and [string]::IsNullOrWhiteSpace($out[$out.Count - 1])) { $out.RemoveAt($out.Count - 1) }
-            $newGi = (@($out) -join "`n")
-            if ($newGi.Length -gt 0) { $newGi += "`n" }
-            if ($WhatIf) { Write-Host 'WOULD  limpiar .gitignore (bloque Harness)' -ForegroundColor DarkCyan }
-            elseif ($newGi.Trim().Length -eq 0) {
-                Remove-Item -LiteralPath $gi -Force
-                Write-Host 'DEL    .gitignore (solo tenia el bloque Harness)' -ForegroundColor Green
-            }
-            else {
-                [System.IO.File]::WriteAllText($gi, $newGi, (New-Object System.Text.UTF8Encoding($false)))
-                Write-Host 'OK     .gitignore (bloque Harness eliminado)' -ForegroundColor Green
+        }
+    } # fin scope Local
+
+    # 5) RESBALON: si algo ajeno queda en la raiz del scope, NO borrar el directorio.
+    if (Test-Path -LiteralPath $ScopeRoot) {
+        $residual = @(Get-ChildItem -LiteralPath $ScopeRoot -Force | Where-Object { $_.Name -ne '.harness-backup' })
+        if ($keepDir -or $residual.Count -gt 0) {
+            Write-Host ("KEEP   {0} (quedan archivos ajenos o respaldos)" -f $ScopeRoot) -ForegroundColor Yellow
+            $kept += "$($ScopeRoot)"
+        }
+        elseif (-not $WhatIf) {
+            # Solo quedaba .harness-backup (o estaba vacio): respaldos, conservar.
+            $hasBk = Test-Path -LiteralPath $bkDir
+            if ($hasBk) { Write-Host ("KEEP   {0} (respaldos; borralos tu si quieres)" -f $bkDir) -ForegroundColor Yellow; $kept += '.harness-backup/' }
+            elseif (@(Get-ChildItem -LiteralPath $ScopeRoot -Force).Count -eq 0) {
+                Remove-Item -LiteralPath $ScopeRoot -Force; Write-Host ("DEL    {0} (vacio)" -f $ScopeRoot) -ForegroundColor Green
             }
         }
     }
-    } # fin scope Local
 
-    # 5) .harness.json (manifiesto): al final
+    # 6) .harness.json (manifiesto): al final.
     if ($WhatIf) { Write-Host ("WOULD  borrar {0}" -f $DeclFile) -ForegroundColor DarkCyan }
     else { Remove-Item -LiteralPath $DeclFile -Force; Write-Host ("DEL    {0}" -f $DeclFile) -ForegroundColor Green }
     $removed++
-
-    # Respaldos: NUNCA se borran (son del usuario)
-    $bkPath = Join-Path $ScopeRoot '.harness-backup'
-    if (Test-Path -LiteralPath $bkPath) {
-        Write-Host ("KEEP   {0} (tus respaldos; borralos tu si quieres)" -f $bkPath) -ForegroundColor Yellow
-        $kept += '.harness-backup/'
-    }
 
     Write-Host ''
     if ($WhatIf) { Write-Host 'WHATIF  Simulacion: no se modifico nada.' -ForegroundColor Cyan; exit 0 }
@@ -973,6 +1038,7 @@ else {
 
 # opencode.json
 $configCreated = $false
+$instrAdded = $false
 if ($Scope -eq 'Local') {
     if (Test-Path -LiteralPath $ConfigFile) {
         if ($rulesManaged) {
@@ -981,7 +1047,7 @@ if ($Scope -eq 'Local') {
             }
             else {
                 $res = Merge-Instruction -ConfigPath $ConfigFile -Value 'harness/AGENTS.md'
-                if ($res -eq 'added') { Write-Host 'OK     opencode.json (instructions -> harness/AGENTS.md)' -ForegroundColor Green }
+                if ($res -eq 'added') { $instrAdded = $true; Write-Host 'OK     opencode.json (instructions -> harness/AGENTS.md)' -ForegroundColor Green }
                 elseif ($res -eq 'present') { Write-Host 'SKIP   opencode.json (instructions ya presente)' -ForegroundColor Yellow }
                 else { Write-Host 'SKIP   opencode.json (JSON invalido; no se toca)' -ForegroundColor Yellow }
             }
@@ -1071,7 +1137,11 @@ if ($Context -and $Scope -eq 'Local') {
 # Declaracion
 # 'created' registra que archivos preexistentes creo el Harness (para -Uninstall).
 # Se conserva el valor previo y se suma lo recien creado (nunca se degrada a false).
-$createdConfig = $configCreated -or ($existingDeclObj -and ($existingDeclObj.PSObject.Properties.Name -contains 'created') -and ($existingDeclObj.created.PSObject.Properties.Name -contains 'opencode.json') -and [bool]$existingDeclObj.created.'opencode.json')
+# StrictMode: no acceder a .created si no existe; se comprueban las propiedades por nombre.
+$prevCfg = ($existingDeclObj -and ($existingDeclObj.PSObject.Properties.Name -contains 'created') -and ($existingDeclObj.created.PSObject.Properties.Name -contains 'opencode.json') -and [bool]$existingDeclObj.created.'opencode.json')
+$prevInstr = ($existingDeclObj -and ($existingDeclObj.PSObject.Properties.Name -contains 'created') -and ($existingDeclObj.created.PSObject.Properties.Name -contains 'instructions') -and [bool]$existingDeclObj.created.instructions)
+$createdConfig = $configCreated -or [bool]$prevCfg
+$createdInstr = $instrAdded -or [bool]$prevInstr
 $skillsJson = ($desired | ForEach-Object { '    "{0}"' -f $_ }) -join ",`n"
 $json = @"
 {
@@ -1083,7 +1153,8 @@ $skillsJson
   ],
   "harnessVersion": "$Version",
   "created": {
-    "opencode.json": $($createdConfig.ToString().ToLower())
+    "opencode.json": $($createdConfig.ToString().ToLower()),
+    "instructions": $($createdInstr.ToString().ToLower())
   }
 }
 "@
