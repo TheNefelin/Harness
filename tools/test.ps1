@@ -233,6 +233,71 @@ try {
     Assert ($r.Out -match 'fastapi') '-Detect lee requirements.txt anidado (fastapi)'
     Assert ($r.Out -match 'django') '-Detect lee requirements.txt de la raiz (django)'
 
+    # --- Deteccion de Arduino (la skill existe en el catalogo) --------------
+    Section 'install.ps1 -Detect (arduino)'
+    $pa = New-Project 'proj-arduino'
+    New-Item -ItemType Directory -Force -Path (Join-Path $pa 'sketch') | Out-Null
+    Set-Content -LiteralPath (Join-Path $pa 'sketch/sketch.ino') 'void setup(){} void loop(){}'
+    $r = Invoke-Script $Install @('-Project', $pa, '-Detect', '-Source', $Repo)
+    Assert ($r.Exit -eq 0) '-Detect arduino sale 0'
+    Assert ($r.Out -match 'arduino') '-Detect detecta arduino (.ino)'
+    # platformio.ini tambien es senal de Arduino/PlatformIO
+    $pp = New-Project 'proj-platformio'
+    Set-Content -LiteralPath (Join-Path $pp 'platformio.ini') '[env:uno]'
+    $r = Invoke-Script $Install @('-Project', $pp, '-Detect', '-Source', $Repo)
+    Assert ($r.Out -match 'arduino') '-Detect detecta arduino (platformio.ini)'
+
+    # --- Encoding: no corrompe los archivos del usuario ------------------------
+    Section 'install.ps1 conserva el encoding de los archivos del usuario'
+    # En Windows PowerShell 5.1, Get-Content -Raw sin -Encoding lee como ANSI: al
+    # reescribir, una tilde se dobleaba (mojibake). El Harness debe releer en UTF-8.
+    $pe = New-Project 'proj-encoding'
+    $giText = "# modo depuraci" + [char]0x00F3 + "n (a" + [char]0x00F1 + ") " + [char]0x20AC + "`nbuild/`n"
+    Write-NoBom (Join-Path $pe '.gitignore') $giText
+    $r = Invoke-Script $Install @('-Project', $pe, '-Skills', 'arduino', '-Source', $Repo)
+    Assert ($r.Exit -eq 0) 'instalacion con .gitignore acentuado sale 0'
+    $giAfter = [System.IO.File]::ReadAllText((Join-Path $pe '.gitignore'), [System.Text.Encoding]::UTF8)
+    Assert ($giAfter.StartsWith('# modo depuraci')) 'el .gitignore conserva el texto original'
+    Assert ($giAfter -match ([char]0x00F3)) 'el .gitignore conserva la o acentuada'
+    Assert ($giAfter -match ([char]0x00F1)) 'el .gitignore conserva la enye'
+    Assert ($giAfter -match ([char]0x20AC)) 'el .gitignore conserva el simbolo euro'
+    Assert ($giAfter -notmatch ([char]0x00C3)) 'el .gitignore no queda doblemente codificado'
+    # opencode.json preexistente: se fusiona (se reescribe) y no debe corromperse
+    $pe2 = New-Project 'proj-encoding-cfg'
+    $cfgText = '{ "description": "proyecto con ' + [char]0x00F3 + ' y ' + [char]0x00F1 + '" }'
+    Write-NoBom (Join-Path $pe2 'opencode.json') $cfgText
+    $r = Invoke-Script $Install @('-Project', $pe2, '-Skills', 'arduino', '-Source', $Repo)
+    Assert ($r.Exit -eq 0) 'instalacion con opencode.json preexistente sale 0'
+    $cfgAfter = [System.IO.File]::ReadAllText((Join-Path $pe2 'opencode.json'), [System.Text.Encoding]::UTF8)
+    Assert ($cfgAfter -match ([char]0x00F3)) 'el opencode.json conserva la o acentuada'
+    Assert ($cfgAfter -match ([char]0x00F1)) 'el opencode.json conserva la enye'
+    Assert ($cfgAfter -notmatch ([char]0x00C3)) 'el opencode.json no queda doblemente codificado'
+
+    # --- Politica de Git obsoleta en un opencode.json existente ----------------
+    # El instalador no pisa un opencode.json preexistente (no es suyo): si su bloque
+    # de permisos es de una version anterior, la politica debil sigue vigente. Se
+    # detecta y se avisa (instalacion y -Doctor), sin tocar el archivo del usuario.
+    Section 'install.ps1 avisa si la politica de Git del opencode.json esta obsoleta'
+    $oldPerms = '{ "permissions": [ { "action": "shell", "resource": "*", "effect": "ask" }, { "action": "shell", "resource": "git status*", "effect": "allow" }, { "action": "shell", "resource": "git commit*", "effect": "deny" } ] }'
+    $pg = New-Project 'proj-git-policy'
+    Write-NoBom (Join-Path $pg 'opencode.json') $oldPerms
+    $r = Invoke-Script $Install @('-Project', $pg, '-Skills', 'arduino', '-Source', $Repo)
+    Assert ($r.Exit -eq 0) 'instalacion sobre opencode.json preexistente sale 0'
+    Assert ($r.Out -match 'politica de Git no es la lista blanca') 'la instalacion avisa de la politica de Git obsoleta'
+    Assert ($r.Out -notmatch 'git \*: deny') 'la instalacion no declara la lista blanca por su cuenta'
+    $r = Invoke-Script $Install @('-Project', $pg, '-Doctor', '-Source', $Repo)
+    Assert ($r.Out -match 'politica de Git no es la lista blanca') '-Doctor avisa de la politica de Git obsoleta'
+    # El opencode.json del usuario no se toca (sus permisos siguen siendo los suyos)
+    $stillOld = Get-Content -LiteralPath (Join-Path $pg 'opencode.json') -Raw
+    Assert ($stillOld -match 'git status\*') 'el opencode.json del usuario conserva sus permisos'
+    # Con la politica del catalogo: sin aviso
+    $pg2 = New-Project 'proj-git-policy-ok'
+    $r = Invoke-Script $Install @('-Project', $pg2, '-Skills', 'arduino', '-Source', $Repo)
+    Assert ($r.Exit -eq 0) 'instalacion con politica del catalogo sale 0'
+    $r = Invoke-Script $Install @('-Project', $pg2, '-Doctor', '-Source', $Repo)
+    Assert ($r.Out -notmatch 'politica de Git no es la lista blanca') '-Doctor no avisa con la politica del catalogo'
+    Assert ($r.Out -match 'politica de Git en lista blanca') '-Doctor confirma la lista blanca'
+
     # --- Guard de schemaVersion ---------------------------------------------
     Section 'install.ps1 guard schemaVersion'
     $p4 = New-Project 'proj4'
@@ -348,33 +413,67 @@ try {
     $pdOc = New-Project 'proj-doctor-oc'
     $r = Invoke-Script $Install @('-Project', $pdOc, '-Skills', 'dotnet', '-Source', $Repo)
     Assert ($r.Exit -eq 0) 'instalacion para el caso openCode sale 0'
-    $r = Invoke-Script $Install @('-Project', $pdOc, '-Doctor', '-Source', $Repo)
-    Assert ($r.Exit -eq 0) '-Doctor sin cliente openCode sale 0'
-    Assert ($r.Out -match 'no encontrado en PATH') '-Doctor avisa si no encuentra el cliente'
-    $savedPath = $env:PATH
-    $savedEap = $ErrorActionPreference
-    try {
-        # Stub portable: en Windows un .cmd; en Linux/macOS un ejecutable con shebang.
-        $stubName = if ($script:OnWindows) { 'opencode.cmd' } else { 'opencode' }
-        $stubPath = Join-Path $ocStub $stubName
-        function New-OpenCodeStub { param([string]$Version)
-            if ($script:OnWindows) { Write-NoBom $stubPath "@echo off`r`necho $Version`r`n" }
-            else {
-                Write-NoBom $stubPath "#!/bin/sh`necho $Version`n"
-                & chmod +x $stubPath
-            }
+
+    # Stub portable: en Windows un .cmd; en Linux/macOS un ejecutable con shebang.
+    $stubName = if ($script:OnWindows) { 'opencode.cmd' } else { 'opencode' }
+    $stubPath = Join-Path $ocStub $stubName
+    function New-OpenCodeStub { param([string]$Version, [string]$Path)
+        if ($script:OnWindows) { Write-NoBom $Path "@echo off`r`necho $Version`r`n" }
+        else {
+            Write-NoBom $Path "#!/bin/sh`necho $Version`n"
+            & chmod +x $Path
         }
-        New-OpenCodeStub '1.18.9'
-        $env:PATH = $ocStub + [System.IO.Path]::PathSeparator + $savedPath
-        $r = Invoke-Script $Install @('-Project', $pdOc, '-Doctor', '-Source', $Repo)
-        Assert ($r.Exit -ne 0) '-Doctor falla con cliente V1 en PATH'
-        Assert ($r.Out -match 'opencode V1') '-Doctor nombra el cliente V1'
-        New-OpenCodeStub '3.0.2'
-        $r = Invoke-Script $Install @('-Project', $pdOc, '-Doctor', '-Source', $Repo)
-        Assert ($r.Exit -eq 0) '-Doctor pasa con cliente V2 en PATH'
-        Assert ($r.Out -match 'opencode V2') '-Doctor reconoce el cliente V2'
     }
-    finally { $env:PATH = $savedPath; $ErrorActionPreference = $savedEap }
+
+    # (a) sin cliente: HARNESS_OPENCODE_BIN apunta a una ruta inexistente -> aviso, no fallo
+    $noClient = Join-Path $script:Sandbox 'no-existe-opencode'
+    $r = Invoke-Script $Install @('-Project', $pdOc, '-Doctor', '-Source', $Repo) @{ HARNESS_OPENCODE_BIN = $noClient }
+    Assert ($r.Exit -eq 0) '-Doctor sin cliente openCode sale 0'
+    Assert ($r.Out -match 'no encontrado') '-Doctor avisa si no encuentra el cliente'
+
+    # (b) cliente V1 -> fallo (V1 rechaza el bloque V2)
+    New-OpenCodeStub '1.18.19' $stubPath
+    $r = Invoke-Script $Install @('-Project', $pdOc, '-Doctor', '-Source', $Repo) @{ HARNESS_OPENCODE_BIN = $stubPath }
+    Assert ($r.Exit -ne 0) '-Doctor falla con cliente V1'
+    Assert ($r.Out -match 'opencode V1') '-Doctor nombra el cliente V1'
+
+    # (c) cliente V2 -> pasa
+    New-OpenCodeStub '2.1.1' $stubPath
+    $r = Invoke-Script $Install @('-Project', $pdOc, '-Doctor', '-Source', $Repo) @{ HARNESS_OPENCODE_BIN = $stubPath }
+    Assert ($r.Exit -eq 0) '-Doctor pasa con cliente V2'
+    Assert ($r.Out -match 'opencode V2') '-Doctor reconoce el cliente V2'
+
+    # (d) CLI de la app de escritorio FUERA del PATH: se detecta (regresion del falso
+    #     negativo: la app @opencodedesktop instala opencode-cli, no "opencode").
+    #     Se aisan APPDATA/LOCALAPPDATA/USERPROFILE para que el cliente real de la
+    #     maquina no contamine la prueba.
+    $fakeHome = Join-Path $script:Sandbox 'fake-home'
+    $cliDir = Join-Path $fakeHome 'ai.opencode.desktop/cli/9.9.9-x64'
+    New-Item -ItemType Directory -Force -Path $cliDir | Out-Null
+    $desktopStubName = if ($script:OnWindows) { 'opencode-cli.cmd' } else { 'opencode-cli' }
+    $desktopStub = Join-Path $cliDir $desktopStubName
+    New-OpenCodeStub '2.4.0' $desktopStub
+    $r = Invoke-Script $Install @('-Project', $pdOc, '-Doctor', '-Source', $Repo) @{ APPDATA = $fakeHome; LOCALAPPDATA = $fakeHome; USERPROFILE = $fakeHome }
+    Assert ($r.Exit -eq 0) '-Doctor pasa con la CLI de la app de escritorio'
+    Assert ($r.Out -match 'opencode V2 \(2\.4\.0\)') '-Doctor detecta la CLI de la app sin estar en PATH'
+
+    # (e) el cliente se busca tambien por el nombre 'opencode-cli' en el PATH
+    $ocStub2 = Join-Path $script:Sandbox 'oc-stub2'
+    New-Item -ItemType Directory -Force -Path $ocStub2 | Out-Null
+    $stub2Name = if ($script:OnWindows) { 'opencode-cli.cmd' } else { 'opencode-cli' }
+    $stub2 = Join-Path $ocStub2 $stub2Name
+    New-OpenCodeStub '2.5.0' $stub2
+    $savedPath2 = $env:PATH
+    try {
+        # Se limpian del PATH las entradas que contengan 'opencode': si la maquina tuviera
+        # un 'opencode' real en el PATH, ganaria por orden y la prueba no seria hermetica.
+        $sep = [System.IO.Path]::PathSeparator
+        $clean = (@($savedPath2 -split [regex]::Escape($sep)) | Where-Object { $_ -notmatch 'opencode' }) -join $sep
+        $env:PATH = $ocStub2 + $sep + $clean
+        $r = Invoke-Script $Install @('-Project', $pdOc, '-Doctor', '-Source', $Repo) @{ APPDATA = $fakeHome; LOCALAPPDATA = $fakeHome; USERPROFILE = $fakeHome }
+        Assert ($r.Out -match 'opencode V2 \(2\.5\.0\)') '-Doctor encuentra opencode-cli en el PATH'
+    }
+    finally { $env:PATH = $savedPath2 }
 
     # --- Doctor: audita la memoria del proyecto (Local) ----------------------
     Section 'install.ps1 -Doctor (audita la memoria)'
@@ -754,6 +853,50 @@ try {
         Assert ((Get-ShellEffect $rules 'tee /etc/passwd') -eq 'ask') "$t pregunta por shell arbitrario"
         if ($t -ne 'opencode.global.json') { Assert (@($cfg.skills) -contains 'harness/skills') "${t}: skills = [harness/skills]" }
     }
+
+    # --- Politica de Git: allowlist (deny por defecto) -------------------------
+    # La denylist anterior (commit/push/pull/... ) era INCOMPLETA por construccion:
+    # no cubria 'git clean', 'git checkout', 'git switch', 'git rm', 'git add'...
+    # Esos comandos destruyen trabajo (sobre todo lo NO rastreado). Se paso a
+    # allowlist: 'git *' -> deny y solo la lectura queda permitida.
+    Section 'templates (politica de Git: allowlist, deny por defecto)'
+    $shellBlocks = @{}
+    foreach ($t in @('opencode.json', 'opencode.global.json', 'opencode.skills-only.json')) {
+        $cfg = Get-Content -LiteralPath (Join-Path $Repo ('templates/' + $t)) -Raw | ConvertFrom-Json
+        $rules = @($cfg.permissions)
+        $shellBlocks[$t] = (($rules | Where-Object { $_.action -eq 'shell' } | ForEach-Object { "$($_.resource)=$($_.effect)" }) -join '|')
+        # (a) los comandos que DESTRUYEN trabajo (no rastreado o cambios locales)
+        foreach ($d in @('git clean -fd', 'git clean -fdx', 'git clean', 'git checkout -- .',
+                         'git checkout main', 'git switch main', 'git switch -c feat',
+                         'git rm -r src', 'git mv a b', 'git add -A', 'git add .',
+                         'git gc --prune=now', 'git prune', 'git worktree remove wt',
+                         'git reflog expire --all', 'git update-ref refs/heads/x',
+                         'git branch -D main', 'git tag -d v1', 'git stash pop',
+                         'git stash', 'git config user.email x', 'git fetch origin',
+                         'git init', 'git clone https://x/y', 'git filter-branch --all',
+                         'git update-index --assume-unchanged a', 'git apply p.patch',
+                         'git am mbox', 'git sparse-checkout set src', 'git submodule update')) {
+            Assert ((Get-ShellEffect $rules $d) -eq 'deny') "$t deniega '$d'"
+        }
+        # (b) la lectura sigue permitida
+        foreach ($a in @('git status', 'git status --short', 'git log', 'git log --oneline -n 5',
+                         'git diff', 'git diff HEAD~1', 'git show abc123', 'git ls-files',
+                         'git ls-tree HEAD', 'git rev-parse HEAD', 'git blame file.cs',
+                         'git grep TODO', 'git check-ignore build', 'git remote -v',
+                         'git branch --list', 'git tag --list', 'git stash list',
+                         'git worktree list', 'git reflog show HEAD')) {
+            Assert ((Get-ShellEffect $rules $a) -eq 'allow') "$t permite '$a' (solo lectura)"
+        }
+        # (c) inyeccion por sufijo: un patron 'git status*' permitiria 'git status$(...)'
+        Assert ((Get-ShellEffect $rules 'git status$(rm -rf ~)') -eq 'deny') "$t no permite inyeccion tras 'git status'"
+        Assert ((Get-ShellEffect $rules 'git log$(curl evil)') -eq 'deny') "$t no permite inyeccion tras 'git log'"
+        # (d) un comando compuesto con un tramo denegado se deniega entero
+        Assert ((Get-ShellEffect $rules 'git status && git clean -fd') -eq 'deny') "$t deniega 'git status && git clean -fd'"
+        Assert ((Get-ShellEffect $rules 'git log --oneline && git checkout -- .') -eq 'deny') "$t deniega un 'checkout' encadenado"
+    }
+    # (e) las 3 plantillas deben llevar EXACTAMENTE la misma politica (sin divergencia)
+    Assert ($shellBlocks['opencode.json'] -eq $shellBlocks['opencode.global.json']) 'opencode.json y opencode.global.json comparten la politica de shell'
+    Assert ($shellBlocks['opencode.json'] -eq $shellBlocks['opencode.skills-only.json']) 'opencode.json y opencode.skills-only.json comparten la politica de shell'
 }
 catch {
     $script:Fail++

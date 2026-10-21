@@ -115,8 +115,9 @@ Prohibido modificar, crear o eliminar código del proyecto —y su documentació
 ## 9. Git
 
 - Está **estrictamente prohibido** ejecutar operaciones que modifiquen el estado del repositorio sin autorización explícita.
-- Incluye: `git commit`, `push`, `pull`, `merge`, `rebase`, `cherry-pick`, `reset`, `revert`, `restore`, `stash`, eliminación de ramas, modificación de tags y equivalentes. No hacer commits, push ni pull automáticos.
-- Las operaciones de **solo lectura** (`status`, `log`, `diff`, `show`, `ls-files`, `remote`) sí pueden usarse para analizar el proyecto.
+- Incluye **todo** lo que muta el repositorio o destruye trabajo: `commit`, `push`, `pull`, `merge`, `rebase`, `cherry-pick`, `reset`, `revert`, `restore`, `stash`, `clean`, `checkout`, `switch`, `rm`, `mv`, `add`, `gc`, `prune`, `worktree`, `reflog expire`, `update-ref`, `branch -D`, `tag -d`, eliminación de ramas, modificación de tags y equivalentes. No hacer commits, push ni pull automáticos.
+- La política de permisos es de **lista blanca**: Git está **denegado por defecto** y solo se permite la lectura. Si un comando Git no está permitido, **no lo intentes ni lo propongas como atajo**: el bloqueo es deliberado, no un obstáculo que sortear.
+- Las operaciones de **solo lectura** (`status`, `log`, `diff`, `show`, `ls-files`, `ls-tree`, `rev-parse`, `blame`, `grep`, `check-ignore`, `remote -v` y los listados de ramas/tags/stashes/worktrees/reflog) sí pueden usarse para analizar el proyecto.
 
 ### Mensajes de commit
 

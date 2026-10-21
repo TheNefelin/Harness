@@ -30,8 +30,8 @@ Repositorio: `https://github.com/TheNefelin/Harness.git`
 | Parámetro | Descripción |
 |-----------|-------------|
 | `-List` | Muestra el catálogo (nombre + descripción) y sale |
-| `-Detect` | Escanea el proyecto (`-Project`) y lista las tecnologías sin skill en el catálogo. Solo lectura |
-| `-Doctor` | Audita la instalación del scope (manifiesto, marcadores/hashes, reglas, `opencode.json`, **versión del cliente V1/V2**) y, en Local, la **memoria** (avisa si faltan o están vacíos `README.md`/`DEVELOPMENT.md`/`SKILL.md`; informa del checkpoint). Solo lectura; sale 0/1 |
+| `-Detect` | Escanea el proyecto (`-Project`) y lista las tecnologías sin skill en el catálogo (incluye **Arduino/PlatformIO**: `.ino`, `platformio.ini`, `arduino.json`, `sketch.yaml`). Solo lectura |
+| `-Doctor` | Audita la instalación del scope (manifiesto, marcadores/hashes, reglas, `opencode.json`, **versión del cliente V1/V2**) y, en Local, la **memoria** (avisa si faltan o están vacíos `README.md`/`DEVELOPMENT.md`/`SKILL.md`; informa del checkpoint). Busca el cliente como `opencode` o `opencode-cli`, y en las rutas de la app de escritorio y otros hábitats (`HARNESS_OPENCODE_BIN` fuerza una ruta). Solo lectura; sale 0/1 |
 | `-Adopt` | Informe de **solo lectura** (Local): compara tus `README.md`/`DEVELOPMENT.md`/`SKILL.md` con las plantillas e **imprime el diff** (`-` proyecto, `+` plantilla). **Nunca escribe**; es una propuesta. Cubre el `.md` con contenido que no sigue el estándar |
 | `-Project <ruta>` | Scope **Local**: vive en `<ruta>\harness\` |
 | `-Global` | Scope **Global**: vive en `~/.config/opencode\` |
@@ -86,6 +86,7 @@ El set vive en `.harness.json`. Para **cambiarlo**, re-ejecuta con `-Skills` ind
 | Global | `~/.config/opencode\` | `AGENTS.md`, `skills\`, `opencode.json` (permisos), `.harness.json` |
 
 - En Local, `opencode.json` apunta a `harness/skills` por la clave `skills` (array de directorios, formato V2); abrir openCode **en la raíz** del proyecto (las rutas son relativas al directorio de trabajo).
+- Los **permisos** que se instalan dejan Git **denegado por defecto** (`git *` → `deny`) y solo permiten la lectura (`status`, `log`, `diff`, `show`, `ls-files`, `ls-tree`, `rev-parse`, `blame`, `grep`, `check-ignore`, `remote -v` y los listados). Si un comando Git aparece bloqueado, es **deliberado**: no lo sortees (§9).
 - Las **reglas** (`AGENTS.md`) deben vivir en **un solo** scope. openCode combina global + proyecto, así que instalarlas en ambos carga **dos copias idénticas**: usa `-SkillsOnly` en el scope que solo aporta skills.
 - El instalador **nunca pisa** skills/reglas ajenas: las respalda en `.harness-backup\` y las omite, salvo `-Force`.
 - Tres capas: **catálogo** (repo Harness o `-Source`), **instalación** (copias gestionadas con marcador `.harness-source`; no editar a mano) y **personalizaciones** (sin marcador; nunca se podan).

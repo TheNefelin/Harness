@@ -13,6 +13,10 @@
     created}) para que -Update sepa siempre donde actualizar. Nunca pisa skills ni reglas ajenas:
     las respalda en .harness-backup\.
 
+    -Doctor busca el cliente openCode en el PATH (opencode u opencode-cli) y en las rutas
+    habituales de la app de escritorio y otros habitos; la variable de entorno
+    HARNESS_OPENCODE_BIN fuerza una ruta concreta y manda sobre toda la busqueda.
+
 .PARAMETER Scope
     Auto (deduce segun -Project / .harness.json), Global o Local.
 
@@ -260,28 +264,92 @@ function Test-EmptiedFile {
 }
 
 function Get-OpenCodeClient {
-    # Version del cliente openCode en PATH: [pscustomobject]@{ Found; Version; Major } o Found=$false.
+    # Version del cliente openCode: [pscustomobject]@{ Found; Version; Major } o Found=$false.
     # V1 rechaza el bloque V2 de opencode.json (ConfigInvalidError); V2 lo exige. Solo lectura.
-    $cmd = Get-Command 'opencode' -ErrorAction SilentlyContinue
-    if (-not $cmd) { return [pscustomobject]@{ Found = $false; Version = $null; Major = 0 } }
-    $raw = ''
-    try { $raw = (& $cmd.Source --version 2>$null | Out-String).Trim() }
-    catch { return [pscustomobject]@{ Found = $true; Version = $null; Major = 0 } }
-    $ver = $null
-    $major = 0
-    if ($raw -match '(\d+)\.(\d+)(?:\.(\d+))?') {
-        $major = [int]$Matches[1]
-        $patch = if ($Matches[3]) { $Matches[3] } else { '0' }
-        $ver = ('{0}.{1}.{2}' -f $Matches[1], $Matches[2], $patch)
+    #
+    # openCode NO siempre deja un comando "opencode" en el PATH: la app de escritorio
+    # (@opencodedesktop) trae su propia CLI como "opencode-cli", fuera del PATH. Buscar solo
+    # "opencode" daba un falso negativo ("cliente no encontrado") en quien ya lo tiene
+    # instalado, y empujaba a instalar un segundo cliente por el aviso. Se busca en orden:
+    # comando en PATH (opencode / opencode-cli) y luego rutas conocidas por plataforma.
+    $candidates = [System.Collections.Generic.List[string]]::new()
+
+    # Escape hatch explicito: HARNESS_OPENCODE_BIN manda sobre toda la busqueda.
+    # Util si el cliente vive en una ruta que el Harness no conoce; si la ruta no existe,
+    # el resultado es "no encontrado" (intencion explicita del usuario, no un fallo silencioso).
+    $override = $env:HARNESS_OPENCODE_BIN
+    if ($override) {
+        if (Test-Path -LiteralPath $override -PathType Leaf) { [void]$candidates.Add($override) }
+        else { return [pscustomobject]@{ Found = $false; Version = $null; Major = 0 } }
     }
-    return [pscustomobject]@{ Found = $true; Version = $ver; Major = $major }
+    else {
+        foreach ($name in @('opencode', 'opencode-cli')) {
+            $cmd = Get-Command $name -ErrorAction SilentlyContinue
+            if ($cmd -and $cmd.Source) { [void]$candidates.Add($cmd.Source) }
+        }
+
+        $known = @()
+        # Se enumeran los directorios en vez de fijar un nombre: la CLI de la app de
+        # escritorio llega como opencode-cli.exe (o .cmd, o sin extension segun el caso).
+        $dirs = @()
+        if ($env:LOCALAPPDATA) {
+            $dirs += (Join-Path $env:LOCALAPPDATA 'Programs\@opencodedesktop\resources')
+            $known += (Join-Path $env:LOCALAPPDATA 'Microsoft\WinGet\Links\opencode.exe')
+        }
+        if ($env:APPDATA) {
+            # CLI que gestiona la app de escritorio: <AppData>\ai.opencode.desktop\cli\<version>\
+            $cliRoot = Join-Path $env:APPDATA 'ai.opencode.desktop\cli'
+            if (Test-Path -LiteralPath $cliRoot) {
+                foreach ($d in @(Get-ChildItem -LiteralPath $cliRoot -Directory -ErrorAction SilentlyContinue | Sort-Object Name -Descending)) {
+                    $dirs += $d.FullName
+                }
+            }
+        }
+        $userHome = $env:USERPROFILE
+        if (-not $userHome) { $userHome = $env:HOME }
+        if ($userHome) {
+            $known += (Join-Path $userHome '.opencode\bin\opencode')
+            $known += (Join-Path $userHome '.bun\bin\opencode')
+            $known += (Join-Path $userHome '.local\bin\opencode')
+        }
+        $known += '/usr/local/bin/opencode'
+        $known += '/usr/bin/opencode'
+        foreach ($k in $known) {
+            if ($k -and (Test-Path -LiteralPath $k -PathType Leaf)) { [void]$candidates.Add($k) }
+        }
+        foreach ($dir in $dirs) {
+            if (-not (Test-Path -LiteralPath $dir)) { continue }
+            foreach ($exe in @(Get-ChildItem -LiteralPath $dir -Filter 'opencode*' -File -ErrorAction SilentlyContinue)) {
+                [void]$candidates.Add($exe.FullName)
+            }
+        }
+    }
+
+    $sawBinary = $false
+    foreach ($path in $candidates) {
+        $sawBinary = $true
+        $raw = ''
+        try { $raw = (& $path --version 2>$null | Out-String).Trim() } catch { $raw = '' }
+        if (-not $raw) { continue }
+        $ver = $null
+        $major = 0
+        if ($raw -match '(\d+)\.(\d+)(?:\.(\d+))?') {
+            $major = [int]$Matches[1]
+            $patch = if ($Matches[3]) { $Matches[3] } else { '0' }
+            $ver = ('{0}.{1}.{2}' -f $Matches[1], $Matches[2], $patch)
+        }
+        return [pscustomobject]@{ Found = $true; Version = $ver; Major = $major }
+    }
+    # Hay binario pero no se pudo interrogar: existe, version desconocida.
+    if ($sawBinary) { return [pscustomobject]@{ Found = $true; Version = $null; Major = 0 } }
+    return [pscustomobject]@{ Found = $false; Version = $null; Major = 0 }
 }
 
 function Unmerge-Instruction {
     # Quita 'harness/AGENTS.md' de instructions en un opencode.json preexistente (al desinstalar).
     # Devuelve 'removed', 'absent' o 'invalid'. Si instructions queda vacio, se elimina la clave.
     param([string]$ConfigPath, [string]$Value)
-    try { $cfg = Get-Content -LiteralPath $ConfigPath -Raw | ConvertFrom-Json }
+    try { $cfg = Get-Content -LiteralPath $ConfigPath -Raw -Encoding UTF8 | ConvertFrom-Json }
     catch { return 'invalid' }
     if (-not ($cfg.PSObject.Properties.Name -contains 'instructions')) { return 'absent' }
     $instr = @($cfg.instructions)
@@ -301,6 +369,23 @@ function Get-SchemaStatus {
     if (-not [int]::TryParse([string]$Manifest.schemaVersion, [ref]$v)) { return 'err' }
     if ($v -gt $SchemaVersion) { return 'err' }
     return 'ok'
+}
+
+function Get-GitPolicyState {
+    # Estado de la politica de Git de un opencode.json: 'allowlist' (la del Harness:
+    # 'git *' -> deny y solo lectura permitida), 'stale' (hay reglas de git pero no la
+    # deny general: deja pasar comandos que destruyen trabajo, como 'git clean' o
+    # 'git checkout -- .') o 'none' (sin reglas de git).
+    # Motivo: el instalador no pisa un opencode.json existente (no es suyo), asi que una
+    # politica antigua seguiria vigente sin avisar. Se detecta y se dice.
+    param([string]$ConfigPath)
+    try { $c = Get-Content -LiteralPath $ConfigPath -Raw -Encoding UTF8 | ConvertFrom-Json }
+    catch { return 'none' }
+    if (-not ($c.PSObject.Properties.Name -contains 'permissions')) { return 'none' }
+    $git = @(@($c.permissions) | Where-Object { $_.action -eq 'shell' -and ([string]$_.resource) -like 'git*' })
+    if ($git.Count -eq 0) { return 'none' }
+    if (@($git | Where-Object { ([string]$_.resource) -eq 'git *' -and $_.effect -eq 'deny' }).Count -gt 0) { return 'allowlist' }
+    return 'stale'
 }
 
 function Add-Detected {
@@ -344,6 +429,11 @@ function Get-ProjectTech {
     if ($exts.Contains('.csproj') -or $exts.Contains('.sln') -or $byName.ContainsKey('directory.packages.props')) { Add-Detected $skills 'dotnet' 'proyecto .NET (.csproj/.sln/Directory.Packages.props)' }
     # Godot
     if ($byName.ContainsKey('project.godot') -or $exts.Contains('.tscn') -or $exts.Contains('.gd')) { Add-Detected $skills 'godot' 'proyecto Godot (project.godot/.tscn/.gd)' }
+    # Arduino / PlatformIO (la skill arduino existe en el catalogo: debe poder detectarse)
+    if ($exts.Contains('.ino')) { Add-Detected $skills 'arduino' 'sketch Arduino (.ino)' }
+    foreach ($n in @('platformio.ini', 'arduino.json', 'sketch.yaml')) {
+        if ($byName.ContainsKey($n)) { Add-Detected $skills 'arduino' "proyecto Arduino/PlatformIO ($n)" }
+    }
     # Docker
     foreach ($n in @('dockerfile', 'compose.yaml', 'compose.yml', 'docker-compose.yaml', 'docker-compose.yml', '.dockerignore')) {
         if ($byName.ContainsKey($n)) { Add-Detected $skills 'docker' "contenedores ($n)"; break }
@@ -500,7 +590,7 @@ $projectDecl = if ($Project) { Join-Path $Project '.harness.json' } else { $null
 
 if ($Scope -eq 'Auto') {
     if ($Project -and (Test-Path -LiteralPath $projectDecl)) {
-        try { $d = Get-Content -LiteralPath $projectDecl -Raw | ConvertFrom-Json }
+        try { $d = Get-Content -LiteralPath $projectDecl -Raw -Encoding UTF8 | ConvertFrom-Json }
         catch { throw "El manifiesto $projectDecl no es JSON valido: $($_.Exception.Message)" }
         $Scope = [string]$d.scope
     }
@@ -535,7 +625,7 @@ else {
 $declared = @()
 $existingDeclObj = $null
 if (Test-Path -LiteralPath $DeclFile) {
-    try { $existingDeclObj = Get-Content -LiteralPath $DeclFile -Raw | ConvertFrom-Json }
+    try { $existingDeclObj = Get-Content -LiteralPath $DeclFile -Raw -Encoding UTF8 | ConvertFrom-Json }
     catch { throw "El manifiesto $DeclFile no es JSON valido: $($_.Exception.Message)" }
     if ($existingDeclObj.PSObject.Properties.Name -contains 'skills') { $declared = @($existingDeclObj.skills) }
 }
@@ -567,7 +657,7 @@ if ($Doctor) {
     # Cliente openCode: V1 rechaza el bloque V2 (ConfigInvalidError); V2 lo exige.
     $oc = Get-OpenCodeClient
     if (-not $oc.Found) {
-        Write-Check WARN 'cliente openCode no encontrado en PATH (no se pudo verificar V1/V2)'
+        Write-Check WARN 'cliente openCode no encontrado (ni en PATH ni en las rutas habituales): no se pudo verificar V1/V2'
     }
     elseif ($oc.Major -ge 2) {
         Write-Check OK ("cliente openCode V2 ({0})" -f $oc.Version)
@@ -590,7 +680,7 @@ if ($Doctor) {
             'err'  { Write-Check ERR "schemaVersion incompatible o mas nuevo (soportado: $SchemaVersion)" }
         }
         try {
-            $decl = Get-Content -LiteralPath $DeclFile -Raw | ConvertFrom-Json
+            $decl = Get-Content -LiteralPath $DeclFile -Raw -Encoding UTF8 | ConvertFrom-Json
             if ([string]$decl.scope -eq $Scope.ToLower()) { Write-Check OK "scope declarado: $($decl.scope)" }
             else { Write-Check WARN "scope declarado '$($decl.scope)' != esperado '$($Scope.ToLower())'" }
 
@@ -634,7 +724,7 @@ if ($Doctor) {
 
     if (Test-Path -LiteralPath $ConfigFile) {
         try {
-            $cfg = Get-Content -LiteralPath $ConfigFile -Raw | ConvertFrom-Json
+            $cfg = Get-Content -LiteralPath $ConfigFile -Raw -Encoding UTF8 | ConvertFrom-Json
             $v1 = @()
             if ($cfg.PSObject.Properties.Name -contains 'permission') { $v1 += 'permission' }
             if ($cfg.PSObject.Properties.Name -contains 'bash') { $v1 += 'bash' }
@@ -660,6 +750,11 @@ if ($Doctor) {
                 $hasPerms = ($cfg.PSObject.Properties.Name -contains 'permissions') -or ($cfg.PSObject.Properties.Name -contains 'permission')
                 if ($hasPerms) { Write-Check OK 'opencode.json global: bloque de permisos presente' }
                 else { Write-Check WARN 'opencode.json global: sin bloque de permisos' }
+            }
+            # Politica de Git: debe ser la lista blanca del Harness ('git *' -> deny).
+            switch (Get-GitPolicyState -ConfigPath $ConfigFile) {
+                'allowlist' { Write-Check OK 'opencode.json: politica de Git en lista blanca (git * -> deny)' }
+                'stale' { Write-Check WARN "opencode.json: la politica de Git no es la lista blanca del Harness (deja pasar 'git clean'/'git checkout', que destruyen trabajo); actualiza el bloque 'permissions' con el de templates/opencode.json" }
             }
         }
         catch { Write-Check ERR "opencode.json ilegible: $($_.Exception.Message)" }
@@ -939,14 +1034,14 @@ if ($Uninstall) {
         # .gitignore: quitar el bloque gestionado por el Harness (cabecera + entradas)
         $gi = Join-Path $Project '.gitignore'
         if (Test-Path -LiteralPath $gi) {
-            $giRaw = Get-Content -LiteralPath $gi -Raw
+            $giRaw = Get-Content -LiteralPath $gi -Raw -Encoding UTF8
             $marker = '# Harness (gestionado; refrescar con install.ps1 -Update)'
             if ($giRaw -match [regex]::Escape($marker)) {
                 # Si quedan respaldos, se CONSERVA la entrada 'harness/.harness-backup/' (y la
                 # cabecera): asi los respaldos no aparecen como no rastreados tras desinstalar
                 # (evita un commit por descuido). Si no hay carpeta de respaldos, se quita todo.
                 $keepBkEntry = Test-Path -LiteralPath $bkDir
-                $lines = Get-Content -LiteralPath $gi
+                $lines = Get-Content -LiteralPath $gi -Encoding UTF8
                 $out = New-Object System.Collections.Generic.List[string]
                 $skip = 0
                 foreach ($ln in $lines) {
@@ -1181,7 +1276,7 @@ if (Test-Path -LiteralPath $SkillsDir) {
 
 function Merge-Instruction {
     param([string]$ConfigPath, [string]$Value)
-    try { $cfg = Get-Content -LiteralPath $ConfigPath -Raw | ConvertFrom-Json }
+    try { $cfg = Get-Content -LiteralPath $ConfigPath -Raw -Encoding UTF8 | ConvertFrom-Json }
     catch { return 'invalid' }
     if ($cfg.PSObject.Properties.Name -contains 'instructions') {
         $instr = @($cfg.instructions)
@@ -1254,6 +1349,9 @@ if ($Scope -eq 'Local') {
         else {
             Write-Host 'SKIP   opencode.json ya existe (verifica instructions/skills)' -ForegroundColor Yellow
         }
+        if ((Get-GitPolicyState -ConfigPath $ConfigFile) -eq 'stale') {
+            Write-Host "NOTA   opencode.json: la politica de Git no es la lista blanca del Harness (permite 'git clean'/'git checkout', que destruyen trabajo); actualiza el bloque 'permissions' con el de templates/opencode.json" -ForegroundColor Yellow
+        }
     }
     elseif ($WhatIf) {
         Write-Host 'WOULD  opencode.json' -ForegroundColor DarkCyan
@@ -1268,7 +1366,7 @@ if ($Scope -eq 'Local') {
     $gi = Join-Path $Project '.gitignore'
     $existing = ''
     $giExists = Test-Path -LiteralPath $gi
-    if ($giExists) { $existing = Get-Content -LiteralPath $gi -Raw }
+    if ($giExists) { $existing = Get-Content -LiteralPath $gi -Raw -Encoding UTF8 }
     $entries = @('harness/skills/', 'harness/.harness-backup/', '.harness/')
     $toAdd = @($entries | Where-Object { ('' + $existing) -notmatch [regex]::Escape($_) })
     if ($toAdd.Count -gt 0) {
@@ -1294,6 +1392,9 @@ if ($Scope -eq 'Local') {
 else {
     if (Test-Path -LiteralPath $ConfigFile) {
         Write-Host 'SKIP   ~/.config/opencode/opencode.json ya existe (fusiona el bloque de permisos a mano)' -ForegroundColor Yellow
+        if ((Get-GitPolicyState -ConfigPath $ConfigFile) -eq 'stale') {
+            Write-Host "NOTA   opencode.json global: la politica de Git no es la lista blanca del Harness (permite 'git clean'/'git checkout', que destruyen trabajo); actualiza el bloque 'permissions' con el de templates/opencode.global.json" -ForegroundColor Yellow
+        }
     }
     else {
         if ($WhatIf) { Write-Host 'WOULD  opencode.json global (permisos)' -ForegroundColor DarkCyan }
