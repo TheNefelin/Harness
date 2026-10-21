@@ -20,7 +20,7 @@ jobs:
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v7
-      - name: Verificar catalogo (estructura, triggers, evals, frescura, encoding)
+      - name: Verificar catalogo (estructura, referencias, triggers, evals, frescura, encoding, inventario)
         shell: pwsh
         run: ./tools/check.ps1
       - name: Pruebas de integracion (install.ps1 / check.ps1)

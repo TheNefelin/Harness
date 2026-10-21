@@ -18,6 +18,8 @@
                    (directamente o encadenando; permite sub-referencias).
       - Encoding : el texto versionado debe ser UTF-8 sin BOM y con LF; los .ps1, ASCII
                    puro (un byte > 127 ahi suele ser mojibake).
+      - Inventario: el conteo de skills y casos de eval declarado en README.md y
+                   DEVELOPMENT.md coincide con el catalogo real (evita drift silencioso).
 
 .PARAMETER MaxAgeDays
     Antiguedad maxima, en dias, de un marcador de frescura. Por defecto 180.
@@ -56,6 +58,7 @@ $EvalsFile = Join-Path (Join-Path $Root 'evals') 'triggers.json'
 
 $script:Fail = [System.Collections.Generic.List[string]]::new()
 $script:Warn = [System.Collections.Generic.List[string]]::new()
+$script:EvalTotal = -1
 
 function Get-RelPath {
     param([string]$Full)
@@ -165,7 +168,7 @@ Write-Host "Harness - verificacion del catalogo ($N skills, $Root)" -ForegroundC
 
 # --- 1. Lint de skills -------------------------------------------------------
 Write-Host ""
-Write-Host "[1/6] Estructura de skills" -ForegroundColor White
+Write-Host "[1/7] Estructura de skills" -ForegroundColor White
 foreach ($s in $catalog) {
     if (-not $s.Meta.HasFrontmatter) { Add-Fail "frontmatter ausente: $($s.Name)/SKILL.md"; continue }
     if ([string]::IsNullOrWhiteSpace($s.Meta.Name)) { Add-Fail "name ausente: $($s.Name)/SKILL.md" }
@@ -193,7 +196,7 @@ if ($near.Count -gt 0) {
 
 # --- 2. Referencias citadas y alcanzables -----------------------------------
 Write-Host ""
-Write-Host "[2/6] Referencias (cada references/**.md citada y alcanzable desde SKILL.md)" -ForegroundColor White
+Write-Host "[2/7] Referencias (cada references/**.md citada y alcanzable desde SKILL.md)" -ForegroundColor White
 $orphanRefs = [System.Collections.Generic.List[string]]::new()
 foreach ($s in $catalog) {
     $skillDir = Split-Path -Parent $s.File
@@ -238,7 +241,7 @@ else {
 
 # --- 3. Solapamiento de triggers --------------------------------------------
 Write-Host ""
-Write-Host "[3/6] Solapamiento de triggers (Jaccard distintivo > $OverlapThreshold)" -ForegroundColor White
+Write-Host "[3/7] Solapamiento de triggers (Jaccard distintivo > $OverlapThreshold)" -ForegroundColor White
 $distinctive = @{}
 foreach ($s in $catalog) {
     $ds = [System.Collections.Generic.HashSet[string]]::new([System.StringComparer]::OrdinalIgnoreCase)
@@ -282,7 +285,7 @@ if ($rankedPairs.Count -gt 0) {
 
 # --- 4. Evals de disparo -----------------------------------------------------
 Write-Host ""
-Write-Host "[4/6] Evals de disparo (evals/triggers.json)" -ForegroundColor White
+Write-Host "[4/7] Evals de disparo (evals/triggers.json)" -ForegroundColor White
 if (-not (Test-Path -LiteralPath $EvalsFile)) {
     Add-Fail "no existe evals/triggers.json"
     Write-Host "  FALLO  falta evals/triggers.json" -ForegroundColor Red
@@ -331,6 +334,7 @@ else {
         }
     }
     $total = @($cases).Count
+    $script:EvalTotal = $total
     $color = if ($pass -eq $total) { 'Green' } else { 'Red' }
     $desglose = (@($tipos.Keys | Sort-Object | ForEach-Object { '{0} {1}' -f $tipos[$_], $_ })) -join ', '
     Write-Host "  $pass/$total casos correctos  ($desglose)." -ForegroundColor $color
@@ -338,7 +342,7 @@ else {
 
 # --- 5. Frescura -------------------------------------------------------------
 Write-Host ""
-Write-Host "[5/6] Frescura (marcadores 'verificado YYYY-MM-DD', max $MaxAgeDays dias)" -ForegroundColor White
+Write-Host "[5/7] Frescura (marcadores 'verificado YYYY-MM-DD', max $MaxAgeDays dias)" -ForegroundColor White
 $today = (Get-Date).Date
 $rx = [regex]'(?i)verificad[oa]s?:?\s+(\d{4})-(\d{2})-(\d{2})'
 $rxMarker = [regex]'(?i)frescura\s*:'
@@ -373,7 +377,7 @@ if ($stale -eq 0) { Write-Host "  OK: ningun marcador supera $MaxAgeDays dias." 
 # deben ser ASCII puro (sin bytes > 127): un no-ASCII ahi suele ser mojibake que
 # PowerShell 5.1 lee distinto segun la consola. Se chequea el contenido VERSIONADO
 # (lo que git rastrea) para no tropezar con artefactos locales.
-Write-Host "[6/6] Encoding (UTF-8 sin BOM, LF; .ps1 en ASCII)" -ForegroundColor White
+Write-Host "[6/7] Encoding (UTF-8 sin BOM, LF; .ps1 en ASCII)" -ForegroundColor White
 $EncodingExts = @('.ps1', '.md', '.json', '.yml', '.yaml')
 $gitTracked = @()
 if (Get-Command git -ErrorAction SilentlyContinue) {
@@ -418,6 +422,51 @@ foreach ($rel in $gitTracked) {
     }
 }
 if ($encBad -eq 0) { Write-Host "  OK: $encChecked archivo(s) en UTF-8 sin BOM y LF; .ps1 en ASCII." -ForegroundColor Green }
+
+# --- 7. Inventario declarado vs. catalogo real -------------------------------
+# El conteo de skills/casos se declara en README.md y DEVELOPMENT.md. Si el catalogo
+# crece y el texto no se actualiza, aparece un drift silencioso (justo lo que una
+# auditoria externa podria reportar como "el README dice 17 y hay 16"). Aqui se
+# compara lo DECLARADO con lo REAL: una regla sin verificacion es una promesa.
+Write-Host ""
+Write-Host "[7/7] Inventario (conteo declarado == catalogo real)" -ForegroundColor White
+$declFiles = @('README.md', 'DEVELOPMENT.md')
+$declChecked = 0
+$declBad = 0
+# Convencion: la declaracion viva va en negrita (**N skills**, **N casos**); asi se
+# distingue de una mencion en prosa. Si un archivo no declara, no se exige (tolerante).
+foreach ($rel in $declFiles) {
+    $full = Join-Path $Root $rel
+    if (-not (Test-Path -LiteralPath $full)) { continue }
+    $declChecked++
+    $text = [System.IO.File]::ReadAllText($full, [System.Text.Encoding]::UTF8)
+    # Solo cuenta DECLARACIONES vivas, no menciones en prosa (p. ej. "dijo 16 skills" en una
+    # decision historica). La convencion del inventario es marcarlo en negrita: **17 skills**.
+    $mSkills = [regex]::Matches($text, '\*\*\s*(\d+)\s+skills\s*\*\*')
+    foreach ($m in $mSkills) {
+        $declared = [int]$m.Groups[1].Value
+        if ($declared -ne $N) {
+            $declBad++
+            Add-Fail "inventario: $rel declara $declared skills; el catalogo tiene $N"
+            Write-Host ("  FALLO  {0} declara {1} skills; el catalogo tiene {2}" -f $rel, $declared, $N) -ForegroundColor Red
+        }
+        else { Write-Host ("  OK     {0}: {1} skills coinciden" -f $rel, $declared) -ForegroundColor DarkGray }
+    }
+    if ($script:EvalTotal -ge 0) {
+        $mCasos = [regex]::Matches($text, '\*\*\s*(\d+)\s+casos\s*\*\*')
+        foreach ($m in $mCasos) {
+            $declaredC = [int]$m.Groups[1].Value
+            if ($declaredC -ne $script:EvalTotal) {
+                $declBad++
+                Add-Fail "inventario: $rel declara $declaredC casos; evals/triggers.json tiene $($script:EvalTotal)"
+                Write-Host ("  FALLO  {0} declara {1} casos; hay {2}" -f $rel, $declaredC, $script:EvalTotal) -ForegroundColor Red
+            }
+            else { Write-Host ("  OK     {0}: {1} casos coinciden" -f $rel, $declaredC) -ForegroundColor DarkGray }
+        }
+    }
+}
+if ($declChecked -eq 0) { Write-Host "  OK: sin archivos de inventario que revisar." -ForegroundColor Green }
+elseif ($declBad -eq 0) { Write-Host "  OK: el inventario declarado coincide con el catalogo." -ForegroundColor Green }
 
 # --- Resumen -----------------------------------------------------------------
 Write-Host ""

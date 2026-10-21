@@ -376,6 +376,32 @@ try {
     }
     finally { $env:PATH = $savedPath; $ErrorActionPreference = $savedEap }
 
+    # --- Doctor: audita la memoria del proyecto (Local) ----------------------
+    Section 'install.ps1 -Doctor (audita la memoria)'
+    # (a) instalacion sin -Context: falta la memoria -> avisa (no falla)
+    $pdMem = New-Project 'proj-doctor-mem-missing'
+    $r = Invoke-Script $Install @('-Project', $pdMem, '-Skills', 'dotnet', '-Source', $Repo)
+    Assert ($r.Exit -eq 0) 'instalacion sin -Context sale 0'
+    $r = Invoke-Script $Install @('-Project', $pdMem, '-Doctor', '-Source', $Repo)
+    Assert ($r.Exit -eq 0) '-Doctor sin memoria sale 0 (aviso, no fallo)'
+    Assert ($r.Out -match 'memoria incompleta') '-Doctor avisa de memoria incompleta'
+    Assert ($r.Out -match 'README.md') '-Doctor nombra el archivo de memoria ausente'
+    # (b) instalacion con -Context: memoria completa -> OK
+    $pdMem2 = New-Project 'proj-doctor-mem-ok'
+    $r = Invoke-Script $Install @('-Project', $pdMem2, '-Skills', 'dotnet', '-Context', '-Source', $Repo)
+    Assert ($r.Exit -eq 0) 'instalacion con -Context sale 0'
+    $r = Invoke-Script $Install @('-Project', $pdMem2, '-Doctor', '-Source', $Repo)
+    Assert ($r.Exit -eq 0) '-Doctor con memoria completa sale 0'
+    Assert ($r.Out -match 'memoria presente') '-Doctor confirma la memoria presente'
+    Assert ($r.Out -match 'checkpoint de sesion presente') '-Doctor informa del checkpoint'
+    # (c) README vacio: lo avisa explicitamente
+    $pdMem3 = New-Project 'proj-doctor-mem-empty'
+    $r = Invoke-Script $Install @('-Project', $pdMem3, '-Skills', 'dotnet', '-Context', '-Source', $Repo)
+    Write-NoBom (Join-Path $pdMem3 'README.md') '   '
+    $r = Invoke-Script $Install @('-Project', $pdMem3, '-Doctor', '-Source', $Repo)
+    Assert ($r.Exit -eq 0) '-Doctor con README vacio sale 0'
+    Assert ($r.Out -match 'esta vacio') '-Doctor avisa del .md vacio'
+
     # --- Uninstall -----------------------------------------------------------
     Section 'install.ps1 -Uninstall (borra solo lo gestionado)'
     $pu = New-Project 'proj-uninstall'
@@ -660,6 +686,32 @@ try {
     [System.IO.File]::WriteAllBytes((Join-Path $encMd 'README.md'), [byte[]](0x23, 0x20, 0xC3, 0xB1, 0x0A))
     $r = Invoke-Script (Join-Path $encMd 'tools/check.ps1') @()
     Assert ($r.Exit -eq 0) 'check acepta no-ASCII en .md (regla: UTF-8, no ASCII)'
+
+    # --- check.ps1: inventario declarado vs catalogo real -------------------
+    Section 'check.ps1 inventario (conteo declarado == catalogo real)'
+    # (a) README declara el conteo correcto (1 skill, en negrita) -> pasa
+    $invOk = New-EncRoot 'chk-inv-ok'
+    Write-NoBom (Join-Path $invOk 'README.md') "# Demo`n`nTiene **1 skills**.`n"
+    $r = Invoke-Script (Join-Path $invOk 'tools/check.ps1') @()
+    Assert ($r.Exit -eq 0) 'check pasa si el conteo declarado coincide'
+    Assert ($r.Out -match 'Inventario') 'check reporta la seccion de inventario'
+    # (b) README declara un conteo distinto al real -> falla
+    $invBad = New-EncRoot 'chk-inv-bad'
+    Write-NoBom (Join-Path $invBad 'README.md') "# Demo`n`nTiene **9 skills**.`n"
+    $r = Invoke-Script (Join-Path $invBad 'tools/check.ps1') @()
+    Assert ($r.Exit -ne 0) 'check falla si el conteo declarado no coincide'
+    Assert ($r.Out -match 'declara 9 skills') 'check nombra el conteo declarado y el real'
+    # (c) README sin conteo declarado (o en prosa, sin negrita) -> no falla (tolerante)
+    $invNo = New-EncRoot 'chk-inv-none'
+    Write-NoBom (Join-Path $invNo 'README.md') "# Demo`n`nSin conteo. Y dijo 9 skills en prosa.`n"
+    $r = Invoke-Script (Join-Path $invNo 'tools/check.ps1') @()
+    Assert ($r.Exit -eq 0) 'check no falla si no hay conteo declarado en negrita'
+    # (d) dos declaraciones contradictorias: la erronea tambien cuenta -> falla
+    $invTwo = New-EncRoot 'chk-inv-two'
+    Write-NoBom (Join-Path $invTwo 'README.md') "# Demo`n`n**1 skills** arriba, **8 skills** abajo.`n"
+    $r = Invoke-Script (Join-Path $invTwo 'tools/check.ps1') @()
+    Assert ($r.Exit -ne 0) 'check falla si alguna declaracion en negrita no coincide'
+    Assert ($r.Out -match 'declara 8 skills') 'check nombra la declaracion erronea'
 
     # --- Plantillas: permisos V2 (deniega secretos, permite plantillas) ------
     Section 'templates (permisos V2: deniega secretos, permite plantillas)'

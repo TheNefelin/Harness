@@ -456,8 +456,9 @@ function Write-ProjectTech {
 }
 
 if ($List) {
-    Write-Host 'Skills disponibles en el catalogo:' -ForegroundColor Cyan
-    foreach ($s in Get-Catalog) {
+    $listSkills = @(Get-Catalog)
+    Write-Host ("Skills disponibles en el catalogo ({0}):" -f $listSkills.Count) -ForegroundColor Cyan
+    foreach ($s in $listSkills) {
         Write-Host ('  {0,-16} {1}' -f $s.Name, $s.Description)
     }
     Write-Host ''
@@ -467,6 +468,9 @@ if ($List) {
     Write-Host 'Doctor:  .\install.ps1 [-Project <ruta>|-Global] -Doctor'
     Write-Host 'Adopt:   .\install.ps1 -Project <ruta> -Adopt   (informe; no escribe)'
     Write-Host 'Quitar:  .\install.ps1 [-Project <ruta>|-Global] -Uninstall'
+    Write-Host ''
+    Write-Host 'Nota: en Local, agrega -Context para sembrar la memoria del proyecto' -ForegroundColor DarkGray
+    Write-Host '      (README/DEVELOPMENT/SKILL + checkpoint); -Doctor te dice si falta.' -ForegroundColor DarkGray
     exit 0
 }
 
@@ -665,6 +669,24 @@ if ($Doctor) {
 
     $bk = Join-Path $ScopeRoot '.harness-backup'
     if (Test-Path -LiteralPath $bk) { Write-Check OK ("respaldos: {0} en .harness-backup" -f @(Get-ChildItem -LiteralPath $bk -Force).Count) }
+
+    # Memoria del proyecto (solo Local): sostiene la continuidad entre sesiones.
+    # Si falta, las reglas/skills funcionan pero el agente no tiene donde persistir
+    # decisiones ni el punto de continuacion. Se avisa con la accion concreta.
+    if ($Scope -eq 'Local') {
+        $memMissing = [System.Collections.Generic.List[string]]::new()
+        foreach ($mf in @('README.md', 'DEVELOPMENT.md', 'SKILL.md')) {
+            $mp = Join-Path $Project $mf
+            if (-not (Test-Path -LiteralPath $mp)) { [void]$memMissing.Add($mf) }
+            elseif (Test-EmptiedFile -Path $mp) { Write-Check WARN ("memoria: {0} existe pero esta vacio; -Context lo siembra" -f $mf) }
+        }
+        if ($memMissing.Count -gt 0) {
+            Write-Check WARN ("memoria incompleta (faltan: {0}); -Context siembra las plantillas y el checkpoint" -f ($memMissing -join ', '))
+        }
+        else { Write-Check OK 'memoria presente (README/DEVELOPMENT/SKILL)' }
+        $sess = Join-Path $Project '.harness/session.md'
+        if (Test-Path -LiteralPath $sess) { Write-Check OK 'checkpoint de sesion presente (.harness/session.md)' }
+    }
 
     Write-Host ''
     if ($errCount -gt 0) {

@@ -11,6 +11,8 @@ Conjunto reutilizable de **reglas**, **skills** y **plantillas de contexto** par
 
 ## Estructura
 
+El catálogo incluye **17 skills** y **49 casos** de eval (verificado por `tools/check.ps1`, sección *Inventario*), más **283 pruebas** de integración (`tools/test.ps1`).
+
 ```
 Harness/
 ├─ README.md              # este archivo
@@ -115,7 +117,7 @@ Qué hace:
 
 `-WhatIf` previsualiza la operación completa (instalar, refrescar, respaldar, omitir, podar) **sin escribir nada**: úsalo para ver qué pasaría antes de aplicar.
 
-`-Doctor` audita la instalación del scope (manifiesto `.harness.json`, marcadores y hashes de cada skill, reglas, `opencode.json` y la **versión del cliente openCode: V1 vs V2**) y sale con código **0** (ok, con avisos) o **1** (fallo): útil para saber si algo quedó a medias o para CI. Verifica V2 porque **openCode V1 rechaza** el bloque V2 de `opencode.json` (`ConfigInvalidError`); si detecta V1, marca **fallo**.
+`-Doctor` audita la instalación del scope (manifiesto `.harness.json`, marcadores y hashes de cada skill, reglas, `opencode.json` y la **versión del cliente openCode: V1 vs V2**) y sale con código **0** (ok, con avisos) o **1** (fallo): útil para saber si algo quedó a medias o para CI. Verifica V2 porque **openCode V1 rechaza** el bloque V2 de `opencode.json` (`ConfigInvalidError`); si detecta V1, marca **fallo**. En scope Local, además, **audita la memoria del proyecto**: avisa si faltan o están **vacíos** `README.md`/`DEVELOPMENT.md`/`SKILL.md` (con la sugerencia de `-Context`) e informa del checkpoint `.harness/session.md`.
 
 `-Uninstall` **desinstala** el Harness del scope **por pertenencia, sin destruir nada**: retira solo lo gestionado —las **skills** con marcador `.harness-source`, las **reglas** (`AGENTS.md`) si constan como del Harness (manifiesto `rules:true` o hash idéntico al catálogo), el `instructions` que el Harness **añadió**, `.harness/session.md`, el `.harness.json` y el bloque del `.gitignore`—. **Nada se borra**: lo gestionado se **mueve a `.harness-backup/`** (nunca se pierde) y todo lo **ajeno se conserva** (tus skills sin marcador, tus archivos dentro de `harness/`, tus respaldos, tus `opencode.json`/plugins/config en `~/.config/opencode`, tu código y tu documentación, incluidos los `.md` sembrados). Los **directorios solo se eliminan si quedan vacíos**. Mientras queden respaldos, el `.gitignore` **conserva la línea `harness/.harness-backup/`** (para que no aparezcan como no rastreados) y el cierre **avisa** de cómo retirarla cuando los borres. Así, el proyecto queda **sin Harness, pero con tu avance**. Admite `-WhatIf`.
 
@@ -240,12 +242,12 @@ Las actualizaciones son **seguras**: primero preparan la copia en un directorio 
 El catálogo se autoverifica con un script **determinista**, sin depender de openCode: sirve en local y en CI.
 
 ```powershell
-.\tools\check.ps1            # estructura, referencias, triggers, evals, frescura y encoding
+.\tools\check.ps1            # estructura, referencias, triggers, evals, frescura, encoding e inventario
 .\tools\check.ps1 -Strict    # los avisos también cuentan como fallo
 .\tools\check.ps1 -MaxAgeDays 120 -OverlapThreshold 0.4
 ```
 
-Comprueba seis cosas:
+Comprueba siete cosas:
 
 1. **Estructura** — cada `SKILL.md` tiene frontmatter, `name` igual a su carpeta, `description` presente y acotada, y cuerpo ≤ 400 líneas.
 2. **Referencias** — cada `references/**.md` está **citado** y es **alcanzable** desde su `SKILL.md` (directamente o encadenando referencias; admite sub-referencias). Evita el *progressive disclosure roto*: referencias que nunca se leen porque ningún archivo las nombra.
@@ -253,6 +255,7 @@ Comprueba seis cosas:
 4. **Evals de disparo (heurísticas de routing)** — casos curados en `evals/triggers.json` (`{id, tipo, prompt, expect}`: `expect` es el nombre de la skill esperada, `"none"` o `null` para negativos). Exige que **gane** la skill esperada, no solo que aparezca. Compara el vocabulario del prompt contra las `description`: **no ejecuta openCode** ni comprueba qué skill activa el agente de verdad, así que mide **regresiones léxicas**, no el routing real. El desglose por `tipo` (positivo/ambiguo/frontera/negativo) sale en el resumen.
 5. **Frescura** — antigüedad de los marcadores `verificado YYYY-MM-DD`; **falla** si superan `-MaxAgeDays` (180 por defecto).
 6. **Encoding** — el texto versionado debe ser **UTF-8 sin BOM** y con **LF**; los `.ps1`, además, **ASCII puro** (un byte > 127 ahí suele ser mojibake que PowerShell 5.1 lee distinto según la consola). Convierte en contrato verificable la regla de [CONTRIBUTING](CONTRIBUTING.md); antes se revisaba a mano.
+7. **Inventario** — el conteo declarado (en negrita: `**N skills**`, `**N casos**`) en `README.md`/`DEVELOPMENT.md` debe **coincidir con el catálogo real**. Evita el *drift* silencioso: si el catálogo crece y el texto no se actualiza, salta aquí en vez de en una auditoría.
 
 Sale con código **0** (ok, con avisos) o **1** (fallo), igual que `install.ps1 -Doctor`. El workflow [`.github/workflows/check.yml`](.github/workflows/check.yml) lo ejecuta en cada push/PR y **una vez al mes** (para detectar drift de frescura aunque no haya commits).
 
