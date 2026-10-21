@@ -547,6 +547,47 @@ try {
     Assert ($r.Exit -eq 0) '-Global -Context sale 0'
     Assert ($r.Out -match 'solo aplica al scope Local') '-Global -Context avisa de que no aplica'
 
+    # --- -Adopt: informe de solo lectura (no escribe NADA) -------------------
+    Section 'install.ps1 -Adopt (informe de alineacion con plantillas; solo lectura)'
+    $pa = New-Project 'proj-adopt'
+    # Un .md identico a la plantilla y otro que se aparta del estandar.
+    Copy-Item -LiteralPath (Join-Path $Repo 'templates/README.md') -Destination (Join-Path $pa 'README.md')
+    Write-NoBom (Join-Path $pa 'DEVELOPMENT.md') "# Desarrollo propio`n`nSin seguir el estandar.`n"
+    $before = (Get-ChildItem -LiteralPath $pa -Recurse -File | ForEach-Object { (Get-FileHash -LiteralPath $_.FullName).Hash } | Sort-Object) -join ','
+    $r = Invoke-Script $Install @('-Project', $pa, '-Adopt', '-Source', $Repo)
+    Assert ($r.Exit -eq 0) '-Adopt sale 0 (es informativo, no falla)'
+    Assert ($r.Out -match 'SOLO LECTURA') '-Adopt se declara de solo lectura'
+    Assert ($r.Out -match 'identico a la plantilla') '-Adopt marca el archivo ya alineado'
+    Assert ($r.Out -match 'DIFF') '-Adopt reporta el que se aparta'
+    Assert ($r.Out -match 'Desarrollo propio') '-Adopt muestra la linea del proyecto (-)'
+    Assert ($r.Out -match 'Sin seguir el estandar') '-Adopt muestra la linea del proyecto en el diff'
+    Assert ($r.Out -match 'FALTA') '-Adopt reporta el .md ausente (SKILL.md)'
+    $after = (Get-ChildItem -LiteralPath $pa -Recurse -File | ForEach-Object { (Get-FileHash -LiteralPath $_.FullName).Hash } | Sort-Object) -join ','
+    Assert ($before -eq $after) '-Adopt NO modifica ningun archivo (hashes identicos)'
+    Assert (-not (Test-Path -LiteralPath (Join-Path $pa 'harness'))) '-Adopt no despliega harness/'
+    Assert (-not (Test-Path -LiteralPath (Join-Path $pa '.harness.json'))) '-Adopt no escribe manifiesto'
+
+    # -Adopt con todo alineado: no hay diferencias.
+    $pa2 = New-Project 'proj-adopt-ok'
+    foreach ($f in @('README.md', 'DEVELOPMENT.md', 'SKILL.md')) { Copy-Item -LiteralPath (Join-Path $Repo ('templates/' + $f)) -Destination (Join-Path $pa2 $f) }
+    $r = Invoke-Script $Install @('-Project', $pa2, '-Adopt', '-Source', $Repo)
+    Assert ($r.Exit -eq 0) '-Adopt alineado sale 0'
+    Assert ($r.Out -match 'ya siguen las plantillas') '-Adopt confirma cuando todo esta alineado'
+    Assert (-not ($r.Out -match 'DIFF')) '-Adopt no reporta DIFF si todo esta alineado'
+
+    # -Adopt en Global: avisa en vez de fallar.
+    $homeA = New-Project 'home-global-adopt'
+    $r = Invoke-Script $Install @('-Global', '-Adopt', '-Source', $Repo) -Env @{ HOME = $homeA; USERPROFILE = $homeA }
+    Assert ($r.Exit -eq 0) '-Global -Adopt sale 0'
+    Assert ($r.Out -match 'solo aplica al scope Local') '-Global -Adopt avisa de que no aplica'
+
+    # -Adopt con archivo grande: no cuelga; usa el diff por posicion (umbral LCS).
+    $pa3 = New-Project 'proj-adopt-grande'
+    Write-NoBom (Join-Path $pa3 'DEVELOPMENT.md') ((1..2000 | ForEach-Object { "linea $_" }) -join "`n")
+    $r = Invoke-Script $Install @('-Project', $pa3, '-Adopt', '-Source', $Repo)
+    Assert ($r.Exit -eq 0) '-Adopt con archivo grande sale 0 (no cuelga)'
+    Assert ($r.Out -match 'archivo grande: diff por posicion') '-Adopt avisa que uso el diff por posicion'
+
     # --- check.ps1 -----------------------------------------------------------
     Section 'check.ps1'
     $r = Invoke-Script $Check @()

@@ -119,6 +119,14 @@ Qué hace:
 
 `-Uninstall` **desinstala** el Harness del scope **por pertenencia, sin destruir nada**: retira solo lo gestionado —las **skills** con marcador `.harness-source`, las **reglas** (`AGENTS.md`) si constan como del Harness (manifiesto `rules:true` o hash idéntico al catálogo), el `instructions` que el Harness **añadió**, `.harness/session.md`, el `.harness.json` y el bloque del `.gitignore`—. **Nada se borra**: lo gestionado se **mueve a `.harness-backup/`** (nunca se pierde) y todo lo **ajeno se conserva** (tus skills sin marcador, tus archivos dentro de `harness/`, tus respaldos, tus `opencode.json`/plugins/config en `~/.config/opencode`, tu código y tu documentación, incluidos los `.md` sembrados). Los **directorios solo se eliminan si quedan vacíos**. Mientras queden respaldos, el `.gitignore` **conserva la línea `harness/.harness-backup/`** (para que no aparezcan como no rastreados) y el cierre **avisa** de cómo retirarla cuando los borres. Así, el proyecto queda **sin Harness, pero con tu avance**. Admite `-WhatIf`.
 
+### Alinear la memoria con el estándar (`-Adopt`)
+
+`-Context` resuelve el caso "el `.md` no existe o está vacío". Cuando el `.md` **ya tiene contenido propio** pero **no sigue el estándar**, entra `-Adopt`: un **informe de solo lectura** (scope Local) que compara tus `README.md`/`DEVELOPMENT.md`/`SKILL.md` con las plantillas del catálogo e **imprime el diff** (`-` es tu línea, `+` es la de la plantilla), con un resumen por archivo (`OK` idéntico, `DIFF` se aparta, `VACIO`, `FALTA`). **Nunca escribe nada** —ni con `-Force`—: es una **propuesta** para que decidas qué adoptar a mano. Reescribir tu documentación sin que lo pidas sería destructivo, así que el Harness solo **muestra**. Sale siempre con código **0**.
+
+```powershell
+.\install.ps1 -Project "D:\ruta\al\proyecto" -Adopt
+```
+
 ### Detección de tecnologías (`-Detect`)
 
 Es **heurística** (marcadores de archivos y dependencias, no análisis de código) y recorre **todo el árbol** del proyecto, excluyendo `node_modules`, `bin`, `obj`, `.git`, `harness/` y similares. Lee las dependencias de **todos** los paquetes (varios `package.json`/`requirements.txt`/`pyproject.toml` en un monorepo) y **agrega a nivel global** (no separa por subcarpeta). Añade `-Verbose` para ver **la evidencia** de cada tecnología (con la ruta del archivo que la disparó).

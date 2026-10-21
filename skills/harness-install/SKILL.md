@@ -32,6 +32,7 @@ Repositorio: `https://github.com/TheNefelin/Harness.git`
 | `-List` | Muestra el catálogo (nombre + descripción) y sale |
 | `-Detect` | Escanea el proyecto (`-Project`) y lista las tecnologías sin skill en el catálogo. Solo lectura |
 | `-Doctor` | Audita la instalación del scope (manifiesto, marcadores/hashes, reglas, `opencode.json`, **versión del cliente V1/V2**). Solo lectura; sale 0/1 |
+| `-Adopt` | Informe de **solo lectura** (Local): compara tus `README.md`/`DEVELOPMENT.md`/`SKILL.md` con las plantillas e **imprime el diff** (`-` proyecto, `+` plantilla). **Nunca escribe**; es una propuesta. Cubre el `.md` con contenido que no sigue el estándar |
 | `-Project <ruta>` | Scope **Local**: vive en `<ruta>\harness\` |
 | `-Global` | Scope **Global**: vive en `~/.config/opencode\` |
 | `-Skills a,b,c` | Skills a instalar. **Obligatorio** salvo con `-Update`/`-Uninstall`/`-List`: no hay set por defecto |

@@ -72,6 +72,12 @@
     existe pero esta VACIO (0 bytes o solo espacios), se siembra la plantilla (no se pierde
     contenido, porque no lo habia).
 
+.PARAMETER Adopt
+    Informe de SOLO LECTURA (scope Local): compara tus .md de memoria (README.md,
+    DEVELOPMENT.md, SKILL.md) con las plantillas del catalogo e IMPRIME el diff
+    (- proyecto, + plantilla). Nunca escribe nada: es una propuesta para que decidas.
+    Cubre el caso "el .md existe pero no sigue el estandar".
+
 .EXAMPLE
     .\install.ps1 -List
     .\install.ps1 -Project "D:\ruta\al\proyecto" -Detect
@@ -85,6 +91,7 @@
     .\install.ps1 -Project "D:\ruta\al\proyecto" -Update
     .\install.ps1 -Project "D:\ruta\al\proyecto" -Doctor
     .\install.ps1 -Global -Doctor
+    .\install.ps1 -Project "D:\ruta\al\proyecto" -Adopt
     .\install.ps1 -Project "D:\ruta\al\proyecto" -Uninstall
 
 .NOTES
@@ -122,7 +129,9 @@ param(
 
     [switch]$IncludeRules,
 
-    [switch]$Context
+    [switch]$Context,
+
+    [switch]$Adopt
 )
 
 $ErrorActionPreference = 'Stop'
@@ -456,6 +465,7 @@ if ($List) {
     Write-Host 'Global:  .\install.ps1 -Global -Skills <a,b>'
     Write-Host 'Update:  .\install.ps1 [-Project <ruta>|-Global] -Update'
     Write-Host 'Doctor:  .\install.ps1 [-Project <ruta>|-Global] -Doctor'
+    Write-Host 'Adopt:   .\install.ps1 -Project <ruta> -Adopt   (informe; no escribe)'
     Write-Host 'Quitar:  .\install.ps1 [-Project <ruta>|-Global] -Uninstall'
     exit 0
 }
@@ -662,6 +672,124 @@ if ($Doctor) {
         exit 1
     }
     Write-Host ("Doctor: OK ({0} aviso(s))." -f $warnCount) -ForegroundColor Green
+    exit 0
+}
+
+if ($Adopt) {
+    # Modo SOLO LECTURA: compara los .md de memoria del proyecto con las plantillas del
+    # catalogo e IMPRIME el diff (nada se escribe, nunca). Cubre el caso "existe pero no
+    # sigue el estandar". Adoptar es una decision del usuario: aqui solo se muestra.
+    if ($Scope -ne 'Local') {
+        Write-Host 'AVISO  -Adopt solo aplica al scope Local (con -Project); en Global no hay memoria que comparar.' -ForegroundColor Yellow
+        exit 0
+    }
+
+    function Get-LineArray {
+        param([string]$Path)
+        $text = [System.IO.File]::ReadAllText($Path, [System.Text.Encoding]::UTF8)
+        if ($text.Length -eq 0) { return @() }
+        return @($text -split "`r`n|`r|`n")
+    }
+
+    # LCS sobre lineas -> lista de operaciones ' ' (igual), '-' (solo proyecto), '+' (solo plantilla).
+    # La matriz es O(n*m): con archivos grandes seria lenta y tragona de memoria, asi que por
+    # encima de $LcsMaxLines se cae a un diff posicional O(n) (menos fino, pero honesto y rapido).
+    $LcsMaxLines = 1200
+    function Get-LineDiff {
+        param([string[]]$A, [string[]]$B, [switch]$Positional)
+        $n = $A.Count; $m = $B.Count
+        $ops = [System.Collections.Generic.List[object]]::new()
+        if ($Positional) {
+            # Sin LCS: compara por posicion. Informa de cambios/anadidos, no de reordenaciones.
+            $max = [Math]::Max($n, $m)
+            for ($k = 0; $k -lt $max; $k++) {
+                $la = if ($k -lt $n) { $A[$k] } else { $null }
+                $lb = if ($k -lt $m) { $B[$k] } else { $null }
+                if ($null -ne $la -and $null -ne $lb -and $la -ceq $lb) { [void]$ops.Add([pscustomobject]@{ Op = ' '; Line = $la }) }
+                else {
+                    if ($null -ne $la) { [void]$ops.Add([pscustomobject]@{ Op = '-'; Line = $la }) }
+                    if ($null -ne $lb) { [void]$ops.Add([pscustomobject]@{ Op = '+'; Line = $lb }) }
+                }
+            }
+            return $ops
+        }
+        # Matriz LCS (n+1)x(m+1)
+        $dp = New-Object 'int[,]' ($n + 1), ($m + 1)
+        for ($i = $n - 1; $i -ge 0; $i--) {
+            for ($j = $m - 1; $j -ge 0; $j--) {
+                if ($A[$i] -ceq $B[$j]) { $dp.Set($i, $j, ($dp.Get(($i + 1), ($j + 1)) + 1)) }
+                else { $dp.Set($i, $j, [Math]::Max($dp.Get(($i + 1), $j), $dp.Get($i, ($j + 1)))) }
+            }
+        }
+        $x = 0; $y = 0
+        while ($x -lt $n -and $y -lt $m) {
+            if ($A[$x] -ceq $B[$y]) { [void]$ops.Add([pscustomobject]@{ Op = ' '; Line = $A[$x] }); $x++; $y++ }
+            elseif ($dp.Get(($x + 1), $y) -ge $dp.Get($x, ($y + 1))) { [void]$ops.Add([pscustomobject]@{ Op = '-'; Line = $A[$x] }); $x++ }
+            else { [void]$ops.Add([pscustomobject]@{ Op = '+'; Line = $B[$y] }); $y++ }
+        }
+        while ($x -lt $n) { [void]$ops.Add([pscustomobject]@{ Op = '-'; Line = $A[$x] }); $x++ }
+        while ($y -lt $m) { [void]$ops.Add([pscustomobject]@{ Op = '+'; Line = $B[$y] }); $y++ }
+        return $ops
+    }
+
+    Write-Host 'Adopt - propuesta de alineacion con las plantillas (SOLO LECTURA; no se escribe nada)' -ForegroundColor Cyan
+    Write-Host ("  proyecto: {0}" -f $Project) -ForegroundColor DarkGray
+    Write-Host ("  catalogo: {0} (Harness {1})" -f $TemplatesDir, $Version) -ForegroundColor DarkGray
+    Write-Host ''
+
+    $anyDiff = $false
+    $anyMissing = $false
+    foreach ($file in @('README.md', 'DEVELOPMENT.md', 'SKILL.md')) {
+        $target = Join-Path $Project $file
+        $template = Join-Path $TemplatesDir $file
+        Write-Host ("== {0} ==" -f $file) -ForegroundColor White
+        if (-not (Test-Path -LiteralPath $target)) {
+            $anyMissing = $true
+            Write-Host ("  FALTA  no existe; la plantilla tiene {0} lineas (siembrala con -Context)" -f (@(Get-LineArray $template).Count)) -ForegroundColor Yellow
+            Write-Host ''
+            continue
+        }
+        if (-not (Test-Path -LiteralPath $template)) {
+            Write-Host '  SKIP   no hay plantilla para este archivo en el catalogo' -ForegroundColor DarkGray
+            Write-Host ''
+            continue
+        }
+        if ((Test-EmptiedFile -Path $target)) {
+            $anyDiff = $true
+            Write-Host "  VACIO  sin contenido; la plantilla tiene $(@(Get-LineArray $template).Count) lineas (siembrala con -Context)" -ForegroundColor Yellow
+            Write-Host ''
+            continue
+        }
+        $a = Get-LineArray $target
+        $b = Get-LineArray $template
+        if (($a -join "`n") -ceq ($b -join "`n")) {
+            Write-Host '  OK     identico a la plantilla' -ForegroundColor Green
+            Write-Host ''
+            continue
+        }
+        $huge = ($a.Count -gt $LcsMaxLines -or $b.Count -gt $LcsMaxLines)
+        $ops = Get-LineDiff $a $b -Positional:$huge
+        $added = @($ops | Where-Object { $_.Op -eq '+' }).Count
+        $removed = @($ops | Where-Object { $_.Op -eq '-' }).Count
+        $anyDiff = $true
+        if ($huge) { Write-Host ("  DIFF   +{0} / -{1} lineas  (archivo grande: diff por posicion; - proyecto, + plantilla; NO se aplica)" -f $added, $removed) -ForegroundColor Yellow }
+        else { Write-Host ("  DIFF   +{0} / -{1} lineas  (- proyecto, + plantilla; NO se aplica)" -f $added, $removed) -ForegroundColor Yellow }
+        foreach ($o in $ops) {
+            if ($o.Op -eq ' ') { continue }
+            $color = if ($o.Op -eq '+') { 'Green' } else { 'Red' }
+            Write-Host ("    {0} {1}" -f $o.Op, $o.Line) -ForegroundColor $color
+        }
+        Write-Host ''
+    }
+
+    Write-Host '---'
+    if (-not $anyDiff -and -not $anyMissing) {
+        Write-Host 'Adopt: tus .md ya siguen las plantillas.' -ForegroundColor Green
+    }
+    else {
+        Write-Host 'Adopt: hay diferencias (arriba). Es un informe: tu decides si las aplicas a mano.' -ForegroundColor Cyan
+        Write-Host '       - los .md escritos por ti no se tocan; esto solo muestra que se aparta del estandar.' -ForegroundColor DarkGray
+    }
     exit 0
 }
 
