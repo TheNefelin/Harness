@@ -562,7 +562,7 @@ try {
     $fa = New-Project 'chk-refs-ok'
     New-Item -ItemType Directory -Force -Path (Join-Path $fa 'tools'), (Join-Path $fa 'evals'), (Join-Path $fa 'skills/demo/references/sub') | Out-Null
     Copy-Item -LiteralPath $Check -Destination (Join-Path $fa 'tools/check.ps1')
-    Set-Content -LiteralPath (Join-Path $fa 'evals/triggers.json') -Value '[]'
+    Write-NoBom (Join-Path $fa 'evals/triggers.json') '[]'
     Write-NoBom (Join-Path $fa 'skills/demo/SKILL.md') "---`nname: demo`ndescription: `"Demo para pruebas`"`n---`n`n# Demo`n`nVer references/a.md para el detalle.`n"
     Write-NoBom (Join-Path $fa 'skills/demo/references/a.md') "# A`n`nVer references/sub/b.md.`n"
     Write-NoBom (Join-Path $fa 'skills/demo/references/sub/b.md') "# B`n`nContenido.`n"
@@ -572,12 +572,53 @@ try {
     $fb = New-Project 'chk-refs-orphan'
     New-Item -ItemType Directory -Force -Path (Join-Path $fb 'tools'), (Join-Path $fb 'evals'), (Join-Path $fb 'skills/demo/references') | Out-Null
     Copy-Item -LiteralPath $Check -Destination (Join-Path $fb 'tools/check.ps1')
-    Set-Content -LiteralPath (Join-Path $fb 'evals/triggers.json') -Value '[]'
+    Write-NoBom (Join-Path $fb 'evals/triggers.json') '[]'
     Write-NoBom (Join-Path $fb 'skills/demo/SKILL.md') "---`nname: demo`ndescription: `"Demo para pruebas`"`n---`n`n# Demo`n"
     Write-NoBom (Join-Path $fb 'skills/demo/references/orphan.md') "# Huerfana`n"
     $r = Invoke-Script (Join-Path $fb 'tools/check.ps1') @()
     Assert ($r.Exit -ne 0) 'check falla con referencia no citada'
     Assert ($r.Out -match 'orphan') 'check nombra la referencia huerfana'
+
+    # --- check.ps1: encoding (UTF-8 sin BOM, LF; .ps1 ASCII) ----------------
+    Section 'check.ps1 encoding (UTF-8 sin BOM, LF; .ps1 en ASCII)'
+    function New-EncRoot {
+        param([string]$Name)
+        $root = New-Project $Name
+        New-Item -ItemType Directory -Force -Path (Join-Path $root 'tools'), (Join-Path $root 'evals'), (Join-Path $root 'skills/demo') | Out-Null
+        Copy-Item -LiteralPath $Check -Destination (Join-Path $root 'tools/check.ps1')
+        Write-NoBom (Join-Path $root 'evals/triggers.json') '[]'
+        Write-NoBom (Join-Path $root 'skills/demo/SKILL.md') "---`nname: demo`ndescription: `"Demo`"`n---`n`n# Demo`n"
+        return $root
+    }
+    # (a) todo en regla -> pasa
+    $encOk = New-EncRoot 'chk-enc-ok'
+    Write-NoBom (Join-Path $encOk 'README.md') "# Titulo con tildes: configuracion`n"
+    $r = Invoke-Script (Join-Path $encOk 'tools/check.ps1') @()
+    Assert ($r.Exit -eq 0) 'check pasa con encoding correcto (UTF-8 sin BOM, LF)'
+    Assert ($r.Out -match 'Encoding') 'check reporta la seccion de encoding'
+    # (b) .ps1 con byte no-ASCII -> falla
+    $encPs = New-EncRoot 'chk-enc-ps1'
+    [System.IO.File]::WriteAllBytes((Join-Path $encPs 'tools/malo.ps1'), [byte[]](0x23, 0xC3, 0xB1, 0x0A))
+    $r = Invoke-Script (Join-Path $encPs 'tools/check.ps1') @()
+    Assert ($r.Exit -ne 0) 'check falla con .ps1 no-ASCII'
+    Assert ($r.Out -match 'no-ASCII') 'check nombra el byte no-ASCII'
+    # (c) .md con BOM -> falla
+    $encBom = New-EncRoot 'chk-enc-bom'
+    [System.IO.File]::WriteAllBytes((Join-Path $encBom 'README.md'), [byte[]](0xEF, 0xBB, 0xBF, 0x23, 0x0A))
+    $r = Invoke-Script (Join-Path $encBom 'tools/check.ps1') @()
+    Assert ($r.Exit -ne 0) 'check falla con BOM'
+    Assert ($r.Out -match 'BOM') 'check nombra el BOM'
+    # (d) .md con CRLF -> falla
+    $encCrlf = New-EncRoot 'chk-enc-crlf'
+    [System.IO.File]::WriteAllBytes((Join-Path $encCrlf 'README.md'), [byte[]](0x23, 0x0D, 0x0A))
+    $r = Invoke-Script (Join-Path $encCrlf 'tools/check.ps1') @()
+    Assert ($r.Exit -ne 0) 'check falla con CRLF'
+    Assert ($r.Out -match 'CRLF') 'check nombra el CRLF'
+    # (e) .md con no-ASCII (tildes legitimas) -> pasa (solo .ps1 debe ser ASCII)
+    $encMd = New-EncRoot 'chk-enc-md'
+    [System.IO.File]::WriteAllBytes((Join-Path $encMd 'README.md'), [byte[]](0x23, 0x20, 0xC3, 0xB1, 0x0A))
+    $r = Invoke-Script (Join-Path $encMd 'tools/check.ps1') @()
+    Assert ($r.Exit -eq 0) 'check acepta no-ASCII en .md (regla: UTF-8, no ASCII)'
 
     # --- Plantillas: permisos V2 (deniega secretos, permite plantillas) ------
     Section 'templates (permisos V2: deniega secretos, permite plantillas)'

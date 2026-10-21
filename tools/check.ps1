@@ -16,6 +16,8 @@
       - Frescura : marcadores 'verificado YYYY-MM-DD' y su antiguedad frente a MaxAgeDays.
       - Referencias: cada references/**.md debe citarse y ser alcanzable desde SKILL.md
                    (directamente o encadenando; permite sub-referencias).
+      - Encoding : el texto versionado debe ser UTF-8 sin BOM y con LF; los .ps1, ASCII
+                   puro (un byte > 127 ahi suele ser mojibake).
 
 .PARAMETER MaxAgeDays
     Antiguedad maxima, en dias, de un marcador de frescura. Por defecto 180.
@@ -163,7 +165,7 @@ Write-Host "Harness - verificacion del catalogo ($N skills, $Root)" -ForegroundC
 
 # --- 1. Lint de skills -------------------------------------------------------
 Write-Host ""
-Write-Host "[1/5] Estructura de skills" -ForegroundColor White
+Write-Host "[1/6] Estructura de skills" -ForegroundColor White
 foreach ($s in $catalog) {
     if (-not $s.Meta.HasFrontmatter) { Add-Fail "frontmatter ausente: $($s.Name)/SKILL.md"; continue }
     if ([string]::IsNullOrWhiteSpace($s.Meta.Name)) { Add-Fail "name ausente: $($s.Name)/SKILL.md" }
@@ -191,7 +193,7 @@ if ($near.Count -gt 0) {
 
 # --- 2. Referencias citadas y alcanzables -----------------------------------
 Write-Host ""
-Write-Host "[2/5] Referencias (cada references/**.md citada y alcanzable desde SKILL.md)" -ForegroundColor White
+Write-Host "[2/6] Referencias (cada references/**.md citada y alcanzable desde SKILL.md)" -ForegroundColor White
 $orphanRefs = [System.Collections.Generic.List[string]]::new()
 foreach ($s in $catalog) {
     $skillDir = Split-Path -Parent $s.File
@@ -236,7 +238,7 @@ else {
 
 # --- 3. Solapamiento de triggers --------------------------------------------
 Write-Host ""
-Write-Host "[3/5] Solapamiento de triggers (Jaccard distintivo > $OverlapThreshold)" -ForegroundColor White
+Write-Host "[3/6] Solapamiento de triggers (Jaccard distintivo > $OverlapThreshold)" -ForegroundColor White
 $distinctive = @{}
 foreach ($s in $catalog) {
     $ds = [System.Collections.Generic.HashSet[string]]::new([System.StringComparer]::OrdinalIgnoreCase)
@@ -280,7 +282,7 @@ if ($rankedPairs.Count -gt 0) {
 
 # --- 4. Evals de disparo -----------------------------------------------------
 Write-Host ""
-Write-Host "[4/5] Evals de disparo (evals/triggers.json)" -ForegroundColor White
+Write-Host "[4/6] Evals de disparo (evals/triggers.json)" -ForegroundColor White
 if (-not (Test-Path -LiteralPath $EvalsFile)) {
     Add-Fail "no existe evals/triggers.json"
     Write-Host "  FALLO  falta evals/triggers.json" -ForegroundColor Red
@@ -336,7 +338,7 @@ else {
 
 # --- 5. Frescura -------------------------------------------------------------
 Write-Host ""
-Write-Host "[5/5] Frescura (marcadores 'verificado YYYY-MM-DD', max $MaxAgeDays dias)" -ForegroundColor White
+Write-Host "[5/6] Frescura (marcadores 'verificado YYYY-MM-DD', max $MaxAgeDays dias)" -ForegroundColor White
 $today = (Get-Date).Date
 $rx = [regex]'(?i)verificad[oa]s?:?\s+(\d{4})-(\d{2})-(\d{2})'
 $rxMarker = [regex]'(?i)frescura\s*:'
@@ -365,6 +367,57 @@ foreach ($file in $mdFiles) {
     }
 }
 if ($stale -eq 0) { Write-Host "  OK: ningun marcador supera $MaxAgeDays dias." -ForegroundColor Green }
+
+# --- 6. Encoding y saltos de linea -------------------------------------------
+# Regla del repo: TODO texto versionado en UTF-8 SIN BOM y con LF. Los .ps1 ademas
+# deben ser ASCII puro (sin bytes > 127): un no-ASCII ahi suele ser mojibake que
+# PowerShell 5.1 lee distinto segun la consola. Se chequea el contenido VERSIONADO
+# (lo que git rastrea) para no tropezar con artefactos locales.
+Write-Host "[6/6] Encoding (UTF-8 sin BOM, LF; .ps1 en ASCII)" -ForegroundColor White
+$EncodingExts = @('.ps1', '.md', '.json', '.yml', '.yaml')
+$gitTracked = @()
+if (Get-Command git -ErrorAction SilentlyContinue) {
+    # git escribe a stderr en un no-repo; con ErrorActionPreference=Stop eso abortaria.
+    # Se aisla el EAP y se decide por $LASTEXITCODE, no por una excepcion.
+    $prevEap = $ErrorActionPreference
+    $ErrorActionPreference = 'Continue'
+    try {
+        $out = & git -C $Root ls-files 2>$null
+        if ($LASTEXITCODE -eq 0 -and $out) { $gitTracked = @($out) }
+    }
+    catch { $gitTracked = @() }
+    finally { $ErrorActionPreference = $prevEap }
+}
+if ($gitTracked.Count -eq 0) {
+    # Sin git: recorrer el disco, excluyendo artefactos que no son fuente.
+    $gitTracked = @(Get-ChildItem -LiteralPath $Root -Recurse -File |
+        Where-Object { $EncodingExts -contains $_.Extension.ToLower() -and $_.FullName -notmatch '[\\/](\.git|node_modules|\.harness-backup)[\\/]' } |
+        ForEach-Object { Get-RelPath $_.FullName })
+}
+$encBad = 0; $encChecked = 0
+foreach ($rel in $gitTracked) {
+    $ext = [System.IO.Path]::GetExtension($rel).ToLower()
+    if ($EncodingExts -notcontains $ext) { continue }
+    $full = Join-Path $Root $rel
+    if (-not (Test-Path -LiteralPath $full)) { continue }
+    $encChecked++
+    $bytes = [System.IO.File]::ReadAllBytes($full)
+    $hasBom = ($bytes.Length -ge 3 -and $bytes[0] -eq 0xEF -and $bytes[1] -eq 0xBB -and $bytes[2] -eq 0xBF)
+    $hasCrlf = $false
+    for ($i = 0; $i -lt $bytes.Length - 1; $i++) { if ($bytes[$i] -eq 13 -and $bytes[$i + 1] -eq 10) { $hasCrlf = $true; break } }
+    $nonAscii = 0
+    foreach ($b in $bytes) { if ($b -gt 127) { $nonAscii++ } }
+    $problem = $null
+    if ($hasBom) { $problem = 'lleva BOM' }
+    elseif ($hasCrlf) { $problem = 'usa CRLF (debe ser LF)' }
+    elseif ($ext -eq '.ps1' -and $nonAscii -gt 0) { $problem = "tiene $nonAscii byte(s) no-ASCII (debe ser ASCII)" }
+    if ($problem) {
+        $encBad++
+        Add-Fail "encoding ($problem): $rel"
+        Write-Host ("  FALLO  {0}  {1}" -f $problem, $rel) -ForegroundColor Red
+    }
+}
+if ($encBad -eq 0) { Write-Host "  OK: $encChecked archivo(s) en UTF-8 sin BOM y LF; .ps1 en ASCII." -ForegroundColor Green }
 
 # --- Resumen -----------------------------------------------------------------
 Write-Host ""

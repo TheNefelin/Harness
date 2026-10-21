@@ -15,7 +15,7 @@
 | Catálogo de skills | `skills/<nombre>/SKILL.md` (+ `references/`) | Al tocar una skill o su tecnología |
 | Instalación / desinstalación | `install.ps1` (cabecera `.PARAMETER`) y `README.md` | Al cambiar scopes, manifiesto, `-Detect`/`-Doctor`/`-Uninstall` |
 | Plantillas de contexto | `templates/` | Al sembrar/actualizar `README.md`/`DEVELOPMENT.md`/`SKILL.md` de un proyecto |
-| Verificación | `tools/check.ps1` (estructura/solapamiento/frescura) y `tools/test.ps1` (integración) | Antes de cerrar cualquier cambio |
+| Verificación | `tools/check.ps1` (estructura/solapamiento/frescura/encoding) y `tools/test.ps1` (integración) | Antes de cerrar cualquier cambio |
 | Memoria y contexto | Este archivo (`DEVELOPMENT.md`) + `AGENTS.md` §4 | Antes de trabajar en cualquier área |
 | Tarea en curso (efímera) | `.harness/session.md` (local, fuera de Git) | Al pausar/retomar una tarea larga |
 
@@ -25,7 +25,7 @@ Catálogo de **reglas** (`AGENTS.md`), **skills** (`skills/<nombre>/SKILL.md` + 
 
 - **Instalación** (`install.ps1`): copia gestionada de skills/reglas a **global** (`~/.config/opencode/`) o **local** (`<proyecto>/harness/`), con manifiesto `.harness.json` y marcador `.harness-source` por skill; poda y respalda en `.harness-backup`. Idempotente (`-Update`) y sin guardar rutas absolutas.
 - **Skills**: se cargan **bajo demanda** (la `description` siempre; el cuerpo al activarse). El detalle vive en `references/*.md` (**progressive disclosure**), citado desde el `SKILL.md`.
-- **Verificación**: `tools/check.ps1` valida estructura, referencias alcanzables, solapamiento (Jaccard), evals y frescura; `tools/test.ps1` son pruebas de integración. El CI (`.github/workflows/check.yml`) corre ambos en `windows-latest` + `ubuntu-latest`.
+- **Verificación**: `tools/check.ps1` valida estructura, referencias alcanzables, solapamiento (Jaccard), evals, frescura y encoding; `tools/test.ps1` son pruebas de integración. El CI (`.github/workflows/check.yml`) corre ambos en `windows-latest` + `ubuntu-latest`.
 
 ## Decisiones técnicas
 
@@ -52,13 +52,15 @@ Catálogo de **reglas** (`AGENTS.md`), **skills** (`skills/<nombre>/SKILL.md` + 
 | 2026-10-20 | Aceptado | `-Source` valida el catálogo **completo** (`skills/` + `AGENTS.md` + las tres plantillas) **antes** de desplegar | Un clon incompleto pasaba el chequeo (solo miraba `skills/`) y **abortaba a mitad**, tras desplegar skills/reglas pero antes de escribir `.harness.json` → scope irreconocible por `-Update`/`-Uninstall`/`-Doctor`. *Evidence over claims*: mejor fallar claro y temprano | Validar solo `skills/` y esperar que el resto exista |
 | 2026-10-20 | Aceptado | `-Update` desde manifiesto **tolera** una skill retirada del catálogo (avisa, omite y la poda); con `-Skills` explícito un nombre inexistente **falla fuerte** | Asimetría por origen del dato: el set del manifiesto lo eligió el instalador (un nombre ausente = el catálogo **retiró** la skill, y abortar en bloque impedía refrescar el resto); el set de `-Skills` lo escribió el usuario (un nombre ausente = casi seguro **error de tecleo**, y conviene verlo). *Friction proportional to risk* | Abortar en bloque siempre (asimetría con `-Doctor`, que ya tolera) o tolerar siempre (deja pasar typos) |
 | 2026-10-20 | Aceptado | El bloque del `.gitignore` se escribe con `[System.IO.File]::WriteAllText(..., UTF8Encoding($false))`, respetando el salto del archivo (LF si es nuevo, sin línea en blanco inicial) | `Add-Content` sin `-Encoding` usa ANSI en PS 5.1 → corrompía acentos/`ñ` de un `.gitignore` propio y rompía la regla UTF-8/LF del repo; además el bloque nuevo abría con línea en blanco | `Add-Content` (encoding por defecto, específico de Windows) |
+| 2026-10-21 | Aceptado | `check.ps1` verifica el **encoding** del texto versionado (UTF-8 sin BOM, LF; `.ps1` ASCII) | La regla estaba escrita en `CONTRIBUTING.md` pero **nadie la verificaba**: se revisaba a mano y se podía romper en silencio. Al automatizarla destapó un `¿` no-ASCII real en `install.ps1`. *Evidence over claims*: una regla sin verificación es una promesa | Revisar a mano en cada cambio (frágil, no cubierto por CI) |
+| 2026-10-21 | Aceptado | **No** endurecer la política `read *: allow` (p. ej. añadir `*.pem`/`~/.ssh`) | Es el default **fail-open** de openCode y cambiarlo crearía reglas que el cliente ya aplica o conoce (mantenimiento divergente); los denies cosméticos que no cubren el caso real son **seguridad teatral**. Se **documenta** que el fail-open es deliberado | Añadir denies cosméticos de secretos en la plantilla |
 
 ## Estado
 
 - [x] **0.2.0**: verificador (`check.ps1`), evals de disparo, CI, instalador base (`-Detect`/`-Doctor`/`-Global`) y skills base (godot/aws/azure/oci/harness-install).
 - [x] **0.3.0**: openCode V2 obligatorio, portabilidad multiplataforma, referencias citadas/alcanzables, `-Detect` en monorepo, `-SkillsOnly`/`-IncludeRules`, checkpoint de sesión, `DEVELOPMENT.md` y plantillas endurecidas (deny de Git).
 - [x] **Progressive disclosure**: `angular`/`astro`/`dotnet`/`fastapi` mueven el detalle de subsistema a `references/`; ninguna skill supera el 80% de `MaxBodyLines` (400).
-- [x] Catálogo: **17 skills**, **49 casos** de eval, **240 pruebas** de integración; `check.ps1 -Strict` en 0.
+- [x] Catálogo: **17 skills**, **49 casos** de eval, **249 pruebas** de integración; `check.ps1 -Strict` en 0.
 - [x] **Adopción segura** (2026-10-20): `-Context` siembra plantillas en `.md` existentes pero **vacíos**; `AGENTS.md` §4 exige **leer la memoria primero** (anti-scrapeo); `-Doctor` verifica el **cliente openCode V1/V2**; `-Uninstall` desinstala **por pertenencia** (respeta tu código y tu documentación, conserva respaldos y contenido ajeno, también en scope Global).
 
 ## Memoria: propuesta (estudio de `ericrisco/rsc-harness`)
@@ -94,7 +96,7 @@ Objetivo declarado por el usuario: que el agente **sepa sin escrapear** el códi
 
 - [x] **Opción 1 implementada** (2026-10-20): `-Context` siembra plantillas cuando el `.md` existe **vacío** (`Test-EmptiedFile`); `AGENTS.md` §4 gana la regla explícita de **leer la memoria primero**. Pruebas: `tools/test.ps1` 123 → **135**.
 - [x] **Hueco V1/V2 cerrado** (2026-10-20): `install.ps1 -Doctor` detecta la **versión del cliente** (`Get-OpenCodeClient`): V2 OK, V1 **falla**, ausente avisa.
-- [x] **Desinstalación limpia** (2026-10-20): `install.ps1 -Uninstall` retira **por pertenencia** (skills con marcador, reglas por `rules:true`/hash, `instructions` por `created.instructions`) y deja el proyecto "sin Harness, con el avance del usuario". Lo gestionado **se mueve a `.harness-backup`**; lo ajeno (skills sin marcador, archivos propios en `harness/`, config/plugins de `~/.config/opencode`, `opencode.json`/`.gitignore` preexistentes, `.md` sembrados) **se conserva**; los directorios solo se borran si quedan vacíos. **Corregido** tras auditoría: antes borraba `ScopeRoot` entero (crítico en Global) y comprobaba los respaldos tras borrarlos. Pruebas: 159 → **240** (incluye scope global y pertenencia; `.gitignore` conserva la línea de respaldos; `-Force` + `AGENTS.md` ajeno; sin colisión de sello; `-Source` incompleto; `-Context` en Global; `-Update` tolera skill retirada; `.gitignore` UTF-8 sin BOM).
+- [x] **Desinstalación limpia** (2026-10-20): `install.ps1 -Uninstall` retira **por pertenencia** (skills con marcador, reglas por `rules:true`/hash, `instructions` por `created.instructions`) y deja el proyecto "sin Harness, con el avance del usuario". Lo gestionado **se mueve a `.harness-backup`**; lo ajeno (skills sin marcador, archivos propios en `harness/`, config/plugins de `~/.config/opencode`, `opencode.json`/`.gitignore` preexistentes, `.md` sembrados) **se conserva**; los directorios solo se borran si quedan vacíos. **Corregido** tras auditoría: antes borraba `ScopeRoot` entero (crítico en Global) y comprobaba los respaldos tras borrarlos. Pruebas: 159 → **249** (incluye scope global y pertenencia; `.gitignore` conserva la línea de respaldos; `-Force` + `AGENTS.md` ajeno; sin colisión de sello; `-Source` incompleto; `-Context` en Global; `-Update` tolera skill retirada; `.gitignore` UTF-8 sin BOM; sección **Encoding** de `check.ps1`).
 - [x] **Opción 2 implementada** (2026-10-20): **Mapa del proyecto** en `DEVELOPMENT.md` (y su plantilla) como índice puntero; `AGENTS.md` §4 arranca por el mapa (no lee el archivo entero) y enlaza el **checkpoint** `.harness/session.md` como worklog de la tarea activa. Sin carpeta wiki, sin cron, sin plugins. Pruebas: 158 → **159**.
 ## Pendientes
 
@@ -105,6 +107,7 @@ Objetivo declarado por el usuario: que el agente **sepa sin escrapear** el códi
 
 - `check.ps1` **no** puede exigir marcador de frescura a todas las skills: algunas (p. ej. `nosql`) lo omiten por diseño porque no están atadas a versiones.
 - El patrón `*.env.*` (deny, alineado con el default de openCode) también **bloquea** nombres legítimos como `app.env.ts`: no hay glob que case "basename empieza por `.env`" porque `*` cruza `/`. Se mantiene **fail-closed** (protege `.env.local`/`.env.production`, que es lo importante).
+- La política `read *: allow` es **fail-open** (el default de openCode): protege `.env`/`.env.*`, pero **no** `*.pem`/`*.key`/`~/.ssh`. Es **decisión consciente** (2026-10-21): no se añaden denies cosméticos que el cliente ya aplica o conoce. La protección real de secretos vive en el default del cliente, no en la plantilla.
 - **Verificado (no repetir)**: `.env_demo` **NO** lo bloquea `*.env.*`. La especificación de *matching* de openCode V2 dice que el punto es **literal** (`*` es comodín; el resto de caracteres, literales), así que `*.env.*` exige la secuencia `.env.` y `.env_demo` (guion bajo) no la tiene. Por tanto las plantillas que lo listan como permitido (`AGENTS.md`, `templates/README.md`, `skills/fastapi`) son **correctas**; una auditoría previa lo reportó como contradicción y era un **falso positivo**. Cubierto por prueba de regresión.
 - **Sin verificar**: si openCode V2 evalúa cada **segmento** de un comando compuesto (p. ej. `git status && git push`). Hasta comprobarlo en una sesión V2 real, los patrones `allow` de Git (`git status*`) podrían permitir el comando entero sin preguntar; no afirmar lo contrario. Prueba manual pendiente.
 

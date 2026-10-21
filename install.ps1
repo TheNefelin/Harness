@@ -848,7 +848,7 @@ if ($Uninstall) {
             }
         }
     }
-    # Al terminar: ¿queda la carpeta de respaldos? (para el aviso y la linea de .gitignore)
+    # Al terminar: queda la carpeta de respaldos? (para el aviso y la linea de .gitignore)
     if (-not $WhatIf) { $bkLeft = Test-Path -LiteralPath $bkDir }
 
     # 6) .harness.json (manifiesto): al final.
