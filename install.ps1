@@ -883,7 +883,18 @@ $desired = @($desired | ForEach-Object { "$_".Split(',') } | ForEach-Object { $_
 $available = @(Get-Catalog | ForEach-Object { $_.Name })
 $unknown = @($desired | Where-Object { $_ -notin $available })
 if ($unknown.Count -gt 0) {
-    throw "Skills desconocidas: $($unknown -join ', '). Usa -List para ver el catalogo."
+    # Asimetria deliberada: con -Skills explicito un nombre raro es casi seguro un error de
+    # tecleo -> fallar fuerte. Con -Update el set viene del manifiesto, asi que un nombre que
+    # el catalogo ya no tiene significa que la skill fue RETIRADA -> avisar, omitirla y
+    # refrescar el resto. Al quitarla de $desired tambien se poda del manifiesto.
+    if ($Update -and -not $Skills) {
+        $desired = @($desired | Where-Object { $_ -notin $unknown })
+        Write-Host ("AVISO  el catalogo ya no incluye: {0}. Se omiten y se quitan del manifiesto." -f ($unknown -join ', ')) -ForegroundColor Yellow
+        if ($desired.Count -eq 0) { throw "Ninguna de las skills declaradas existe ya en el catalogo ($($unknown -join ', ')). Usa -Skills para reinstalar." }
+    }
+    else {
+        throw "Skills desconocidas: $($unknown -join ', '). Usa -List para ver el catalogo."
+    }
 }
 
 if ($Scope -eq 'Local') {
@@ -1106,14 +1117,23 @@ if ($Scope -eq 'Local') {
 
     $gi = Join-Path $Project '.gitignore'
     $existing = ''
-    if (Test-Path -LiteralPath $gi) { $existing = Get-Content -LiteralPath $gi -Raw }
+    $giExists = Test-Path -LiteralPath $gi
+    if ($giExists) { $existing = Get-Content -LiteralPath $gi -Raw }
     $entries = @('harness/skills/', 'harness/.harness-backup/', '.harness/')
     $toAdd = @($entries | Where-Object { ('' + $existing) -notmatch [regex]::Escape($_) })
     if ($toAdd.Count -gt 0) {
         if ($WhatIf) { Write-Host "WOULD  .gitignore (ignora $($toAdd -join ', '))" -ForegroundColor DarkCyan }
         else {
-            $block = "`n# Harness (gestionado; refrescar con install.ps1 -Update)`n" + (($toAdd -join "`n") + "`n")
-            Add-Content -LiteralPath $gi -Value $block
+            # UTF-8 sin BOM. Se respeta el salto de linea del archivo existente (si lo hay);
+            # si no existe, LF y sin linea en blanco inicial (regla del repo).
+            $nl = "`n"
+            if ($giExists -and $existing.Contains("`r`n")) { $nl = "`r`n" }
+            $block = "# Harness (gestionado; refrescar con install.ps1 -Update)$nl" + (($toAdd -join $nl) + $nl)
+            $newGi = if ($giExists -and $existing.Length -gt 0) {
+                if ($existing.EndsWith("`n")) { $existing + $block } else { $existing + $nl + $block }
+            }
+            else { $block }
+            [System.IO.File]::WriteAllText($gi, $newGi, (New-Object System.Text.UTF8Encoding($false)))
             Write-Host "OK     .gitignore (ignora $($toAdd -join ', '))" -ForegroundColor Green
         }
     }

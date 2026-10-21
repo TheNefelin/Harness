@@ -35,7 +35,7 @@ Repositorio: `https://github.com/TheNefelin/Harness.git`
 | `-Project <ruta>` | Scope **Local**: vive en `<ruta>\harness\` |
 | `-Global` | Scope **Global**: vive en `~/.config/opencode\` |
 | `-Skills a,b,c` | Skills a instalar. **Obligatorio** salvo con `-Update`/`-Uninstall`/`-List`: no hay set por defecto |
-| `-Update` | Refresca lo declarado en `.harness.json` (su scope), agrega lo que falte y **poda** lo que ya no se declare |
+| `-Update` | Refresca lo declarado en `.harness.json` (su scope), agrega lo que falte y **poda** lo que ya no se declare. Si el catálogo **retiró** una skill declarada, avisa, la omite y refresca el resto (la poda del manifiesto) |
 | `-Uninstall` | Desinstala el Harness del scope **por pertenencia**: retira skills con marcador `.harness-source`, reglas (`rules:true`/hash == catálogo) y el `instructions` que el Harness **añadió**; lo gestionado **se mueve a `.harness-backup`** y lo **ajeno se conserva** (skills sin marcador, archivos propios, config/plugins de `~/.config/opencode`). Los directorios solo se borran si quedan vacíos. Admite `-WhatIf` |
 | `-WhatIf` | Previsualiza qué haría (instalar/refrescar/respaldar/omitir/podar) sin modificar nada |
 | `-Source <ruta\|url>` | Origen del catálogo: clon local o URL git (se clona a temp). Actualiza sin abrir el repo Harness. Valida que sea un catálogo completo (`skills/`, `AGENTS.md`, `templates/opencode*.json`) **antes** de desplegar |

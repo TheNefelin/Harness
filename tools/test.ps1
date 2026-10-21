@@ -157,6 +157,51 @@ try {
     Assert ((Test-Path -LiteralPath $bdir) -and (@(Get-ChildItem -LiteralPath $bdir -Filter 'AGENTS.md-*').Count -ge 1)) 'respalda el AGENTS.md editado'
     Assert ((Get-FileHash -LiteralPath $rg).Hash -eq (Get-FileHash -LiteralPath (Join-Path $Repo 'AGENTS.md')).Hash) 'refresca AGENTS.md al catalogo'
 
+    # --- -Update tolera una skill RETIRADA del catalogo ----------------------
+    Section 'install.ps1 -Update (skill retirada del catalogo: avisa, omite y poda)'
+    $pr = New-Project 'proj-retirada'
+    $r = Invoke-Script $Install @('-Project', $pr, '-Skills', 'dotnet,sql', '-Source', $Repo)
+    Assert ($r.Exit -eq 0) 'instala dotnet,sql'
+    # Simular que el catalogo retiro 'sql': editar el manifiesto para declararla junto a una
+    # inexistente y comprobar que -Update no aborta en bloque (refresca el resto y la poda).
+    $decl = Join-Path $pr '.harness.json'
+    $txt = Get-Content -LiteralPath $decl -Raw
+    $txt = $txt -replace '"sql"', '"sql","skill-inexistente"'
+    Write-NoBom $decl $txt
+    $r = Invoke-Script $Install @('-Project', $pr, '-Update', '-Source', $Repo)
+    Assert ($r.Exit -eq 0) '-Update con skill retirada sale 0 (no aborta en bloque)'
+    Assert ($r.Out -match 'ya no incluye') '-Update avisa de la skill retirada'
+    Assert ($r.Out -match 'skill-inexistente') '-Update nombra la skill retirada'
+    $m = Get-Content -LiteralPath $decl -Raw | ConvertFrom-Json
+    Assert (@($m.skills) -notcontains 'skill-inexistente') '-Update poda la skill retirada del manifiesto'
+    Assert (@($m.skills) -contains 'sql') '-Update conserva las skills que siguen existiendo'
+    Assert (Test-Path -LiteralPath (Join-Path $pr 'harness/skills/dotnet')) '-Update deja el resto instalado'
+    # Con -Skills explicito el mismo nombre inexistente debe FALLAR (typo).
+    $r = Invoke-Script $Install @('-Project', $pr, '-Skills', 'skill-inexistente', '-Source', $Repo)
+    Assert ($r.Exit -ne 0) '-Skills con nombre inexistente falla fuerte (typo)'
+    Assert ($r.Out -match 'desconocidas') '-Skills inexistente avisa de skill desconocida'
+
+    # --- .gitignore en UTF-8 sin BOM y con el salto de linea del archivo -----
+    Section 'install.ps1 .gitignore (UTF-8 sin BOM, respeta el salto de linea)'
+    $pgi = New-Project 'proj-gitignore'
+    Write-NoBom (Join-Path $pgi '.gitignore') "# propio con tildes: configuracion`nnode_modules/`n"
+    $r = Invoke-Script $Install @('-Project', $pgi, '-Skills', 'dotnet', '-Source', $Repo)
+    Assert ($r.Exit -eq 0) 'instala con .gitignore preexistente'
+    $gi = Join-Path $pgi '.gitignore'
+    $giBytes = [System.IO.File]::ReadAllBytes($gi)
+    Assert (-not ($giBytes[0] -eq 0xEF -and $giBytes[1] -eq 0xBB -and $giBytes[2] -eq 0xBF)) '.gitignore queda sin BOM'
+    $giTxt = [System.IO.File]::ReadAllText($gi)
+    Assert ($giTxt -match 'tildes: configuracion') '.gitignore conserva el contenido del usuario (tildes intactas)'
+    Assert ($giTxt -match 'harness/skills/') '.gitignore recibe la entrada del Harness'
+    Assert (-not ($giTxt -match "`r`n")) '.gitignore sin CRLF (LF)'
+    Assert (-not $giTxt.StartsWith("`n")) '.gitignore sin linea en blanco inicial'
+    # Sin .gitignore previo: no debe empezar con linea en blanco.
+    $pgj = New-Project 'proj-gitignore-nuevo'
+    $r = Invoke-Script $Install @('-Project', $pgj, '-Skills', 'dotnet', '-Source', $Repo)
+    $giNuevo = [System.IO.File]::ReadAllText((Join-Path $pgj '.gitignore'))
+    Assert (-not $giNuevo.StartsWith("`n")) '.gitignore nuevo sin linea en blanco inicial'
+    Assert ($giNuevo.StartsWith('# Harness')) '.gitignore nuevo empieza por la cabecera'
+
     # --- Deteccion -----------------------------------------------------------
     Section 'install.ps1 -Detect'
     $p3 = New-Project 'proj3'
