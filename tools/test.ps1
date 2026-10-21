@@ -471,6 +471,37 @@ try {
     Assert ($bkAfter.Count -ge 2) 'dos respaldos de AGENTS.md conviven (sin colision de sello)'
     Assert ($r.Out -match 'Harness desinstalado') '-Uninstall no aborta aunque haya dos AGENTS.md respaldados'
 
+    # -Source: un catalogo incompleto falla CLARO y ANTES de desplegar (no a mitad)
+    Section 'install.ps1 -Source (catalogo incompleto falla temprano)'
+    $srcBad = New-Project 'catalogo-incompleto'
+    New-Item -ItemType Directory -Force -Path (Join-Path $srcBad 'skills/dotnet') | Out-Null
+    Write-NoBom (Join-Path $srcBad 'skills/dotnet/SKILL.md') "---`nname: dotnet`ndescription: `"Demo`"`n---`n`n# dotnet`n"
+    $pBad = New-Project 'proj-source-incompleto'
+    $r = Invoke-Script $Install @('-Project', $pBad, '-Skills', 'dotnet', '-Source', $srcBad)
+    Assert ($r.Exit -ne 0) '-Source con catalogo incompleto falla'
+    Assert ($r.Out -match 'no parece un catalogo Harness') '-Source avisa que no es un catalogo Harness'
+    Assert ($r.Out -match 'AGENTS.md') '-Source nombra la pieza que falta'
+    Assert (-not (Test-Path -LiteralPath (Join-Path $pBad 'harness/skills/dotnet'))) '-Source no despliega nada antes de fallar'
+    Assert (-not (Test-Path -LiteralPath (Join-Path $pBad '.harness.json'))) '-Source no deja manifiesto a medias'
+
+    # -Source: falta una plantilla concreta -> tambien falla temprano
+    $srcBad2 = New-Project 'catalogo-sin-plantilla'
+    New-Item -ItemType Directory -Force -Path (Join-Path $srcBad2 'skills/dotnet'), (Join-Path $srcBad2 'templates') | Out-Null
+    Write-NoBom (Join-Path $srcBad2 'skills/dotnet/SKILL.md') "---`nname: dotnet`ndescription: `"Demo`"`n---`n`n# dotnet`n"
+    Write-NoBom (Join-Path $srcBad2 'AGENTS.md') '# Reglas'
+    Write-NoBom (Join-Path $srcBad2 'templates/opencode.json') '{}'
+    $r = Invoke-Script $Install @('-Project', (New-Project 'proj-source-sin-tpl'), '-Skills', 'dotnet', '-Source', $srcBad2)
+    Assert ($r.Exit -ne 0) '-Source sin una plantilla obligatoria falla'
+    Assert ($r.Out -match 'opencode\.global\.json') '-Source nombra la plantilla que falta'
+
+    # -Context en Global: avisa en vez de ignorarse en silencio
+    Section 'install.ps1 -Context con -Global (avisa, no se ignora en silencio)'
+    $homeC = New-Project 'home-global-context'
+    $envC = @{ HOME = $homeC; USERPROFILE = $homeC }
+    $r = Invoke-Script $Install @('-Global', '-Skills', 'dotnet', '-Context', '-Source', $Repo) -Env $envC
+    Assert ($r.Exit -eq 0) '-Global -Context sale 0'
+    Assert ($r.Out -match 'solo aplica al scope Local') '-Global -Context avisa de que no aplica'
+
     # --- check.ps1 -----------------------------------------------------------
     Section 'check.ps1'
     $r = Invoke-Script $Check @()
@@ -527,6 +558,10 @@ try {
         Assert ((Get-RuleEffect $rules '.env.example') -eq 'allow') "$t permite .env.example"
         Assert ((Get-RuleEffect $rules '.env.sample') -eq 'allow') "$t permite .env.sample"
         Assert ((Get-RuleEffect $rules '.env.template') -eq 'allow') "$t permite .env.template"
+        # Verificado contra la especificacion de matching de openCode V2: el punto es LITERAL,
+        # asi que '*.env.*' exige la secuencia '.env.' y NO casa '.env_demo' (guion bajo, no punto).
+        Assert ((Get-RuleEffect $rules '.env_demo') -eq 'allow') "$t permite .env_demo (documentado como plantilla; el punto es literal)"
+        Assert ((Get-RuleEffect $rules '.env.production') -eq 'deny') "$t deniega .env.production (secretos reales)"
         Assert ((Get-ShellEffect $rules 'git status --short') -eq 'allow') "$t permite git status (solo lectura)"
         Assert ((Get-ShellEffect $rules 'git log --oneline') -eq 'allow') "$t permite git log (solo lectura)"
         Assert ((Get-ShellEffect $rules 'git commit -m x') -eq 'deny') "$t deniega git commit"

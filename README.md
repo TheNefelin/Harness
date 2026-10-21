@@ -24,6 +24,9 @@ Harness/
 ├─ skills/                # 17 skills     ├─ lo que se instala (global o por proyecto)
 ├─ templates/
 │  ├─ opencode.json       # config del proyecto (instructions + skills + permisos)
+│  ├─ opencode.global.json    # config global (~/.config/opencode)
+│  ├─ opencode.skills-only.json # config sin reglas (skills en el otro scope)
+│  ├─ session.md          # plantilla del checkpoint de sesión
 │  ├─ README.md           # ┐
 │  ├─ DEVELOPMENT.md      # ├─ plantillas de memoria (contexto)
 │  └─ SKILL.md            # ┘

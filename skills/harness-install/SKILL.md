@@ -38,7 +38,7 @@ Repositorio: `https://github.com/TheNefelin/Harness.git`
 | `-Update` | Refresca lo declarado en `.harness.json` (su scope), agrega lo que falte y **poda** lo que ya no se declare |
 | `-Uninstall` | Desinstala el Harness del scope **por pertenencia**: retira skills con marcador `.harness-source`, reglas (`rules:true`/hash == catálogo) y el `instructions` que el Harness **añadió**; lo gestionado **se mueve a `.harness-backup`** y lo **ajeno se conserva** (skills sin marcador, archivos propios, config/plugins de `~/.config/opencode`). Los directorios solo se borran si quedan vacíos. Admite `-WhatIf` |
 | `-WhatIf` | Previsualiza qué haría (instalar/refrescar/respaldar/omitir/podar) sin modificar nada |
-| `-Source <ruta\|url>` | Origen del catálogo: clon local o URL git (se clona a temp). Actualiza sin abrir el repo Harness |
+| `-Source <ruta\|url>` | Origen del catálogo: clon local o URL git (se clona a temp). Actualiza sin abrir el repo Harness. Valida que sea un catálogo completo (`skills/`, `AGENTS.md`, `templates/opencode*.json`) **antes** de desplegar |
 | `-Force` | Reemplaza skills/reglas ajenas (con respaldo) en vez de omitirlas |
 | `-Context` | Local: copia además las plantillas de memoria (`README.md`, `DEVELOPMENT.md`, `SKILL.md`) y el checkpoint `.harness/session.md` si no existen. Si un `.md` existe **vacío** (0 bytes), se **siembra** la plantilla; con contenido, se respeta. La plantilla de `DEVELOPMENT.md` abre con el **Mapa del proyecto** (índice puntero) |
 | `-SkillsOnly` | Instala las skills y **omite las reglas** (`AGENTS.md`) en ese scope: úsalo si las reglas ya viven en el otro scope (p. ej. global), para no cargar dos copias idénticas |

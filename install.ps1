@@ -162,7 +162,16 @@ if ($Source) {
         if (-not $resolved) { throw "La ruta de -Source no existe: $Source" }
         $SourceRoot = $resolved.Path
     }
-    if (-not (Test-Path -LiteralPath (Join-Path $SourceRoot 'skills'))) { throw "-Source no parece un catalogo Harness (falta skills/): $SourceRoot" }
+    # Un catalogo Harness siempre trae skills/, AGENTS.md y templates/. Validarlos aqui
+    # (antes de desplegar nada) evita abortar a mitad y dejar el scope sin manifiesto.
+    $missing = @()
+    foreach ($piece in @('skills', 'AGENTS.md', 'templates')) {
+        if (-not (Test-Path -LiteralPath (Join-Path $SourceRoot $piece))) { $missing += $piece }
+    }
+    if ($missing.Count -gt 0) { throw "-Source no parece un catalogo Harness (falta: $($missing -join ', ')): $SourceRoot" }
+    foreach ($tpl in @('opencode.json', 'opencode.global.json', 'opencode.skills-only.json')) {
+        if (-not (Test-Path -LiteralPath (Join-Path $SourceRoot (Join-Path 'templates' $tpl)))) { throw "-Source no parece un catalogo Harness (falta templates/$tpl): $SourceRoot" }
+    }
 }
 
 $CatalogDir = Join-Path $SourceRoot 'skills'
@@ -1126,6 +1135,9 @@ else {
 }
 
 # Memoria opcional
+if ($Context -and $Scope -ne 'Local') {
+    Write-Host 'AVISO  -Context solo aplica al scope Local (con -Project); en Global no hay memoria que sembrar.' -ForegroundColor Yellow
+}
 if ($Context -and $Scope -eq 'Local') {
     foreach ($file in @('README.md', 'DEVELOPMENT.md', 'SKILL.md')) {
         $target = Join-Path $Project $file
