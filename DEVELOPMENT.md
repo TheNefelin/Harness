@@ -13,7 +13,7 @@
 |---|---|---|
 | Reglas duras (idioma, permisos, Git, `.env`) | `AGENTS.md` | Siempre activo; al operar en cualquier repo |
 | Catálogo de skills | `skills/<nombre>/SKILL.md` (+ `references/`) | Al tocar una skill o su tecnología |
-| Instalación / desinstalación | `install.ps1` (cabecera `.PARAMETER`) y `README.md` | Al cambiar scopes, manifiesto, `-Detect`/`-Doctor`/`-Uninstall` |
+| Instalación / desinstalación | `install.ps1` (cabecera `.PARAMETER`) y `README.md` | Al cambiar targets, manifiesto, `-Detect`/`-Doctor`/`-Uninstall` |
 | Plantillas de contexto | `templates/` | Al sembrar/actualizar `README.md`/`DEVELOPMENT.md`/`SKILL.md` de un proyecto |
 | Verificación | `tools/check.ps1` (estructura/solapamiento/frescura/encoding) y `tools/test.ps1` (integración) | Antes de cerrar cualquier cambio |
 | Memoria y contexto | Este archivo (`DEVELOPMENT.md`) + `AGENTS.md` §4 | Antes de trabajar en cualquier área |
@@ -21,9 +21,9 @@
 
 ## Arquitectura
 
-Catálogo de **reglas** (`AGENTS.md`), **skills** (`skills/<nombre>/SKILL.md` + `references/`) y **plantillas de contexto** (`templates/`) para openCode, más el **instalador** (`install.ps1`) y las **herramientas de verificación** (`tools/check.ps1`, `tools/test.ps1`).
+Catálogo de **reglas** (`AGENTS.md`), **skills** (`skills/<nombre>/SKILL.md` + `references/`) y **plantillas de contexto** (`templates/`) agnóstico a cliente, con **targets** (`targets/targets.ps1`) para openCode, Codex, Cursor y Cline, más el **instalador** (`install.ps1`) y las **herramientas de verificación** (`tools/check.ps1`, `tools/test.ps1`).
 
-- **Instalación** (`install.ps1`): copia gestionada de skills/reglas a **global** (`~/.config/opencode/`) o **local** (`<proyecto>/harness/`), con manifiesto `.harness.json` y marcador `.harness-source` por skill; poda y respalda en `.harness-backup`. Idempotente (`-Update`) y sin guardar rutas absolutas.
+- **Instalación** (`install.ps1`): copia gestionada de skills/reglas a un **proyecto** (`<proyecto>/harness/`), con manifiesto `.harness.json`, **targets** y marcador `.harness-source` por skill; poda y respalda en `.harness-backup`. Los clientes se configuran vía **punteros** o fusión (`opencode.json`). Idempotente (`-Update`) y sin guardar rutas absolutas. **Sin scope global**.
 - **Skills**: se cargan **bajo demanda** (la `description` siempre; el cuerpo al activarse). El detalle vive en `references/*.md` (**progressive disclosure**), citado desde el `SKILL.md`.
 - **Verificación**: `tools/check.ps1` valida estructura, referencias alcanzables, solapamiento (Jaccard), evals, frescura y encoding; `tools/test.ps1` son pruebas de integración. El CI (`.github/workflows/check.yml`) corre ambos en `windows-latest` + `ubuntu-latest`.
 

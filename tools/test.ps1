@@ -588,58 +588,90 @@ try {
     Assert ($r.Exit -eq 0) '-Uninstall sin instalacion sale 0 (aviso)'
     Assert ($r.Out -match 'nada que desinstalar') '-Uninstall sin manifiesto avisa'
 
-    # -Uninstall GLOBAL: no borra la config ajena del usuario en ~/.config/opencode
-    Section 'install.ps1 -Uninstall -Global (config ajena intacta)'
-    $homeG = New-Project 'home-global'
-    $cfgG = Join-Path $homeG '.config/opencode'
-    New-Item -ItemType Directory -Force -Path $cfgG | Out-Null
-    # Contenido ajeno que NUNCA debe borrarse
-    Write-NoBom (Join-Path $cfgG 'opencode.json') "{`n  `"model`": `"config-propia`"`n}`n"
-    New-Item -ItemType Directory -Force -Path (Join-Path $cfgG 'plugin') | Out-Null
-    Write-NoBom (Join-Path $cfgG 'plugin/mi-plugin.js') '// plugin ajeno'
-    Write-NoBom (Join-Path $cfgG 'otro-agente.md') 'otro agente'
-    $envG = @{ HOME = $homeG; USERPROFILE = $homeG }
-    $r = Invoke-Script $Install @('-Global', '-Skills', 'dotnet', '-Source', $Repo) -Env $envG
-    Assert ($r.Exit -eq 0) 'instalacion global sale 0'
-    Assert (Test-Path -LiteralPath (Join-Path $cfgG 'skills/dotnet')) 'global: instala la skill gestionada'
-    Assert (Test-Path -LiteralPath (Join-Path $cfgG '.harness.json')) 'global: escribe .harness.json'
-    # Un respaldo ajeno y uno propio
-    New-Item -ItemType Directory -Force -Path (Join-Path $cfgG '.harness-backup') | Out-Null
-    Write-NoBom (Join-Path $cfgG '.harness-backup/algo-20200101') 'respaldo'
-    $r = Invoke-Script $Install @('-Global', '-Uninstall', '-Source', $Repo) -Env $envG
-    Assert ($r.Exit -eq 0) '-Uninstall -Global sale 0'
-    Assert (Test-Path -LiteralPath (Join-Path $cfgG 'opencode.json')) 'global: CONSERVA opencode.json ajeno'
-    Assert ((Get-Content -LiteralPath (Join-Path $cfgG 'opencode.json') -Raw) -match 'config-propia') 'global: opencode.json ajena sin cambios'
-    Assert (Test-Path -LiteralPath (Join-Path $cfgG 'plugin/mi-plugin.js')) 'global: CONSERVA plugins ajenos'
-    Assert (Test-Path -LiteralPath (Join-Path $cfgG 'otro-agente.md')) 'global: CONSERVA otros agentes'
-    Assert (Test-Path -LiteralPath (Join-Path $cfgG '.harness-backup')) 'global: CONSERVA .harness-backup'
-    Assert (Test-Path -LiteralPath $cfgG) 'global: CONSERVA ~/.config/opencode (no lo borra)'
-    Assert (-not (Test-Path -LiteralPath (Join-Path $cfgG 'skills/dotnet'))) 'global: retira la skill gestionada'
-    Assert (-not (Test-Path -LiteralPath (Join-Path $cfgG '.harness.json'))) 'global: borra .harness.json'
+    # -Uninstall: no borra la config ajena del proyecto (opencode.json ajeno intacto)
+    Section 'install.ps1 -Uninstall (config ajena intacta)'
+    $pUn = New-Project 'proj-uninstall-ajena'
+    Write-NoBom (Join-Path $pUn 'opencode.json') "{`n  `"model`": `"config-propia`"`n}`n"
+    New-Item -ItemType Directory -Force -Path (Join-Path $pUn 'harness/otro') | Out-Null
+    $r = Invoke-Script $Install @('-Project', $pUn, '-Skills', 'dotnet', '-Source', $Repo)
+    Assert ($r.Exit -eq 0) 'instalacion sobre config ajena sale 0'
+    Assert (Test-Path -LiteralPath (Join-Path $pUn 'harness/skills/dotnet')) 'instala la skill gestionada'
+    Assert (Test-Path -LiteralPath (Join-Path $pUn '.harness.json')) 'escribe .harness.json'
+    $r = Invoke-Script $Install @('-Project', $pUn, '-Uninstall', '-Source', $Repo)
+    Assert ($r.Exit -eq 0) '-Uninstall sale 0'
+    Assert (Test-Path -LiteralPath (Join-Path $pUn 'opencode.json')) '-Uninstall CONSERVA opencode.json ajeno'
+    Assert ((Get-Content -LiteralPath (Join-Path $pUn 'opencode.json') -Raw) -match 'config-propia') '-Uninstall no altera el contenido ajeno'
+    Assert (-not (Test-Path -LiteralPath (Join-Path $pUn 'harness/skills/dotnet'))) '-Uninstall retira la skill gestionada'
+    Assert (-not (Test-Path -LiteralPath (Join-Path $pUn '.harness.json'))) '-Uninstall borra .harness.json'
 
-    # -Uninstall con AGENTS.md ajeno preexistente + -Force: el ajeno acaba en RESPALDO (recuperable),
-    # nunca se pierde (el manifiesto queda rules:true, pero el contenido ajeno esta en .harness-backup).
-    Section 'install.ps1 -Global -Force con AGENTS.md ajeno (va a respaldo, no se pierde)'
-    $homeF = New-Project 'home-global-force'
-    $cfgF = Join-Path $homeF '.config/opencode'
-    New-Item -ItemType Directory -Force -Path $cfgF | Out-Null
-    Write-NoBom (Join-Path $cfgF 'AGENTS.md') "# Reglas propias del usuario`ncontenido unico del usuario`n"
-    $envF = @{ HOME = $homeF; USERPROFILE = $homeF }
-    $r = Invoke-Script $Install @('-Global', '-Skills', 'dotnet', '-Force', '-Source', $Repo) -Env $envF
-    Assert ($r.Exit -eq 0) 'global -Force sobre AGENTS.md ajeno sale 0'
-    # El AGENTS.md ajeno quedo respaldado al reemplazar (no se perdio)
-    $bkAgents = @(Get-ChildItem -LiteralPath (Join-Path $cfgF '.harness-backup') -Force -File -Filter 'AGENTS.md-*' -ErrorAction SilentlyContinue)
+    # -Force con AGENTS.md ajeno: el ajeno acaba en RESPALDO (recuperable), nunca se pierde.
+    Section 'install.ps1 -Force con AGENTS.md ajeno (va a respaldo, no se pierde)'
+    $pF = New-Project 'proj-force-agents'
+    New-Item -ItemType Directory -Force -Path (Join-Path $pF 'harness') | Out-Null
+    Write-NoBom (Join-Path $pF 'harness/AGENTS.md') "# Reglas propias del usuario`ncontenido unico del usuario`n"
+    $r = Invoke-Script $Install @('-Project', $pF, '-Skills', 'dotnet', '-Force', '-Source', $Repo)
+    Assert ($r.Exit -eq 0) '-Force sobre AGENTS.md ajeno sale 0'
+    $bkAgents = @(Get-ChildItem -LiteralPath (Join-Path $pF 'harness/.harness-backup') -Force -File -Filter 'AGENTS.md-*' -ErrorAction SilentlyContinue)
     Assert ($bkAgents.Count -ge 1) '-Force respalda el AGENTS.md ajeno antes de reemplazarlo'
     $bkContent = ($bkAgents | Select-Object -First 1 | ForEach-Object { Get-Content -LiteralPath $_.FullName -Raw })
     Assert ($bkContent -match 'contenido unico del usuario') 'el respaldo conserva el contenido ajeno integro'
-    $r = Invoke-Script $Install @('-Global', '-Uninstall', '-Source', $Repo) -Env $envF
-    Assert ($r.Exit -eq 0) '-Uninstall tras -Force (global) sale 0'
-    Assert (Test-Path -LiteralPath (Join-Path $cfgF '.harness-backup')) '-Uninstall CONSERVA el respaldo del AGENTS.md ajeno'
-    $bkAfter = @(Get-ChildItem -LiteralPath (Join-Path $cfgF '.harness-backup') -Force -File -Filter 'AGENTS.md-*' -ErrorAction SilentlyContinue)
+    $r = Invoke-Script $Install @('-Project', $pF, '-Uninstall', '-Source', $Repo)
+    Assert ($r.Exit -eq 0) '-Uninstall tras -Force sale 0'
+    Assert (Test-Path -LiteralPath (Join-Path $pF 'harness/.harness-backup')) '-Uninstall CONSERVA el respaldo del AGENTS.md ajeno'
+    $bkAfter = @(Get-ChildItem -LiteralPath (Join-Path $pF 'harness/.harness-backup') -Force -File -Filter 'AGENTS.md-*' -ErrorAction SilentlyContinue)
     Assert (@($bkAfter | Where-Object { (Get-Content -LiteralPath $_.FullName -Raw) -match 'contenido unico del usuario' }).Count -ge 1) 'el AGENTS.md ajeno sigue recuperable tras desinstalar'
     # Dos respaldos del MISMO nombre en el mismo segundo no deben colisionar ni abortar
     Assert ($bkAfter.Count -ge 2) 'dos respaldos de AGENTS.md conviven (sin colision de sello)'
     Assert ($r.Out -match 'Harness desinstalado') '-Uninstall no aborta aunque haya dos AGENTS.md respaldados'
+
+    # --- Targets: punteros para otros clientes -------------------------------
+    Section 'install.ps1 -Target (punteros para codex, cursor y cline)'
+    $pt = New-Project 'proj-targets'
+    $r = Invoke-Script $Install @('-Project', $pt, '-Skills', 'dotnet', '-Target', 'codex,cursor,cline', '-Source', $Repo)
+    Assert ($r.Exit -eq 0) '-Target codex,cursor,cline sale 0'
+    Assert (Test-Path -LiteralPath (Join-Path $pt 'AGENTS.md')) 'codex: crea AGENTS.md en la raiz'
+    Assert (Test-Path -LiteralPath (Join-Path $pt '.cursor/rules/harness.mdc')) 'cursor: crea la regla .mdc'
+    Assert (Test-Path -LiteralPath (Join-Path $pt '.clinerules/harness.md')) 'cline: crea la regla'
+    Assert (-not (Test-Path -LiteralPath (Join-Path $pt 'opencode.json'))) 'targets de puntero: no crea opencode.json'
+    Assert (Test-Path -LiteralPath (Join-Path $pt 'harness/AGENTS.md')) 'targets de puntero: instalan la fuente harness/AGENTS.md'
+    $mt = Get-Content -LiteralPath (Join-Path $pt '.harness.json') -Raw | ConvertFrom-Json
+    Assert ((@($mt.targets) -join ',') -eq 'codex,cursor,cline') 'manifest declara los targets instalados'
+    $mdc = Get-Content -LiteralPath (Join-Path $pt '.cursor/rules/harness.mdc') -Raw
+    Assert ($mdc -match 'alwaysApply: true') 'cursor: la regla se aplica siempre'
+    Assert ($mdc -match 'harness/AGENTS\.md') 'cursor: el puntero remite a la fuente unica'
+    $r = Invoke-Script $Install @('-Project', $pt, '-Doctor', '-Source', $Repo)
+    Assert ($r.Exit -eq 0) '-Doctor de los targets sale 0'
+    Assert ($r.Out -match 'codex: puntero al dia') '-Doctor valida el puntero de codex'
+    # -Update sin -Target recuerda los targets del manifiesto
+    $r = Invoke-Script $Install @('-Project', $pt, '-Update', '-Source', $Repo)
+    Assert ($r.Exit -eq 0) '-Update sin -Target sale 0'
+    Assert ($r.Out -match '\.cursor/rules/harness\.mdc') '-Update refresca los punteros declarados'
+    # Un puntero ajeno no se pisa sin -Force
+    $pc = New-Project 'proj-codex-ajeno'
+    Write-NoBom (Join-Path $pc 'AGENTS.md') "# reglas propias`n"
+    $r = Invoke-Script $Install @('-Project', $pc, '-Skills', 'dotnet', '-Target', 'codex', '-Source', $Repo)
+    Assert ($r.Exit -eq 0) 'instalar sobre AGENTS.md ajeno sale 0 (omite, no falla)'
+    Assert ((Get-Content -LiteralPath (Join-Path $pc 'AGENTS.md') -Raw) -match 'reglas propias') 'no pisa el AGENTS.md ajeno sin -Force'
+    Assert ($r.Out -match 'ya existe \(ajeno') 'avisa de que el puntero es ajeno'
+    $r = Invoke-Script $Install @('-Project', $pc, '-Skills', 'dotnet', '-Target', 'codex', '-Force', '-Source', $Repo)
+    Assert ($r.Exit -eq 0) 'instalar sobre AGENTS.md ajeno con -Force sale 0'
+    Assert (Test-Path -LiteralPath (Join-Path $pc 'harness/.harness-backup')) '-Force respalda el AGENTS.md ajeno'
+    # Validaciones de -Target
+    $r = Invoke-Script $Install @('-Project', (New-Project 'proj-target-malo'), '-Skills', 'dotnet', '-Target', 'vim', '-Source', $Repo)
+    Assert ($r.Exit -ne 0) 'un target desconocido falla'
+    Assert ($r.Out -match 'Targets desconocidos') 'el error nombra los targets validos'
+    $r = Invoke-Script $Install @('-Project', (New-Project 'proj-target-skillsonly'), '-Skills', 'dotnet', '-Target', 'cline', '-SkillsOnly', '-Source', $Repo)
+    Assert ($r.Exit -ne 0) '-SkillsOnly con un target de puntero falla'
+    Assert ($r.Out -match 'las necesitan') '-SkillsOnly explica por que no vale con punteros'
+    # -Uninstall conserva un puntero editado por el usuario
+    $pe = New-Project 'proj-pointer-editado'
+    $r = Invoke-Script $Install @('-Project', $pe, '-Skills', 'dotnet', '-Target', 'cursor', '-Source', $Repo)
+    Assert ($r.Exit -eq 0) 'instalacion con -Target cursor sale 0'
+    Write-NoBom (Join-Path $pe '.cursor/rules/harness.mdc') "# regla propia`n"
+    $r = Invoke-Script $Install @('-Project', $pe, '-Uninstall', '-Source', $Repo)
+    Assert ($r.Exit -eq 0) '-Uninstall con puntero editado sale 0'
+    Assert (Test-Path -LiteralPath (Join-Path $pe '.cursor/rules/harness.mdc')) '-Uninstall CONSERVA el puntero editado'
+    Assert ($r.Out -match 'KEEP   puntero') '-Uninstall avisa del puntero conservado'
 
     # -Source: un catalogo incompleto falla CLARO y ANTES de desplegar (no a mitad)
     Section 'install.ps1 -Source (catalogo incompleto falla temprano)'
@@ -660,17 +692,22 @@ try {
     Write-NoBom (Join-Path $srcBad2 'skills/dotnet/SKILL.md') "---`nname: dotnet`ndescription: `"Demo`"`n---`n`n# dotnet`n"
     Write-NoBom (Join-Path $srcBad2 'AGENTS.md') '# Reglas'
     Write-NoBom (Join-Path $srcBad2 'templates/opencode.json') '{}'
+    Write-NoBom (Join-Path $srcBad2 'templates/opencode.skills-only.json') '{}'
     $r = Invoke-Script $Install @('-Project', (New-Project 'proj-source-sin-tpl'), '-Skills', 'dotnet', '-Source', $srcBad2)
     Assert ($r.Exit -ne 0) '-Source sin una plantilla obligatoria falla'
-    Assert ($r.Out -match 'opencode\.global\.json') '-Source nombra la plantilla que falta'
+    Assert ($r.Out -match 'targets/codex-AGENTS\.md') '-Source nombra la plantilla que falta'
 
-    # -Context en Global: avisa en vez de ignorarse en silencio
-    Section 'install.ps1 -Context con -Global (avisa, no se ignora en silencio)'
-    $homeC = New-Project 'home-global-context'
-    $envC = @{ HOME = $homeC; USERPROFILE = $homeC }
-    $r = Invoke-Script $Install @('-Global', '-Skills', 'dotnet', '-Context', '-Source', $Repo) -Env $envC
-    Assert ($r.Exit -eq 0) '-Global -Context sale 0'
-    Assert ($r.Out -match 'solo aplica al scope Local') '-Global -Context avisa de que no aplica'
+    # Scope global eliminado: -Global y -Scope Global fallan con el motivo, sin escribir nada.
+    Section 'install.ps1 -Global (scope global eliminado)'
+    $pG = New-Project 'proj-global-rechazado'
+    $r = Invoke-Script $Install @('-Project', $pG, '-Global', '-Skills', 'dotnet', '-Source', $Repo)
+    Assert ($r.Exit -ne 0) '-Global falla'
+    Assert ($r.Out -match 'scope global ya no existe') '-Global explica que el scope global se elimino'
+    Assert (-not (Test-Path -LiteralPath (Join-Path $pG 'harness'))) '-Global no escribe nada'
+    Assert (-not (Test-Path -LiteralPath (Join-Path $pG '.harness.json'))) '-Global no deja manifiesto'
+    $r = Invoke-Script $Install @('-Project', $pG, '-Scope', 'Global', '-Skills', 'dotnet', '-Source', $Repo)
+    Assert ($r.Exit -ne 0) '-Scope Global falla'
+    Assert ($r.Out -match 'scope global ya no existe') '-Scope Global explica el motivo'
 
     # --- -Adopt: informe de solo lectura (no escribe NADA) -------------------
     Section 'install.ps1 -Adopt (informe de alineacion con plantillas; solo lectura)'
@@ -699,12 +736,6 @@ try {
     Assert ($r.Exit -eq 0) '-Adopt alineado sale 0'
     Assert ($r.Out -match 'ya siguen las plantillas') '-Adopt confirma cuando todo esta alineado'
     Assert (-not ($r.Out -match 'DIFF')) '-Adopt no reporta DIFF si todo esta alineado'
-
-    # -Adopt en Global: avisa en vez de fallar.
-    $homeA = New-Project 'home-global-adopt'
-    $r = Invoke-Script $Install @('-Global', '-Adopt', '-Source', $Repo) -Env @{ HOME = $homeA; USERPROFILE = $homeA }
-    Assert ($r.Exit -eq 0) '-Global -Adopt sale 0'
-    Assert ($r.Out -match 'solo aplica al scope Local') '-Global -Adopt avisa de que no aplica'
 
     # -Adopt con archivo grande: no cuelga; usa el diff por posicion (umbral LCS).
     $pa3 = New-Project 'proj-adopt-grande'
@@ -826,7 +857,7 @@ try {
     }
     function Get-RuleEffect { param($Rules, [string]$Resource) $eff = $null; foreach ($r in $Rules) { if ($r.action -eq 'read' -and $Resource -like $r.resource) { $eff = $r.effect } }; return $eff }
     function Get-ShellEffect { param($Rules, [string]$Resource) $worst = 'allow'; foreach ($seg in ($Resource -split '\s*(?:&&|\|\||;|\|)\s*' | Where-Object { $_ -ne '' })) { $eff = $null; foreach ($r in $Rules) { if ($r.action -eq 'shell' -and (Test-ShellMatch $seg $r.resource)) { $eff = $r.effect } }; if ($null -eq $eff) { $eff = 'ask' }; if ($eff -eq 'deny') { return 'deny' }; if ($eff -eq 'ask') { $worst = 'ask' } }; return $worst }
-    foreach ($t in @('opencode.json', 'opencode.global.json', 'opencode.skills-only.json')) {
+    foreach ($t in @('opencode.json', 'opencode.skills-only.json')) {
         $cfg = Get-Content -LiteralPath (Join-Path $Repo ('templates/' + $t)) -Raw | ConvertFrom-Json
         Assert ($cfg.PSObject.Properties.Name -contains 'permissions') "$t usa 'permissions' (V2)"
         $rules = @($cfg.permissions)
@@ -851,7 +882,7 @@ try {
         Assert ((Get-ShellEffect $rules 'git remote set-url origin mal') -eq 'deny') "$t deniega git remote set-url (mutacion)"
         Assert ((Get-ShellEffect $rules 'git remote add x y') -eq 'deny') "$t deniega git remote add (mutacion)"
         Assert ((Get-ShellEffect $rules 'tee /etc/passwd') -eq 'ask') "$t pregunta por shell arbitrario"
-        if ($t -ne 'opencode.global.json') { Assert (@($cfg.skills) -contains 'harness/skills') "${t}: skills = [harness/skills]" }
+        Assert (@($cfg.skills) -contains 'harness/skills') "${t}: skills = [harness/skills]"
     }
 
     # --- Politica de Git: allowlist (deny por defecto) -------------------------
@@ -861,7 +892,7 @@ try {
     # allowlist: 'git *' -> deny y solo la lectura queda permitida.
     Section 'templates (politica de Git: allowlist, deny por defecto)'
     $shellBlocks = @{}
-    foreach ($t in @('opencode.json', 'opencode.global.json', 'opencode.skills-only.json')) {
+    foreach ($t in @('opencode.json', 'opencode.skills-only.json')) {
         $cfg = Get-Content -LiteralPath (Join-Path $Repo ('templates/' + $t)) -Raw | ConvertFrom-Json
         $rules = @($cfg.permissions)
         $shellBlocks[$t] = (($rules | Where-Object { $_.action -eq 'shell' } | ForEach-Object { "$($_.resource)=$($_.effect)" }) -join '|')
@@ -894,8 +925,7 @@ try {
         Assert ((Get-ShellEffect $rules 'git status && git clean -fd') -eq 'deny') "$t deniega 'git status && git clean -fd'"
         Assert ((Get-ShellEffect $rules 'git log --oneline && git checkout -- .') -eq 'deny') "$t deniega un 'checkout' encadenado"
     }
-    # (e) las 3 plantillas deben llevar EXACTAMENTE la misma politica (sin divergencia)
-    Assert ($shellBlocks['opencode.json'] -eq $shellBlocks['opencode.global.json']) 'opencode.json y opencode.global.json comparten la politica de shell'
+    # (e) las 2 plantillas deben llevar EXACTAMENTE la misma politica (sin divergencia)
     Assert ($shellBlocks['opencode.json'] -eq $shellBlocks['opencode.skills-only.json']) 'opencode.json y opencode.skills-only.json comparten la politica de shell'
 }
 catch {

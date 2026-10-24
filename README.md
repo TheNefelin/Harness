@@ -1,17 +1,17 @@
 # Harness
 
-Conjunto reutilizable de **reglas**, **skills** y **plantillas de contexto** para desarrollar proyectos con [openCode](https://opencode.ai). Se instala **global** (una vez para toda la máquina) o **por proyecto**, según elijas.
+Conjunto reutilizable de **reglas**, **skills** y **plantillas de contexto** para desarrollar proyectos con agentes de código. Se instala **solo en local**, dentro de cada proyecto, y expone las mismas reglas a **openCode, Codex, Cursor o Cline**.
 
 ## Qué resuelve
 
 - El agente no improvisa: reglas claras en `AGENTS.md`.
 - Las skills se cargan **solo cuando hacen falta** → menos tokens por sesión. Dentro de una skill, el detalle vive en `references/*.md` y se lee **bajo demanda** (progressive disclosure).
 - El contexto del proyecto persiste entre sesiones (`README` / `DEVELOPMENT` / `SKILL`).
-- Tú eliges el alcance: **global** (cero drift) o **por proyecto** (solo lo necesario).
+- Una sola fuente de reglas (`harness/AGENTS.md`): cada cliente las consume desde su propio archivo, sin duplicar contenido.
 
 ## Estructura
 
-El catálogo incluye **17 skills** y **49 casos** de eval (verificado por `tools/check.ps1`, sección *Inventario*), más **468 pruebas** de integración (`tools/test.ps1`).
+El catálogo incluye **17 skills** y **49 casos** de eval (verificado por `tools/check.ps1`, sección *Inventario*), más **418 pruebas** de integración (`tools/test.ps1`).
 
 ```
 Harness/
@@ -22,12 +22,14 @@ Harness/
 ├─ LICENSE                # MIT
 ├─ VERSION                # versión del harness
 ├─ .gitattributes         # normaliza saltos de línea (LF)
-├─ AGENTS.md              # reglas        ┐
-├─ skills/                # 17 skills     ├─ lo que se instala (global o por proyecto)
+├─ AGENTS.md              # reglas (fuente única)
+├─ skills/                # 17 skills
+├─ targets/
+│  └─ targets.ps1         # registro de clientes (openCode, Codex, Cursor, Cline)
 ├─ templates/
 │  ├─ opencode.json       # config del proyecto (instructions + skills + permisos)
-│  ├─ opencode.global.json    # config global (~/.config/opencode)
-│  ├─ opencode.skills-only.json # config sin reglas (skills en el otro scope)
+│  ├─ opencode.skills-only.json # config sin reglas
+│  ├─ targets/            # punteros: codex-AGENTS.md, cursor-harness.mdc, cline-harness.md
 │  ├─ session.md          # plantilla del checkpoint de sesión
 │  ├─ README.md           # ┐
 │  ├─ DEVELOPMENT.md      # ├─ plantillas de memoria (contexto)
@@ -44,59 +46,61 @@ Harness/
 
 ## Requisitos
 
-- [openCode](https://opencode.ai) **V2** (o superior). El Harness usa la sintaxis V2 (`permissions`/`shell`/`skills`); **openCode V1 rechaza** ese bloque (aborta con `ConfigInvalidError`), así que la app no cargaría la configuración ni las protecciones (bloquear `.env`, pedir permiso al editar y al ejecutar shell). V1 no es compatible.
+- **Un cliente** de la lista: [openCode](https://opencode.ai) V2 (o superior), Codex, Cursor o Cline. El Harness no instala el cliente.
+- Si el target es **openCode V2**, la configuración usa su sintaxis (`permissions`/`shell`/`skills`); **V1 rechaza** ese bloque (aborta con `ConfigInvalidError`), así que la app no cargaría la configuración ni las protecciones (bloquear `.env`, pedir permiso al editar y al ejecutar shell). V1 no es compatible.
 - **PowerShell**: Windows PowerShell 5.1 (viene con Windows) o **PowerShell 7+ (`pwsh`)**, que corre también en Linux/macOS.
 - Los scripts (`install.ps1`, `tools/check.ps1`, `tools/test.ps1`) son **multiplataforma**: corren en Windows (PowerShell 5.1/7) y en Linux/macOS con **PowerShell 7+ (`pwsh`)**. El CI los ejecuta en `windows-latest` y `ubuntu-latest`.
 
 ## Instalación por un agente
 
-Si le pides a un agente de openCode "instala este harness" y le das la URL del repositorio, el agente debe:
+Si le pides a un agente de código "instala este harness" y le das la URL del repositorio, el agente debe:
 
 1. **Clonar** el repo en un directorio **temporal** (fuera del proyecto): `git clone <url> <temp>`.
 2. **Preguntar** al usuario, en una sola tanda:
-   - **Scope**: ¿**Local** (solo este proyecto) o **Global** (toda la máquina)?
+   - **Proyecto**: ruta raíz donde instalarlo (si se omite, el directorio actual).
+   - **Clientes** (`-Target`): openCode (por defecto), Codex, Cursor, Cline, o todos.
    - **Skills**: mostrar el catálogo (`install.ps1 -List`) y pedir cuáles quiere.
-3. **Ejecutar** el instalador con ese scope y `-Skills`:
+3. **Ejecutar** el instalador:
 
    ```powershell
-   & "<temp>\install.ps1" -Project "<ruta>" -Skills <a,b,c>   # Local
-   & "<temp>\install.ps1" -Global -Skills <a,b>               # Global
+   & "<temp>\install.ps1" -Project "<ruta>" -Skills <a,b,c> [-Target <clientes>]
    ```
-4. **Verificar** con `install.ps1 -Doctor` y **reportar** (skills instaladas, `.harness.json`, avisos).
-5. Decir al usuario que **recargue openCode** con `/reload` (no cierra la TUI; si no toma los cambios, reiniciar) y **eliminar** el clon temporal. Sin commit/push.
+4. **Verificar** con `install.ps1 -Doctor` y **reportar** (skills instaladas, `.harness.json`, targets, avisos).
+5. Decir al usuario que **recargue su cliente** (openCode: `/reload`) y **eliminar** el clon temporal. Sin commit/push.
 
-El set de skills es **obligatorio** (no hay default): **nunca** instales sin confirmar el scope y las skills con el usuario. El procedimiento completo está en la skill [`harness-install`](skills/harness-install/SKILL.md).
+El set de skills es **obligatorio** (no hay default): **nunca** instales sin confirmar el proyecto, los clientes y las skills con el usuario. El procedimiento completo está en la skill [`harness-install`](skills/harness-install/SKILL.md).
 
 ## Instalación
 
 Es **agnóstico**: no hay set por defecto. Siempre indicas **qué** skills y **dónde**.
 
 ```powershell
-# Catálogo disponible (nombre + descripción)
+# Catálogo disponible (nombre + descripción) y targets soportados
 .\install.ps1 -List
 
 # Detectar tecnologías del proyecto y skills faltantes (solo lectura)
 .\install.ps1 -Project "D:\ruta\al\proyecto" -Detect
 
-# Diagnosticar la instalación del scope (manifiesto, rutas, reglas, config) sin tocar nada
+# Diagnosticar la instalación (manifiesto, rutas, reglas y cada target) sin tocar nada
 .\install.ps1 -Project "D:\ruta\al\proyecto" -Doctor
-.\install.ps1 -Global -Doctor
 
-# Por proyecto (local): vive en <proyecto>\harness\
+# Por proyecto, con openCode (target por defecto): vive en <proyecto>\harness\
 .\install.ps1 -Project "D:\ruta\al\proyecto" -Skills dotnet,sql
 
-# Global (toda la máquina): ~/.config/opencode\
-.\install.ps1 -Global -Skills docker,ui-ux-mockup
+# Varios clientes a la vez
+.\install.ps1 -Project "D:\ruta\al\proyecto" -Skills dotnet,sql -Target codex,cursor
 
-# Skills por proyecto sin duplicar las reglas (si ya las instalaste en global)
+# Todos los clientes
+.\install.ps1 -Project "D:\ruta\al\proyecto" -Skills dotnet,sql -Target all
+
+# Skills sin reglas (solo tiene sentido con openCode)
 .\install.ps1 -Project "D:\ruta\al\proyecto" -Skills angular,sql -SkillsOnly
 
 # Volver a instalar las reglas que un -SkillsOnly había desactivado
 .\install.ps1 -Project "D:\ruta\al\proyecto" -Update -IncludeRules
 
-# Actualizar lo ya declarado, en su scope (no necesitas recordar cuál)
+# Actualizar lo ya declarado (skills y targets)
 .\install.ps1 -Update -Project "D:\ruta\al\proyecto"
-.\install.ps1 -Update -Global
 
 # Previsualizar sin modificar nada (instalar/refrescar/respaldar/omitir/podar)
 .\install.ps1 -Project "D:\ruta\al\proyecto" -Skills dotnet,sql -WhatIf
@@ -105,29 +109,31 @@ Es **agnóstico**: no hay set por defecto. Siempre indicas **qué** skills y **d
 .\install.ps1 -Update -Project "D:\ruta\al\proyecto" -Source "https://github.com/TheNefelin/Harness"
 ```
 
+El **scope global ya no existe**: `-Global` y `-Scope Global` fallan con un mensaje explícito. Todo el estado vive en el proyecto, así que no hay reglas duplicadas entre proyectos ni escrituras en `~/.config` o en el perfil del usuario.
+
 Qué hace:
 
-1. Copia las **skills elegidas** y las **reglas** (`AGENTS.md`) al destino del scope.
-2. Escribe `.harness.json` (`{schemaVersion, scope, rules, skills, harnessVersion, created}`): la **declaración** que usan `-Update`, `-Doctor` y `-Uninstall`.
-3. Local: crea `opencode.json` si falta y agrega `harness/skills/` a `.gitignore`.
-4. **Nunca pisa** skills/reglas ajenas: las **respalda** en `.harness-backup\` y las omite (o las reemplaza con `-Force`).
-5. `-Update` alinea el set: agrega las que falten y **poda** las que ya no declaraste.
+1. Copia las **skills elegidas** y la **fuente de reglas** (`harness/AGENTS.md`).
+2. Escribe `.harness.json` (`{schemaVersion, scope, rules, skills, targets, harnessVersion, created}`): la **declaración** que usan `-Update`, `-Doctor` y `-Uninstall`.
+3. Configura **cada target**: openCode (`opencode.json` fusionado) o un puntero corto para Codex/Cursor/Cline; crea `.gitignore`.
+4. **Nunca pisa** skills, reglas ni punteros ajenos: los **respalda** en `.harness-backup\` y los omite (o los reemplaza con `-Force`).
+5. `-Update` alinea el set: agrega lo que falte y **poda** lo que ya no declaraste.
 
-`-Detect` no instala: escanea el proyecto (marcadores de archivos y dependencias) y compara con el catálogo, listando las tecnologías **sin skill** (candidatas a crear). En una instalación Local, ese reporte se muestra además de forma informativa. Reconoce, entre otras, **Arduino/PlatformIO** (`.ino`, `platformio.ini`, `arduino.json`, `sketch.yaml`).
+`-Detect` no instala: escanea el proyecto (marcadores de archivos y dependencias) y compara con el catálogo, listando las tecnologías **sin skill** (candidatas a crear). El reporte se muestra además de forma informativa en la instalación. Reconoce, entre otras, **Arduino/PlatformIO** (`.ino`, `platformio.ini`, `arduino.json`, `sketch.yaml`).
 
 `-WhatIf` previsualiza la operación completa (instalar, refrescar, respaldar, omitir, podar) **sin escribir nada**: úsalo para ver qué pasaría antes de aplicar.
 
-`-Doctor` audita la instalación del scope (manifiesto `.harness.json`, marcadores y hashes de cada skill, reglas, `opencode.json` y la **versión del cliente openCode: V1 vs V2**) y sale con código **0** (ok, con avisos) o **1** (fallo): útil para saber si algo quedó a medias o para CI. Verifica V2 porque **openCode V1 rechaza** el bloque V2 de `opencode.json` (`ConfigInvalidError`); si detecta V1, marca **fallo**. En scope Local, además, **audita la memoria del proyecto**: avisa si faltan o están **vacíos** `README.md`/`DEVELOPMENT.md`/`SKILL.md` (con la sugerencia de `-Context`) e informa del checkpoint `.harness/session.md`. También comprueba que la **política de Git** del `opencode.json` sea la lista blanca vigente: si vienes de una versión anterior, te dice cómo refrescarla.
+`-Doctor` audita la instalación del proyecto: manifiesto `.harness.json`, marcadores y hashes de cada skill, reglas y **cada target declarado** (config de openCode o puntero de Codex/Cursor/Cline). Si el target es openCode, comprueba también la **versión del cliente: V1 vs V2**, y sale con código **0** (ok, con avisos) o **1** (fallo): útil para saber si algo quedó a medias o para CI. Verifica V2 porque **openCode V1 rechaza** el bloque V2 de `opencode.json` (`ConfigInvalidError`); si detecta V1, marca **fallo**. Además **audita la memoria del proyecto**: avisa si faltan o están **vacíos** `README.md`/`DEVELOPMENT.md`/`SKILL.md` (con la sugerencia de `-Context`) e informa del checkpoint `.harness/session.md`. También comprueba que la **política de Git** del `opencode.json` sea la lista blanca vigente: si vienes de una versión anterior, te dice cómo refrescarla.
 
 > **Dónde está tu openCode.** La búsqueda del cliente es *wide* a propósito: mira el comando `opencode` **y** `opencode-cli` en el PATH, y además las rutas habituales de la **app de escritorio** (`%LOCALAPPDATA%\Programs\@opencodedesktop\resources\`, `%APPDATA%\ai.opencode.desktop\cli\<versión>\`, `~/.opencode/bin/`, `~/.bun/bin/`, `~/.local/bin/`, `/usr/local/bin/`, `/usr/bin/`). La app de escritorio instala la CLI como `opencode-cli`, **fuera del PATH**: buscar solo `opencode` daba un falso negativo ("cliente no encontrado") en quien ya lo tiene, y empujaba a **instalar un segundo cliente** para silenciar el aviso — con el riesgo de traer V1 y romper la config V2. Si tu cliente está en un sitio que el Harness no conoce, apunta a él con la variable de entorno **`HARNESS_OPENCODE_BIN`** (ruta al ejecutable): manda sobre toda la búsqueda.
 
 > **Política de Git: lista blanca.** El `opencode.json` que instala el Harness deja Git **denegado por defecto** (`git *` → `deny`) y solo permite la **lectura**: `status`, `log`, `diff`, `show`, `ls-files`, `ls-tree`, `rev-parse`, `blame`, `grep`, `check-ignore`, `remote -v` y los listados de ramas/tags/stashes/worktrees/reflog. Todo lo demás queda **bloqueado**, no "preguntado": `commit`, `push`, `pull`, `merge`, `rebase`, `reset`, `restore`, `stash`, `clean`, `checkout`, `switch`, `rm`, `mv`, `add`, `gc`, `prune`, `worktree`, `branch -D`, `tag -d`… Antes era una lista de prohibiciones, que por construcción **se quedaba corta**: `git clean -fd` y `git checkout -- .` destruyen el trabajo **no rastreado** y pasaban sin bloqueo. Denegar por defecto no se queda corto nunca: un comando Git que no esté en la lista blanca queda bloqueado.
 
-`-Uninstall` **desinstala** el Harness del scope **por pertenencia, sin destruir nada**: retira solo lo gestionado —las **skills** con marcador `.harness-source`, las **reglas** (`AGENTS.md`) si constan como del Harness (manifiesto `rules:true` o hash idéntico al catálogo), el `instructions` que el Harness **añadió**, `.harness/session.md`, el `.harness.json` y el bloque del `.gitignore`—. **Nada se borra**: lo gestionado se **mueve a `.harness-backup/`** (nunca se pierde) y todo lo **ajeno se conserva** (tus skills sin marcador, tus archivos dentro de `harness/`, tus respaldos, tus `opencode.json`/plugins/config en `~/.config/opencode`, tu código y tu documentación, incluidos los `.md` sembrados). Los **directorios solo se eliminan si quedan vacíos**. Mientras queden respaldos, el `.gitignore` **conserva la línea `harness/.harness-backup/`** (para que no aparezcan como no rastreados) y el cierre **avisa** de cómo retirarla cuando los borres. Así, el proyecto queda **sin Harness, pero con tu avance**. Admite `-WhatIf`.
+`-Uninstall` **desinstala** el Harness del proyecto **por pertenencia, sin destruir nada**: retira solo lo gestionado —las **skills** con marcador `.harness-source`, la **fuente de reglas** (`harness/AGENTS.md`) si constan como del Harness (manifiesto `rules:true` o hash idéntico al catálogo), el `instructions` que el Harness **añadió**, los **punteros** de Codex/Cursor/Cline que sigan siendo la plantilla, `.harness/session.md`, el `.harness.json` y el bloque del `.gitignore`—. **Nada se borra**: lo gestionado se **mueve a `.harness-backup/`** (nunca se pierde) y todo lo **ajeno se conserva** (tus skills sin marcador, tus archivos dentro de `harness/`, un puntero que editaste, tus respaldos, tu `opencode.json`/plugins/config, tu código y tu documentación, incluidos los `.md` sembrados). Los **directorios solo se eliminan si quedan vacíos**. Mientras queden respaldos, el `.gitignore` **conserva la línea `harness/.harness-backup/`** (para que no aparezcan como no rastreados) y el cierre **avisa** de cómo retirarla cuando los borres. Así, el proyecto queda **sin Harness, pero con tu avance**. Admite `-WhatIf`.
 
 ### Alinear la memoria con el estándar (`-Adopt`)
 
-`-Context` resuelve el caso "el `.md` no existe o está vacío". Cuando el `.md` **ya tiene contenido propio** pero **no sigue el estándar**, entra `-Adopt`: un **informe de solo lectura** (scope Local) que compara tus `README.md`/`DEVELOPMENT.md`/`SKILL.md` con las plantillas del catálogo e **imprime el diff** (`-` es tu línea, `+` es la de la plantilla), con un resumen por archivo (`OK` idéntico, `DIFF` se aparta, `VACIO`, `FALTA`). **Nunca escribe nada** —ni con `-Force`—: es una **propuesta** para que decidas qué adoptar a mano. Reescribir tu documentación sin que lo pidas sería destructivo, así que el Harness solo **muestra**. Sale siempre con código **0**.
+`-Context` resuelve el caso "el `.md` no existe o está vacío". Cuando el `.md` **ya tiene contenido propio** pero **no sigue el estándar**, entra `-Adopt`: un **informe de solo lectura** que compara tus `README.md`/`DEVELOPMENT.md`/`SKILL.md` con las plantillas del catálogo e **imprime el diff** (`-` es tu línea, `+` es la de la plantilla), con un resumen por archivo (`OK` idéntico, `DIFF` se aparta, `VACIO`, `FALTA`). **Nunca escribe nada** —ni con `-Force`—: es una **propuesta** para que decidas qué adoptar a mano. Reescribir tu documentación sin que lo pidas sería destructivo, así que el Harness solo **muestra**. Sale siempre con código **0**.
 
 ```powershell
 .\install.ps1 -Project "D:\ruta\al\proyecto" -Adopt
@@ -150,32 +156,34 @@ Es **heurística** (marcadores de archivos y dependencias, no análisis de códi
 | `aws` / `azure` / `oci` | `*.tf` con `provider "aws"` / `"azurerm"` / `"oci"` |
 | `react` / `vue` / `svelte` / `django` / `flask` / `terraform` | reconocidos pero **sin skill** en el catálogo → aparecen como **candidatas a crear** |
 
-## Qué queda en cada scope
-
-**Local** (en el proyecto):
+## Qué queda en el proyecto
 
 ```
 proyecto/
-├─ opencode.json          # apunta a harness/ y define permisos       (commit)
-├─ .harness.json          # declaración: scope + skills              (commit)
-├─ .gitignore             # ignora harness/skills/ y .harness/       (commit)
-├─ README.md              # memoria: descripción, uso, comandos      (commit)
-├─ DEVELOPMENT.md         # memoria: arquitectura, decisiones        (commit)
+├─ opencode.json              # openCode: apunta a harness/ y define permisos  (commit)
+├─ AGENTS.md                  # Codex: puntero a harness/AGENTS.md             (commit)
+├─ .cursor/rules/harness.mdc  # Cursor: puntero (alwaysApply)                  (commit)
+├─ .clinerules/harness.md     # Cline: puntero                                 (commit)
+├─ .harness.json              # declaración: skills + targets                  (commit)
+├─ .gitignore                 # ignora harness/skills/ y .harness/             (commit)
+├─ README.md                  # memoria: descripción, uso, comandos            (commit)
+├─ DEVELOPMENT.md             # memoria: arquitectura, decisiones              (commit)
 ├─ .harness/
-│  └─ session.md          # checkpoint de sesión                     (ignorado)
+│  └─ session.md              # checkpoint de sesión                           (ignorado)
 └─ harness/
-   ├─ AGENTS.md           # reglas del harness                       (commit)
-   └─ skills/             # skills instaladas                        (ignorado)
+   ├─ AGENTS.md               # reglas del harness (fuente única)              (commit)
+   └─ skills/                 # skills instaladas                              (ignorado)
 ```
 
-**Global** (fuera del proyecto): `~/.config/opencode/` → `AGENTS.md`, `skills/`, `.harness.json`. No toca el proyecto.
+Los archivos del cliente se crean **solo para los targets que pidas**: con `-Target opencode` no aparecen los punteros, y con `-Target codex,cursor` no se crea `opencode.json`.
 
-- **Commit**: reglas, declaración y memoria. **Ignorado**: las skills (copias gestionadas; se refrescan con `-Update`) y el checkpoint `.harness/` (estado local de sesión).
-- openCode combina **global + proyecto**: puedes mezclar **skills** de ambos scopes, pero las **reglas** (`AGENTS.md`) deben vivir en **un solo** scope. Si ya las tienes en global, instala las skills del proyecto con `-SkillsOnly` (no vuelve a copiar las reglas); para revertirlo, `-Update -IncludeRules` (en Local asegura también `instructions` en `opencode.json`).
+- **Commit**: reglas, punteros/config de cliente, declaración y memoria. **Ignorado**: las skills (copias gestionadas; se refrescan con `-Update`) y el checkpoint `.harness/` (estado local de sesión).
+- **Una sola fuente de reglas**: `harness/AGENTS.md`. openCode la referencia desde `instructions`; Codex, Cursor y Cline reciben un puntero corto. Duplicar el contenido por cliente crearía cuatro verdades que se contradicen.
+- `-SkillsOnly` omite `harness/AGENTS.md`; por eso solo vale con `opencode` (los punteros quedarían rotos). Para revertirlo: `-Update -IncludeRules`.
 
 ## Uso
 
-- Abre openCode **dentro del proyecto** y, tras instalar, **recárgalo con `/reload`** (no cierra la TUI; si no toma los cambios, reinícialo).
+- Abre tu cliente **dentro del proyecto** y, tras instalar, **recárgalo** (openCode: `/reload`; si no toma los cambios, reinícialo).
 - Las **reglas** se cargan automáticamente.
 - Las **skills** se activan solas según su `description` (no hay que invocarlas).
 - Mantén `DEVELOPMENT.md` al día: es la memoria que evita reexplicar todo.
@@ -194,7 +202,7 @@ proyecto/
 
 1. Instala con tus skills y `-Context`: las plantillas se crean si **no** existen y se siembran si existen **vacías** (0 bytes); si tienen contenido, se respetan y nunca se pisan.
 2. Conserva tu `README.md`; crea o actualiza `DEVELOPMENT.md`. Empieza por su **Mapa del proyecto** (tabla "área → dónde mirar → cuándo"): es el puntero que hace que el agente sepa **qué leer sin re-escanear el código**; después añade arquitectura, comandos de build/test, decisiones y pendientes.
-3. Revisa que `opencode.json` apunte a `harness/` y ajusta permisos si hace falta.
+3. Revisa que el archivo de tu cliente apunte a `harness/` (openCode: `opencode.json`; Codex/Cursor/Cline: su puntero) y ajusta permisos si hace falta.
 
 En ambos casos el agente lee primero `AGENTS.md` y el **Mapa del proyecto** de `DEVELOPMENT.md`, y abre solo el destino que corresponde al área: cuanto mejor sea ese mapa, menos tokens gastas releyendo y menos alucina. El **checkpoint** de la tarea en curso vive en `.harness/session.md` (local, fuera de Git).
 
@@ -206,13 +214,13 @@ En ambos casos el agente lee primero `AGENTS.md` y el **Mapa del proyecto** de `
 
 ## Actualizar
 
-`.\install.ps1 -Update` (con `-Project` o `-Global`) refresca las skills y reglas declaradas, en su scope, sin que tengas que recordar cuál. Alinea el set (agrega y poda) y respalda lo que reemplace.
+`.\install.ps1 -Update` (con `-Project`; si se omite, el directorio actual) refresca las skills y los targets declarados, sin que tengas que recordar cuáles. Alinea el set (agrega y poda) y respalda lo que reemplace.
 
 Por defecto usa el catálogo **junto al script**. Para actualizar **desde otra ubicación** (un clon propio o el repo remoto) sin abrir el Harness, indica el origen con `-Source` (ruta local o URL git):
 
 ```powershell
 .\install.ps1 -Update -Project "D:\ruta\al\proyecto" -Source "D:\ruta\al\Harness"
-.\install.ps1 -Update -Global -Source "https://github.com/TheNefelin/Harness"
+.\install.ps1 -Update -Project "D:\ruta\al\proyecto" -Source "https://github.com/TheNefelin/Harness"
 ```
 
 La instalación **no guarda la ruta del repo**: el marcador de cada skill solo tiene `version` y `hash`, y ni `.harness.json` ni `opencode.json` contienen rutas absolutas. Por eso **mover o clonar el repo no rompe nada**: la instalación sigue válida y `-Update` corre desde la **nueva** ubicación del script (o con `-Source "<ruta nueva>"`). **No hay que reinstalar.**

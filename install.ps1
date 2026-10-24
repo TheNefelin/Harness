@@ -1,27 +1,36 @@
 <#
 .SYNOPSIS
-    Instala o actualiza el Harness (reglas + skills) en openCode: global o por proyecto.
+    Instala o actualiza el Harness (reglas + skills) en un proyecto, para uno o varios clientes.
 
 .DESCRIPTION
     No hay set por defecto de skills: siempre indicas -Skills (o -Update para refrescar
-    lo ya declarado). El destino se decide por -Scope, o se deduce:
-      - Con -Project  -> scope Local  (vive en <Proyecto>\harness\)
-      - Sin -Project  -> scope Global (~/.config/opencode\)
-      - -Update       -> lee .harness.json y respeta el scope ya declarado
+    lo ya declarado). Todo se instala en local, dentro del proyecto:
 
-    Escribe una declaracion .harness.json ({schemaVersion, scope, rules, skills, harnessVersion,
-    created}) para que -Update sepa siempre donde actualizar. Nunca pisa skills ni reglas ajenas:
-    las respalda en .harness-backup\.
+      - -Project <ruta>  -> ese proyecto
+      - sin -Project     -> el directorio actual
+      - -Update          -> lee .harness.json y respeta las skills y los targets ya declarados
 
-    -Doctor busca el cliente openCode en el PATH (opencode u opencode-cli) y en las rutas
-    habituales de la app de escritorio y otros habitos; la variable de entorno
-    HARNESS_OPENCODE_BIN fuerza una ruta concreta y manda sobre toda la busqueda.
+    El scope global no existe: si se pide con -Global o -Scope Global, el instalador falla
+    con un mensaje explicito (el Harness no escribe en ~/.config ni en el perfil del usuario).
 
-.PARAMETER Scope
-    Auto (deduce segun -Project / .harness.json), Global o Local.
+    Escribe una declaracion .harness.json ({schemaVersion, scope, rules, skills, targets,
+    harnessVersion, created}) para que -Update sepa siempre donde actualizar. Nunca pisa
+    skills ni reglas ajenas: las respalda en .harness-backup\.
+
+    -Target decide como se exponen las reglas a cada cliente. La fuente es unica
+    (harness/AGENTS.md): openCode la referencia desde opencode.json y Codex, Cursor y Cline
+    reciben un puntero corto en su archivo propio. No se duplica el contenido.
+
+    -Doctor verifica la instalacion de los targets declarados. Para openCode busca el cliente
+    en el PATH (opencode u opencode-cli) y en las rutas habituales de la app de escritorio;
+    la variable de entorno HARNESS_OPENCODE_BIN fuerza una ruta concreta y manda sobre la busqueda.
+
+.PARAMETER Target
+    Cliente(s) a configurar: opencode (por defecto), codex, cursor, cline, o all.
+    Separados por coma. Con -Update y sin -Target se refrescan los del manifiesto.
 
 .PARAMETER Project
-    Ruta raiz del proyecto. Implica scope Local.
+    Ruta raiz del proyecto. Si se omite, se usa el directorio actual.
 
 .PARAMETER Skills
     Skills a instalar, separadas por coma (ej. dotnet,postgres). Obligatorio salvo con
@@ -56,19 +65,18 @@
     actualizar un proyecto sin tener el repositorio Harness abierto a mano.
 
 .PARAMETER Global
-    Atajo de -Scope Global: instala en ~/.config/opencode\ en vez de en un proyecto.
+    Obsoleto. El scope global se elimino: si se pasa, el instalador falla y lo explica.
 
 .PARAMETER Force
     Reemplaza skills/reglas ajenas (haciendo respaldo) en vez de omitirlas.
 
 .PARAMETER SkillsOnly
-    Instala las skills y omite las reglas (AGENTS.md) en este scope. Util cuando las reglas
-    ya viven en el otro scope (p. ej. global), para no cargar dos copias identicas.
+    Instala las skills y omite las reglas (AGENTS.md). Solo vale con -Target opencode: los
+    targets de tipo puntero necesitan las reglas, asi que se rechazan en combinacion.
 
 .PARAMETER IncludeRules
-    Fuerza las reglas (AGENTS.md) en este scope, revirtiendo un rules:false previo (de un
-    -SkillsOnly anterior). En Local asegura ademas instructions en opencode.json.
-    Incompatible con -SkillsOnly.
+    Fuerza las reglas (AGENTS.md) cuando un manifiesto previo tenia rules:false. En local
+    asegura ademas instructions en opencode.json. Incompatible con -SkillsOnly.
 
 .PARAMETER Context
     Copia ademas las plantillas de memoria (README.md, DEVELOPMENT.md, SKILL.md) y el
@@ -77,16 +85,17 @@
     contenido, porque no lo habia).
 
 .PARAMETER Adopt
-    Informe de SOLO LECTURA (scope Local): compara tus .md de memoria (README.md,
-    DEVELOPMENT.md, SKILL.md) con las plantillas del catalogo e IMPRIME el diff
-    (- proyecto, + plantilla). Nunca escribe nada: es una propuesta para que decidas.
-    Cubre el caso "el .md existe pero no sigue el estandar".
+    Informe de SOLO LECTURA: compara tus .md de memoria (README.md, DEVELOPMENT.md,
+    SKILL.md) con las plantillas del catalogo e IMPRIME el diff (- proyecto, + plantilla).
+    Nunca escribe nada: es una propuesta para que decidas. Cubre el caso "el .md existe
+    pero no sigue el estandar".
 
 .EXAMPLE
     .\install.ps1 -List
     .\install.ps1 -Project "D:\ruta\al\proyecto" -Detect
     .\install.ps1 -Project "D:\ruta\al\proyecto" -Skills dotnet,postgres
-    .\install.ps1 -Global -Skills docker,kubernetes
+    .\install.ps1 -Project "D:\ruta\al\proyecto" -Skills dotnet,postgres -Target codex,cursor
+    .\install.ps1 -Project "D:\ruta\al\proyecto" -Skills dotnet,postgres -Target all
     .\install.ps1 -Project "D:\ruta\al\proyecto" -Skills dotnet,postgres -SkillsOnly
     .\install.ps1 -Project "D:\ruta\al\proyecto" -Update -IncludeRules
     .\install.ps1 -Project "D:\ruta\al\proyecto" -Skills dotnet,postgres -WhatIf
@@ -94,7 +103,6 @@
     .\install.ps1 -Project "D:\ruta\al\proyecto" -Update -Source "https://github.com/TheNefelin/Harness.git"
     .\install.ps1 -Project "D:\ruta\al\proyecto" -Update
     .\install.ps1 -Project "D:\ruta\al\proyecto" -Doctor
-    .\install.ps1 -Global -Doctor
     .\install.ps1 -Project "D:\ruta\al\proyecto" -Adopt
     .\install.ps1 -Project "D:\ruta\al\proyecto" -Uninstall
 
@@ -104,10 +112,14 @@
 #>
 [CmdletBinding()]
 param(
+    # Obsoleto: se acepta para dar un error explicativo. El scope es siempre local.
     [ValidateSet('Auto', 'Global', 'Local')]
     [string]$Scope = 'Auto',
 
     [string]$Project,
+
+    # Cliente(s): opencode (por defecto), codex, cursor, cline, o all.
+    [string[]]$Target = @('opencode'),
 
     [string[]]$Skills,
 
@@ -151,6 +163,21 @@ if ($SkillsOnly -and $IncludeRules) {
     exit 1
 }
 
+# Scope global eliminado: fallar antes de tocar nada, con el motivo.
+if ($Global -or $Scope -eq 'Global') {
+    Write-Host 'ERROR  El scope global ya no existe: el Harness solo instala en un proyecto.' -ForegroundColor Red
+    Write-Host '       Usa -Project <ruta> (o ejecuta el instalador desde la raiz del proyecto).' -ForegroundColor Red
+    Write-Host '       Motivo: escribir en ~/.config o en el perfil del usuario no es portable y' -ForegroundColor DarkGray
+    Write-Host '       duplica reglas entre proyectos. Todo el estado vive en el proyecto.' -ForegroundColor DarkGray
+    exit 1
+}
+$Scope = 'Local'
+
+# Registro de clientes: unico lugar del codigo con nombres de cliente.
+$TargetsFile = Join-Path (Join-Path $ScriptDir 'targets') 'targets.ps1'
+if (-not (Test-Path -LiteralPath $TargetsFile)) { throw "Falta el registro de targets: $TargetsFile" }
+. $TargetsFile
+
 # Capa 1 (catalogo): clon local o URL git, para actualizar sin abrir el repo
 $SourceRoot = $ScriptDir
 if ($Source) {
@@ -182,7 +209,13 @@ if ($Source) {
         if (-not (Test-Path -LiteralPath (Join-Path $SourceRoot $piece))) { $missing += $piece }
     }
     if ($missing.Count -gt 0) { throw "-Source no parece un catalogo Harness (falta: $($missing -join ', ')): $SourceRoot" }
-    foreach ($tpl in @('opencode.json', 'opencode.global.json', 'opencode.skills-only.json')) {
+    # Las plantillas que exige el registro de targets deben existir en el catalogo.
+    $templates = @('opencode.json', 'opencode.skills-only.json')
+    foreach ($t in @(Get-HarnessTargets)) {
+        $templates += $t.Template
+        if ($t.PSObject.Properties.Name -contains 'TemplateSkillsOnly') { $templates += $t.TemplateSkillsOnly }
+    }
+    foreach ($tpl in ($templates | Select-Object -Unique)) {
         if (-not (Test-Path -LiteralPath (Join-Path $SourceRoot (Join-Path 'templates' $tpl)))) { throw "-Source no parece un catalogo Harness (falta templates/$tpl): $SourceRoot" }
     }
 }
@@ -552,20 +585,20 @@ if ($List) {
         Write-Host ('  {0,-16} {1}' -f $s.Name, $s.Description)
     }
     Write-Host ''
-    Write-Host 'Local :  .\install.ps1 -Project <ruta> -Skills <a,b,c>'
-    Write-Host 'Global:  .\install.ps1 -Global -Skills <a,b>'
-    Write-Host 'Update:  .\install.ps1 [-Project <ruta>|-Global] -Update'
-    Write-Host 'Doctor:  .\install.ps1 [-Project <ruta>|-Global] -Doctor'
-    Write-Host 'Adopt:   .\install.ps1 -Project <ruta> -Adopt   (informe; no escribe)'
-    Write-Host 'Quitar:  .\install.ps1 [-Project <ruta>|-Global] -Uninstall'
+    Write-Host 'Targets: opencode (defecto), codex, cursor, cline, all'
+    Write-Host 'Instalar: .\install.ps1 -Skills <a,b,c> [-Project <ruta>] [-Target codex,cursor]'
+    Write-Host 'Update:   .\install.ps1 -Update [-Project <ruta>] [-Target <lista>]'
+    Write-Host 'Doctor:   .\install.ps1 -Doctor [-Project <ruta>] [-Target <lista>]'
+    Write-Host 'Adopt:    .\install.ps1 -Adopt [-Project <ruta>]   (informe; no escribe)'
+    Write-Host 'Quitar:   .\install.ps1 -Uninstall [-Project <ruta>]'
     Write-Host ''
-    Write-Host 'Nota: en Local, agrega -Context para sembrar la memoria del proyecto' -ForegroundColor DarkGray
+    Write-Host 'Nota: agrega -Context para sembrar la memoria del proyecto' -ForegroundColor DarkGray
     Write-Host '      (README/DEVELOPMENT/SKILL + checkpoint); -Doctor te dice si falta.' -ForegroundColor DarkGray
     exit 0
 }
 
 if ($Detect) {
-    if (-not $Project) { throw 'La deteccion requiere -Project <ruta>.' }
+    if (-not $Project) { $Project = (Get-Location).Path }
     if (-not (Test-Path -LiteralPath $Project)) { throw "La ruta no existe: $Project" }
     $catalog = @(Get-Catalog | ForEach-Object { $_.Name })
     Write-Host 'Skills disponibles en el catalogo:' -ForegroundColor Cyan
@@ -576,50 +609,21 @@ if ($Detect) {
     exit 0
 }
 
-# Atajo -Global (= -Scope Global)
-if ($Global) { $Scope = 'Global' }
+# Proyecto destino: -Project o el directorio actual. Siempre local.
+if (-not $Project) { $Project = (Get-Location).Path }
+$resolved = Resolve-Path -LiteralPath $Project -ErrorAction SilentlyContinue
+if (-not $resolved) { throw "La ruta del proyecto no existe: $Project" }
+$Project = $resolved.Path
 
-# Resolver scope
-if ($Project) {
-    $resolved = Resolve-Path -LiteralPath $Project -ErrorAction SilentlyContinue
-    if (-not $resolved) { throw "La ruta del proyecto no existe: $Project" }
-    $Project = $resolved.Path
-}
+$projectDecl = Join-Path $Project '.harness.json'
 
-$projectDecl = if ($Project) { Join-Path $Project '.harness.json' } else { $null }
-
-if ($Scope -eq 'Auto') {
-    if ($Project -and (Test-Path -LiteralPath $projectDecl)) {
-        try { $d = Get-Content -LiteralPath $projectDecl -Raw -Encoding UTF8 | ConvertFrom-Json }
-        catch { throw "El manifiesto $projectDecl no es JSON valido: $($_.Exception.Message)" }
-        $Scope = [string]$d.scope
-    }
-    elseif ($Project) { $Scope = 'Local' }
-    else { $Scope = 'Global' }
-}
-
-# Rutas destino segun scope
-if ($Scope -eq 'Global') {
-    if ($Project) { Write-Host 'AVISO  -Project se ignora con scope Global.' -ForegroundColor Yellow }
-    $ConfigDir = Join-Path $HOME '.config/opencode'
-    $ScopeRoot = $ConfigDir
-    $SkillsDir = Join-Path $ConfigDir 'skills'
-    $RulesFile = Join-Path $ConfigDir 'AGENTS.md'
-    $DeclFile = Join-Path $ConfigDir '.harness.json'
-    $ConfigFile = Join-Path $ConfigDir 'opencode.json'
-    $RulesOurs = $false
-    $Project = $null
-}
-else {
-    if (-not $Project) { throw 'El scope Local requiere -Project.' }
-    $HarnessDir = Join-Path $Project 'harness'
-    $ScopeRoot = $HarnessDir
-    $SkillsDir = Join-Path $HarnessDir 'skills'
-    $RulesFile = Join-Path $HarnessDir 'AGENTS.md'
-    $DeclFile = Join-Path $Project '.harness.json'
-    $ConfigFile = Join-Path $Project 'opencode.json'
-    $RulesOurs = $true
-}
+$HarnessDir = Join-Path $Project 'harness'
+$ScopeRoot = $HarnessDir
+$SkillsDir = Join-Path $HarnessDir 'skills'
+$RulesFile = Join-Path $HarnessDir 'AGENTS.md'
+$DeclFile = $projectDecl
+$ConfigFile = Join-Path $Project 'opencode.json'
+$RulesOurs = $true
 
 # Resolver skills deseadas
 $declared = @()
@@ -637,6 +641,24 @@ if ($existingDeclObj -and -not $Doctor) {
     }
 }
 
+# Resolver targets: -Target explicito; si no, los del manifiesto; si no, opencode.
+$allTargets = @(Get-HarnessTargets)
+$allTargetNames = @($allTargets | ForEach-Object { $_.Name })
+$declaredTargets = @()
+if ($existingDeclObj -and ($existingDeclObj.PSObject.Properties.Name -contains 'targets')) { $declaredTargets = @($existingDeclObj.targets) }
+
+$explicitTarget = $PSBoundParameters.ContainsKey('Target')
+$requestedTargets = @($Target | ForEach-Object { "$_".Split(',') } | ForEach-Object { $_.Trim().ToLower() } | Where-Object { $_ } | Select-Object -Unique)
+if (-not $explicitTarget -and $declaredTargets.Count -gt 0) { $requestedTargets = @($declaredTargets) }
+if ($requestedTargets.Count -eq 0 -or $requestedTargets -contains 'all') { $requestedTargets = $allTargetNames }
+$unknownTargets = @($requestedTargets | Where-Object { $_ -notin $allTargetNames })
+if ($unknownTargets.Count -gt 0) { throw "Targets desconocidos: $($unknownTargets -join ', '). Validos: $($allTargetNames -join ', '), all." }
+$selectedTargets = @($allTargets | Where-Object { $_.Name -in $requestedTargets })
+
+if ($SkillsOnly -and @($selectedTargets | Where-Object { $_.Kind -eq 'pointer' }).Count -gt 0) {
+    throw '-SkillsOnly omite las reglas, pero codex/cursor/cline las necesitan (su archivo es un puntero a harness/AGENTS.md). Usa -Target opencode o quita -SkillsOnly.'
+}
+
 if ($Doctor) {
     $errCount = 0
     $warnCount = 0
@@ -647,26 +669,29 @@ if ($Doctor) {
         else { Write-Host ('  [ OK ]  ' + $Message) -ForegroundColor Green }
     }
 
-    Write-Host ("Doctor - scope {0} - raiz: {1}" -f $Scope, $ScopeRoot) -ForegroundColor Cyan
+    Write-Host ("Doctor - raiz: {0}" -f $ScopeRoot) -ForegroundColor Cyan
     Write-Host ("  catalogo: {0} (Harness {1})" -f $CatalogDir, $Version) -ForegroundColor DarkGray
+    Write-Host ("  targets: {0}" -f (($selectedTargets | ForEach-Object { $_.Name }) -join ', ')) -ForegroundColor DarkGray
 
     $catalogNames = @(Get-Catalog | ForEach-Object { $_.Name })
     if ((Test-Path -LiteralPath $CatalogDir) -and $catalogNames.Count -gt 0) { Write-Check OK 'catalogo accesible' }
     else { Write-Check ERR "catalogo no accesible: $CatalogDir" }
 
     # Cliente openCode: V1 rechaza el bloque V2 (ConfigInvalidError); V2 lo exige.
-    $oc = Get-OpenCodeClient
-    if (-not $oc.Found) {
-        Write-Check WARN 'cliente openCode no encontrado (ni en PATH ni en las rutas habituales): no se pudo verificar V1/V2'
-    }
-    elseif ($oc.Major -ge 2) {
-        Write-Check OK ("cliente openCode V2 ({0})" -f $oc.Version)
-    }
-    elseif ($oc.Major -eq 1) {
-        Write-Check ERR ("cliente openCode V1 ({0}): rechaza el bloque V2 (ConfigInvalidError) -- actualiza a V2" -f $oc.Version)
-    }
-    else {
-        Write-Check WARN ("cliente openCode de version ilegible ({0}): se requiere V2" -f $oc.Version)
+    if ($selectedTargets.Name -contains 'opencode') {
+        $oc = Get-OpenCodeClient
+        if (-not $oc.Found) {
+            Write-Check WARN 'cliente openCode no encontrado (ni en PATH ni en las rutas habituales): no se pudo verificar V1/V2'
+        }
+        elseif ($oc.Major -ge 2) {
+            Write-Check OK ("cliente openCode V2 ({0})" -f $oc.Version)
+        }
+        elseif ($oc.Major -eq 1) {
+            Write-Check ERR ("cliente openCode V1 ({0}): rechaza el bloque V2 (ConfigInvalidError) -- actualiza a V2" -f $oc.Version)
+        }
+        else {
+            Write-Check WARN ("cliente openCode de version ilegible ({0}): se requiere V2" -f $oc.Version)
+        }
     }
 
     if (-not (Test-Path -LiteralPath $DeclFile)) {
@@ -709,28 +734,41 @@ if ($Doctor) {
                 if ($extra.Count -gt 0) { Write-Check WARN "instaladas pero no declaradas (se podaran con -Update): $((@($extra | ForEach-Object { $_.Name })) -join ', ')" }
             }
             else { Write-Check WARN "manifiesto sin 'skills'" }
+
+            if ($decl.PSObject.Properties.Name -contains 'targets') {
+                $dt = @($decl.targets)
+                $unkT = @($dt | Where-Object { $_ -notin $allTargetNames })
+                if ($unkT.Count -gt 0) { Write-Check WARN "targets desconocidos en el manifiesto: $($unkT -join ', ')" }
+                else { Write-Check OK "targets declarados: $($dt -join ', ')" }
+            }
+            else { Write-Check WARN "manifiesto sin 'targets' (formato anterior a la instalacion multi-cliente)" }
         }
         catch { Write-Check ERR ".harness.json ilegible: $($_.Exception.Message)" }
     }
 
     $declRules = $true
     if ($existingDeclObj -and ($existingDeclObj.PSObject.Properties.Name -contains 'rules')) { $declRules = [bool]$existingDeclObj.rules }
+    $hasPointerTarget = @($selectedTargets | Where-Object { $_.Kind -eq 'pointer' }).Count -gt 0
     if ($declRules) {
         if (Test-Path -LiteralPath $RulesFile) { Write-Check OK "reglas presentes: $RulesFile" }
         else { Write-Check WARN "reglas ausentes: $RulesFile" }
     }
+    elseif ($hasPointerTarget) {
+        Write-Check ERR 'manifiesto rules:false pero hay targets de tipo puntero: sus archivos apuntarian a un AGENTS.md inexistente'
+    }
     elseif (Test-Path -LiteralPath $RulesFile) { Write-Check WARN "manifiesto rules:false pero existe $RulesFile (reglas no gestionadas)" }
-    else { Write-Check OK 'reglas no gestionadas en este scope (rules:false)' }
+    else { Write-Check OK 'reglas no gestionadas (rules:false)' }
 
-    if (Test-Path -LiteralPath $ConfigFile) {
-        try {
-            $cfg = Get-Content -LiteralPath $ConfigFile -Raw -Encoding UTF8 | ConvertFrom-Json
-            $v1 = @()
-            if ($cfg.PSObject.Properties.Name -contains 'permission') { $v1 += 'permission' }
-            if ($cfg.PSObject.Properties.Name -contains 'bash') { $v1 += 'bash' }
-            if ($cfg.PSObject.Properties.Name -contains 'skills' -and $cfg.skills -is [System.Management.Automation.PSCustomObject] -and ($cfg.skills.PSObject.Properties.Name -contains 'paths')) { $v1 += 'skills.paths' }
-            if ($v1.Count -gt 0) { Write-Check WARN ("opencode.json: sintaxis V1 ({0}); openCode V1 rechaza el bloque V2 (ConfigInvalidError) -- migra a permissions/shell/skills (array)" -f ($v1 -join ', ')) }
-            if ($Scope -eq 'Local') {
+    foreach ($t in $selectedTargets) {
+        if ($t.Kind -eq 'json-config') {
+            if (-not (Test-Path -LiteralPath $ConfigFile)) { Write-Check ERR "opencode.json ausente: $ConfigFile"; continue }
+            try {
+                $cfg = Get-Content -LiteralPath $ConfigFile -Raw -Encoding UTF8 | ConvertFrom-Json
+                $v1 = @()
+                if ($cfg.PSObject.Properties.Name -contains 'permission') { $v1 += 'permission' }
+                if ($cfg.PSObject.Properties.Name -contains 'bash') { $v1 += 'bash' }
+                if ($cfg.PSObject.Properties.Name -contains 'skills' -and $cfg.skills -is [System.Management.Automation.PSCustomObject] -and ($cfg.skills.PSObject.Properties.Name -contains 'paths')) { $v1 += 'skills.paths' }
+                if ($v1.Count -gt 0) { Write-Check WARN ("opencode.json: sintaxis V1 ({0}); openCode V1 rechaza el bloque V2 (ConfigInvalidError) -- migra a permissions/shell/skills (array)" -f ($v1 -join ', ')) }
                 $paths = @()
                 if ($cfg.PSObject.Properties.Name -contains 'skills') {
                     if ($cfg.skills -is [System.Management.Automation.PSCustomObject] -and ($cfg.skills.PSObject.Properties.Name -contains 'paths')) { $paths = @($cfg.skills.paths) }
@@ -743,24 +781,26 @@ if ($Doctor) {
                     if ($instr -contains 'harness/AGENTS.md') { Write-Check OK 'opencode.json: instructions -> harness/AGENTS.md' }
                     else { Write-Check WARN 'opencode.json: falta instructions = [harness/AGENTS.md]' }
                 }
-                elseif ($instr -contains 'harness/AGENTS.md') { Write-Check WARN 'opencode.json: instructions -> harness/AGENTS.md con rules:false (duplica reglas de otro scope)' }
-                else { Write-Check OK 'opencode.json: sin instructions (reglas en otro scope)' }
+                elseif ($instr -contains 'harness/AGENTS.md') { Write-Check WARN 'opencode.json: instructions -> harness/AGENTS.md con rules:false' }
+                else { Write-Check OK 'opencode.json: sin instructions (rules:false)' }
+                # Politica de Git: debe ser la lista blanca del Harness ('git *' -> deny).
+                switch (Get-GitPolicyState -ConfigPath $ConfigFile) {
+                    'allowlist' { Write-Check OK 'opencode.json: politica de Git en lista blanca (git * -> deny)' }
+                    'stale' { Write-Check WARN "opencode.json: la politica de Git no es la lista blanca del Harness (deja pasar 'git clean'/'git checkout', que destruyen trabajo); actualiza el bloque 'permissions' con el de templates/opencode.json" }
+                }
             }
-            else {
-                $hasPerms = ($cfg.PSObject.Properties.Name -contains 'permissions') -or ($cfg.PSObject.Properties.Name -contains 'permission')
-                if ($hasPerms) { Write-Check OK 'opencode.json global: bloque de permisos presente' }
-                else { Write-Check WARN 'opencode.json global: sin bloque de permisos' }
-            }
-            # Politica de Git: debe ser la lista blanca del Harness ('git *' -> deny).
-            switch (Get-GitPolicyState -ConfigPath $ConfigFile) {
-                'allowlist' { Write-Check OK 'opencode.json: politica de Git en lista blanca (git * -> deny)' }
-                'stale' { Write-Check WARN "opencode.json: la politica de Git no es la lista blanca del Harness (deja pasar 'git clean'/'git checkout', que destruyen trabajo); actualiza el bloque 'permissions' con el de templates/opencode.json" }
-            }
+            catch { Write-Check ERR "opencode.json ilegible: $($_.Exception.Message)" }
         }
-        catch { Write-Check ERR "opencode.json ilegible: $($_.Exception.Message)" }
+        else {
+            $pp = Join-Path $Project $t.PointerFile
+            $tp = Join-Path $TemplatesDir $t.Template
+            if (-not (Test-Path -LiteralPath $pp)) { Write-Check WARN ("{0}: falta el puntero {1}" -f $t.Name, $t.PointerFile); continue }
+            if (-not (Test-Path -LiteralPath $tp)) { Write-Check ERR ("{0}: falta la plantilla {1}" -f $t.Name, $t.Template); continue }
+            $same = (Get-FileHash -LiteralPath $pp).Hash -eq (Get-FileHash -LiteralPath $tp).Hash
+            if ($same) { Write-Check OK ("{0}: puntero al dia ({1} -> harness/AGENTS.md)" -f $t.Name, $t.PointerFile) }
+            else { Write-Check WARN ("{0}: {1} no coincide con la plantilla (editado o puntero ajeno)" -f $t.Name, $t.PointerFile) }
+        }
     }
-    elseif ($Scope -eq 'Local') { Write-Check ERR "opencode.json ausente: $ConfigFile" }
-    else { Write-Check WARN "opencode.json ausente: $ConfigFile" }
 
     $bk = Join-Path $ScopeRoot '.harness-backup'
     if (Test-Path -LiteralPath $bk) { Write-Check OK ("respaldos: {0} en .harness-backup" -f @(Get-ChildItem -LiteralPath $bk -Force).Count) }
@@ -796,10 +836,6 @@ if ($Adopt) {
     # Modo SOLO LECTURA: compara los .md de memoria del proyecto con las plantillas del
     # catalogo e IMPRIME el diff (nada se escribe, nunca). Cubre el caso "existe pero no
     # sigue el estandar". Adoptar es una decision del usuario: aqui solo se muestra.
-    if ($Scope -ne 'Local') {
-        Write-Host 'AVISO  -Adopt solo aplica al scope Local (con -Project); en Global no hay memoria que comparar.' -ForegroundColor Yellow
-        exit 0
-    }
 
     function Get-LineArray {
         param([string]$Path)
@@ -857,10 +893,10 @@ if ($Adopt) {
     $anyDiff = $false
     $anyMissing = $false
     foreach ($file in @('README.md', 'DEVELOPMENT.md', 'SKILL.md')) {
-        $target = Join-Path $Project $file
+        $memPath = Join-Path $Project $file
         $template = Join-Path $TemplatesDir $file
         Write-Host ("== {0} ==" -f $file) -ForegroundColor White
-        if (-not (Test-Path -LiteralPath $target)) {
+        if (-not (Test-Path -LiteralPath $memPath)) {
             $anyMissing = $true
             Write-Host ("  FALTA  no existe; la plantilla tiene {0} lineas (siembrala con -Context)" -f (@(Get-LineArray $template).Count)) -ForegroundColor Yellow
             Write-Host ''
@@ -871,13 +907,13 @@ if ($Adopt) {
             Write-Host ''
             continue
         }
-        if ((Test-EmptiedFile -Path $target)) {
+        if ((Test-EmptiedFile -Path $memPath)) {
             $anyDiff = $true
             Write-Host "  VACIO  sin contenido; la plantilla tiene $(@(Get-LineArray $template).Count) lineas (siembrala con -Context)" -ForegroundColor Yellow
             Write-Host ''
             continue
         }
-        $a = Get-LineArray $target
+        $a = Get-LineArray $memPath
         $b = Get-LineArray $template
         if (($a -join "`n") -ceq ($b -join "`n")) {
             Write-Host '  OK     identico a la plantilla' -ForegroundColor Green
@@ -916,7 +952,7 @@ if ($Uninstall) {
     # - reglas (AGENTS.md) solo si el manifiesto dice rules:true o el hash coincide con el catalogo;
     # - .harness-backup y todo archivo ajeno -> se conservan;
     # - los directorios solo se eliminan si quedan VACIOS.
-    Write-Host ("Desinstalacion - scope {0} - raiz: {1}" -f $Scope, $ScopeRoot) -ForegroundColor Cyan
+    Write-Host ("Desinstalacion - raiz: {0}" -f $ScopeRoot) -ForegroundColor Cyan
 
     if (-not (Test-Path -LiteralPath $DeclFile)) {
         Write-Host 'AVISO  no hay .harness.json: nada que desinstalar en este scope.' -ForegroundColor Yellow
@@ -1018,7 +1054,37 @@ if ($Uninstall) {
         }
     }
 
-    # 4) .harness/session.md y .gitignore: solo existen en scope Local.
+    # 4) PUNTEROS de los targets de tipo puntero (codex/cursor/cline): solo si el contenido
+    #    sigue siendo la plantilla; si el usuario lo edito, se conserva.
+    foreach ($t in $allTargets) {
+        if ($t.Kind -ne 'pointer') { continue }
+        $pp = Join-Path $Project $t.PointerFile
+        if (-not (Test-Path -LiteralPath $pp)) { continue }
+        $tp = Join-Path $TemplatesDir $t.Template
+        $oursP = $false
+        if (Test-Path -LiteralPath $tp) {
+            try { $oursP = ((Get-FileHash -LiteralPath $pp).Hash -eq (Get-FileHash -LiteralPath $tp).Hash) } catch { $oursP = $false }
+        }
+        if ($oursP) {
+            Move-ToBackup -Path $pp -Name ($t.PointerFile -replace '[\\/]', '-')
+            $removed++
+            $parent = Split-Path -Parent $pp
+            while (-not $WhatIf -and $parent -and $parent.StartsWith($Project) -and $parent -ne $Project) {
+                if ((Test-Path -LiteralPath $parent) -and (@(Get-ChildItem -LiteralPath $parent -Force).Count -eq 0)) {
+                    Remove-Item -LiteralPath $parent -Force
+                    $parent = Split-Path -Parent $parent
+                }
+                else { break }
+            }
+        }
+        else {
+            $keepDir = $true
+            Write-Host ("KEEP   puntero {0} (editado; no coincide con la plantilla)" -f $t.PointerFile) -ForegroundColor Yellow
+            $kept += $t.PointerFile
+        }
+    }
+
+    # 5) .harness/session.md y .gitignore: solo existen en scope Local.
     if ($Scope -eq 'Local') {
         $sessDir = Join-Path $Project '.harness'
         $sessFile = Join-Path $sessDir 'session.md'
@@ -1077,7 +1143,7 @@ if ($Uninstall) {
         }
     } # fin scope Local
 
-    # 5) RESBALON: si algo ajeno queda en la raiz del scope, NO borrar el directorio.
+    # 6) RESBALON: si algo ajeno queda en la raiz del scope, NO borrar el directorio.
     if (Test-Path -LiteralPath $ScopeRoot) {
         $residual = @(Get-ChildItem -LiteralPath $ScopeRoot -Force | Where-Object { $_.Name -ne '.harness-backup' })
         if ($keepDir -or $residual.Count -gt 0) {
@@ -1096,7 +1162,7 @@ if ($Uninstall) {
     # Al terminar: queda la carpeta de respaldos? (para el aviso y la linea de .gitignore)
     if (-not $WhatIf) { $bkLeft = Test-Path -LiteralPath $bkDir }
 
-    # 6) .harness.json (manifiesto): al final.
+    # 7) .harness.json (manifiesto): al final.
     if ($WhatIf) { Write-Host ("WOULD  borrar {0}" -f $DeclFile) -ForegroundColor DarkCyan }
     else { Remove-Item -LiteralPath $DeclFile -Force; Write-Host ("DEL    {0}" -f $DeclFile) -ForegroundColor Green }
     $removed++
@@ -1109,7 +1175,7 @@ if ($Uninstall) {
         Write-Host ("AVISO  quedan respaldos en {0}" -f $bkDir) -ForegroundColor Yellow
         Write-Host '       revisalos; cuando los borres, puedes quitar la linea harness/.harness-backup/ del .gitignore.' -ForegroundColor Yellow
     }
-    Write-Host ("Harness desinstalado del scope {0}. Recarga openCode con /reload." -f $Scope.ToLower())
+    Write-Host ("Harness desinstalado del proyecto. Recarga el cliente (openCode: /reload).")
     exit 0
 }
 
@@ -1290,14 +1356,14 @@ function Merge-Instruction {
     return 'added'
 }
 
-# Reglas (AGENTS.md)
-$rulesManaged = $false
-if ($Scope -eq 'Local') { $rulesManaged = $true }
-elseif ($existingDeclObj -and ($existingDeclObj.PSObject.Properties.Name -contains 'rules')) { $rulesManaged = [bool]$existingDeclObj.rules }
+# Reglas (AGENTS.md): fuente unica para todos los targets.
+$rulesManaged = $true
 
 $skipRules = $SkillsOnly
 if ($IncludeRules) { $skipRules = $false }
 elseif ($existingDeclObj -and ($existingDeclObj.PSObject.Properties.Name -contains 'rules') -and -not [bool]$existingDeclObj.rules) { $skipRules = $true }
+# Un puntero sin reglas apuntaria al vacio: si hay targets de ese tipo, las reglas son obligatorias.
+if (@($selectedTargets | Where-Object { $_.Kind -eq 'pointer' }).Count -gt 0) { $skipRules = $false }
 
 $srcRules = Join-Path $SourceRoot 'AGENTS.md'
 if ($skipRules) {
@@ -1330,93 +1396,110 @@ else {
     $rulesManaged = $true
 }
 
-# opencode.json
+# Configuracion por target: JSON fusionado (json-config) o puntero corto (pointer).
 $configCreated = $false
 $instrAdded = $false
-if ($Scope -eq 'Local') {
-    if (Test-Path -LiteralPath $ConfigFile) {
-        if ($rulesManaged) {
-            if ($WhatIf) {
-                Write-Host 'WOULD  opencode.json (asegura instructions)' -ForegroundColor DarkCyan
+
+foreach ($t in $selectedTargets) {
+    if ($t.Kind -eq 'json-config') {
+        if (Test-Path -LiteralPath $ConfigFile) {
+            if ($rulesManaged) {
+                if ($WhatIf) {
+                    Write-Host 'WOULD  opencode.json (asegura instructions)' -ForegroundColor DarkCyan
+                }
+                else {
+                    $res = Merge-Instruction -ConfigPath $ConfigFile -Value $t.InstructionsValue
+                    if ($res -eq 'added') { $instrAdded = $true; Write-Host ('OK     opencode.json (instructions -> {0})' -f $t.InstructionsValue) -ForegroundColor Green }
+                    elseif ($res -eq 'present') { Write-Host 'SKIP   opencode.json (instructions ya presente)' -ForegroundColor Yellow }
+                    else { Write-Host 'SKIP   opencode.json (JSON invalido; no se toca)' -ForegroundColor Yellow }
+                }
             }
             else {
-                $res = Merge-Instruction -ConfigPath $ConfigFile -Value 'harness/AGENTS.md'
-                if ($res -eq 'added') { $instrAdded = $true; Write-Host 'OK     opencode.json (instructions -> harness/AGENTS.md)' -ForegroundColor Green }
-                elseif ($res -eq 'present') { Write-Host 'SKIP   opencode.json (instructions ya presente)' -ForegroundColor Yellow }
-                else { Write-Host 'SKIP   opencode.json (JSON invalido; no se toca)' -ForegroundColor Yellow }
+                Write-Host 'SKIP   opencode.json ya existe (verifica instructions/skills)' -ForegroundColor Yellow
+            }
+            if ((Get-GitPolicyState -ConfigPath $ConfigFile) -eq 'stale') {
+                Write-Host "NOTA   opencode.json: la politica de Git no es la lista blanca del Harness (permite 'git clean'/'git checkout', que destruyen trabajo); actualiza el bloque 'permissions' con el de templates/opencode.json" -ForegroundColor Yellow
             }
         }
+        elseif ($WhatIf) {
+            Write-Host 'WOULD  opencode.json' -ForegroundColor DarkCyan
+        }
         else {
-            Write-Host 'SKIP   opencode.json ya existe (verifica instructions/skills)' -ForegroundColor Yellow
+            $tpl = if ($SkillsOnly) { $t.TemplateSkillsOnly } else { $t.Template }
+            Copy-Item -LiteralPath (Join-Path $TemplatesDir $tpl) -Destination $ConfigFile -Force
+            $configCreated = $true
+            Write-Host 'OK     opencode.json' -ForegroundColor Green
         }
-        if ((Get-GitPolicyState -ConfigPath $ConfigFile) -eq 'stale') {
-            Write-Host "NOTA   opencode.json: la politica de Git no es la lista blanca del Harness (permite 'git clean'/'git checkout', que destruyen trabajo); actualiza el bloque 'permissions' con el de templates/opencode.json" -ForegroundColor Yellow
-        }
-    }
-    elseif ($WhatIf) {
-        Write-Host 'WOULD  opencode.json' -ForegroundColor DarkCyan
     }
     else {
-        $tpl = if ($SkillsOnly) { 'opencode.skills-only.json' } else { 'opencode.json' }
-        Copy-Item -LiteralPath (Join-Path $TemplatesDir $tpl) -Destination $ConfigFile -Force
-        $configCreated = $true
-        Write-Host 'OK     opencode.json' -ForegroundColor Green
+        $pp = Join-Path $Project $t.PointerFile
+        $tp = Join-Path $TemplatesDir $t.Template
+        if (Test-Path -LiteralPath $pp) {
+            $same = $false
+            try { $same = ((Get-FileHash -LiteralPath $pp).Hash -eq (Get-FileHash -LiteralPath $tp).Hash) } catch { $same = $false }
+            if ($same) {
+                Write-Host ('SKIP   {0} (puntero al dia)' -f $t.PointerFile) -ForegroundColor DarkGray
+            }
+            elseif ($Force) {
+                if ($WhatIf) { Write-Host ('WOULD  respaldar y reemplazar {0}' -f $t.PointerFile) -ForegroundColor DarkCyan }
+                else {
+                    Backup-Path -Path $pp -Name ($t.PointerFile -replace '[\\/]', '-') | Out-Null
+                    New-Item -ItemType Directory -Path (Split-Path -Parent $pp) -Force | Out-Null
+                    Copy-Item -LiteralPath $tp -Destination $pp -Force
+                    Write-Host ('OK     {0} -> {1}' -f $t.PointerFile, $t.InstructionsValue) -ForegroundColor Green
+                }
+            }
+            else {
+                Write-Host ('SKIP   {0} ya existe (ajeno; usa -Force para reemplazar)' -f $t.PointerFile) -ForegroundColor Yellow
+            }
+        }
+        elseif ($WhatIf) {
+            Write-Host ('WOULD  {0} (puntero -> {1})' -f $t.PointerFile, $t.InstructionsValue) -ForegroundColor DarkCyan
+        }
+        else {
+            New-Item -ItemType Directory -Path (Split-Path -Parent $pp) -Force | Out-Null
+            Copy-Item -LiteralPath $tp -Destination $pp -Force
+            Write-Host ('OK     {0} -> {1}' -f $t.PointerFile, $t.InstructionsValue) -ForegroundColor Green
+        }
     }
+}
 
-    $gi = Join-Path $Project '.gitignore'
-    $existing = ''
-    $giExists = Test-Path -LiteralPath $gi
-    if ($giExists) { $existing = Get-Content -LiteralPath $gi -Raw -Encoding UTF8 }
-    $entries = @('harness/skills/', 'harness/.harness-backup/', '.harness/')
-    $toAdd = @($entries | Where-Object { ('' + $existing) -notmatch [regex]::Escape($_) })
-    if ($toAdd.Count -gt 0) {
-        if ($WhatIf) { Write-Host "WOULD  .gitignore (ignora $($toAdd -join ', '))" -ForegroundColor DarkCyan }
-        else {
-            # UTF-8 sin BOM. Se respeta el salto de linea del archivo existente (si lo hay);
-            # si no existe, LF y sin linea en blanco inicial (regla del repo).
-            $nl = "`n"
-            if ($giExists -and $existing.Contains("`r`n")) { $nl = "`r`n" }
-            $block = "# Harness (gestionado; refrescar con install.ps1 -Update)$nl" + (($toAdd -join $nl) + $nl)
-            $newGi = if ($giExists -and $existing.Length -gt 0) {
-                if ($existing.EndsWith("`n")) { $existing + $block } else { $existing + $nl + $block }
-            }
-            else { $block }
-            [System.IO.File]::WriteAllText($gi, $newGi, (New-Object System.Text.UTF8Encoding($false)))
-            Write-Host "OK     .gitignore (ignora $($toAdd -join ', '))" -ForegroundColor Green
-        }
-    }
+# .gitignore del proyecto: una sola vez, sea cual sea el target.
+$gi = Join-Path $Project '.gitignore'
+$existing = ''
+$giExists = Test-Path -LiteralPath $gi
+if ($giExists) { $existing = Get-Content -LiteralPath $gi -Raw -Encoding UTF8 }
+$entries = @('harness/skills/', 'harness/.harness-backup/', '.harness/')
+$toAdd = @($entries | Where-Object { ('' + $existing) -notmatch [regex]::Escape($_) })
+if ($toAdd.Count -gt 0) {
+    if ($WhatIf) { Write-Host "WOULD  .gitignore (ignora $($toAdd -join ', '))" -ForegroundColor DarkCyan }
     else {
-        Write-Host 'SKIP   .gitignore ya ignora el harness' -ForegroundColor Yellow
+        # UTF-8 sin BOM. Se respeta el salto de linea del archivo existente (si lo hay);
+        # si no existe, LF y sin linea en blanco inicial (regla del repo).
+        $nl = "`n"
+        if ($giExists -and $existing.Contains("`r`n")) { $nl = "`r`n" }
+        $block = "# Harness (gestionado; refrescar con install.ps1 -Update)$nl" + (($toAdd -join $nl) + $nl)
+        $newGi = if ($giExists -and $existing.Length -gt 0) {
+            if ($existing.EndsWith("`n")) { $existing + $block } else { $existing + $nl + $block }
+        }
+        else { $block }
+        [System.IO.File]::WriteAllText($gi, $newGi, (New-Object System.Text.UTF8Encoding($false)))
+        Write-Host "OK     .gitignore (ignora $($toAdd -join ', '))" -ForegroundColor Green
     }
 }
 else {
-    if (Test-Path -LiteralPath $ConfigFile) {
-        Write-Host 'SKIP   ~/.config/opencode/opencode.json ya existe (fusiona el bloque de permisos a mano)' -ForegroundColor Yellow
-        if ((Get-GitPolicyState -ConfigPath $ConfigFile) -eq 'stale') {
-            Write-Host "NOTA   opencode.json global: la politica de Git no es la lista blanca del Harness (permite 'git clean'/'git checkout', que destruyen trabajo); actualiza el bloque 'permissions' con el de templates/opencode.global.json" -ForegroundColor Yellow
-        }
-    }
-    else {
-        if ($WhatIf) { Write-Host 'WOULD  opencode.json global (permisos)' -ForegroundColor DarkCyan }
-        else {
-            Copy-Item -LiteralPath (Join-Path $TemplatesDir 'opencode.global.json') -Destination $ConfigFile -Force
-            Write-Host 'OK     opencode.json global (permisos)' -ForegroundColor Green
-        }
-    }
+    Write-Host 'SKIP   .gitignore ya ignora el harness' -ForegroundColor Yellow
 }
 
 # Memoria opcional
-if ($Context -and $Scope -ne 'Local') {
-    Write-Host 'AVISO  -Context solo aplica al scope Local (con -Project); en Global no hay memoria que sembrar.' -ForegroundColor Yellow
-}
-if ($Context -and $Scope -eq 'Local') {
+if ($Context) {
     foreach ($file in @('README.md', 'DEVELOPMENT.md', 'SKILL.md')) {
-        $target = Join-Path $Project $file
-        if (Test-Path -LiteralPath $target) {
-            if (Test-EmptiedFile -Path $target) {
+        $memPath = Join-Path $Project $file
+        if (Test-Path -LiteralPath $memPath) {
+            if (Test-EmptiedFile -Path $memPath) {
                 if ($WhatIf) { Write-Host "WOULD  $file (sembrado: existia vacio)" -ForegroundColor DarkCyan }
                 else {
-                    Copy-Item -LiteralPath (Join-Path $TemplatesDir $file) -Destination $target -Force
+                    Copy-Item -LiteralPath (Join-Path $TemplatesDir $file) -Destination $memPath -Force
                     Write-Host "OK     $file (sembrado: existia vacio)" -ForegroundColor Green
                 }
             }
@@ -1427,7 +1510,7 @@ if ($Context -and $Scope -eq 'Local') {
         else {
             if ($WhatIf) { Write-Host "WOULD  $file" -ForegroundColor DarkCyan }
             else {
-                Copy-Item -LiteralPath (Join-Path $TemplatesDir $file) -Destination $target -Force
+                Copy-Item -LiteralPath (Join-Path $TemplatesDir $file) -Destination $memPath -Force
                 Write-Host "OK     $file" -ForegroundColor Green
             }
         }
@@ -1455,11 +1538,15 @@ $prevInstr = ($existingDeclObj -and ($existingDeclObj.PSObject.Properties.Name -
 $createdConfig = $configCreated -or [bool]$prevCfg
 $createdInstr = $instrAdded -or [bool]$prevInstr
 $skillsJson = ($desired | ForEach-Object { '    "{0}"' -f $_ }) -join ",`n"
+$targetsJson = ($selectedTargets | ForEach-Object { '    "{0}"' -f $_.Name }) -join ",`n"
 $json = @"
 {
   "schemaVersion": 1,
   "scope": "$($Scope.ToLower())",
   "rules": $($rulesManaged.ToString().ToLower()),
+  "targets": [
+$targetsJson
+  ],
   "skills": [
 $skillsJson
   ],
@@ -1483,5 +1570,6 @@ if ($WhatIf) {
     Write-Host 'WHATIF  Simulacion: no se modifico nada.' -ForegroundColor Cyan
     exit 0
 }
-Write-Host ("Harness " + $Scope.ToLower() + " listo. " + $desired.Count + " skill(s): " + ($desired -join ', '))
-Write-Host 'Recarga openCode con /reload (o reinicialo) para que cargue reglas y skills.'
+Write-Host ("Harness listo en el proyecto. " + $desired.Count + " skill(s): " + ($desired -join ', '))
+Write-Host ("Targets: " + (($selectedTargets | ForEach-Object { $_.Name }) -join ', '))
+Write-Host 'Recarga el cliente (openCode: /reload) para que cargue reglas y skills.'

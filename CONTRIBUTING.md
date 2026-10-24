@@ -136,4 +136,4 @@ Cada marcador `verificado YYYY-MM-DD` cuenta. `check.ps1` **falla** si supera `-
 
 ## Alcance
 
-El Harness es para **openCode** (ver README → Alcance). No lo acoplamos a otros agentes ni añadimos dependencias sin una razón concreta.
+El Harness es agnóstico a cliente: soporta **openCode, Codex, Cursor y Cline** desde una **fuente única** de reglas. No añadimos dependencias sin una razón concreta.

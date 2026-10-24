@@ -2,6 +2,24 @@
 
 Formato basado en [Keep a Changelog](https://keepachangelog.com/es/1.1.0/); versionado semántico.
 
+## [0.3.1] - 2026-10-23
+
+### Cambiado
+
+- **Agnóstico a cliente, solo local**: el Harness ya no es solo para openCode. Ahora soporta **openCode, Codex, Cursor y Cline** con una **fuente única** (`harness/AGENTS.md`) y punteros cortos para los tres últimos. El **scope global** se elimina: `-Global` y `-Scope Global` fallan con un mensaje explícito; todo el estado vive en el proyecto.
+- **Targets**: nuevo parámetro `-Target` (`opencode` por defecto, `codex`, `cursor`, `cline`, `all`). `-Update` sin `-Target` refresca los targets declarados en `.harness.json`. El manifiesto ahora incluye `targets`.
+- **Separación core/targets**: el registro de clientes vive en `targets/targets.ps1`; el motor no conoce nombres de cliente, solo los tipos `json-config` y `pointer`.
+- **Templates**: se añaden punteros en `templates/targets/` y se elimina `templates/opencode.global.json`. `-Source` valida los templates de todos los targets.
+- **Doctor/Uninstall**: ahora son conscientes de los targets; los punteros editados por el usuario se conservan; los punteros gestionados se eliminan o respaldan por pertenencia.
+
+### Añadido
+
+- Pruebas de `-Target` (codex/cursor/cline/all), validaciones de target desconocido y `-SkillsOnly` con puntero, y uso de targets del manifiesto en `-Update`/`-Doctor`.
+
+### Documentación
+
+- `README.md`, `skills/harness-install/SKILL.md`, `DEVELOPMENT.md` actualizados para reflejar el modelo multi-cliente y sin global.
+
 ## [0.3.0] - 2026-10-19
 
 ### Añadido
